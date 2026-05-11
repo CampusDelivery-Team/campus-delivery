@@ -1,0 +1,342 @@
+// =====================================================
+// 校园中转分发与跑腿服务管理系统关系表 DBML
+// =====================================================
+
+Table users {
+  user_id NUMBER [pk, increment, note: '用户编号']
+  username VARCHAR2(50) [not null, unique, note: '账号']
+  phone VARCHAR2(20) [not null, unique, note: '手机号']
+  password_hash VARCHAR2(128) [not null, note: '密码散列']
+  user_role VARCHAR2(20) [not null, note: 'USER/RUNNER/ADMIN等']
+  account_status VARCHAR2(20) [not null, note: 'NORMAL/DISABLED等']
+
+  Note: '保存系统用户账号、角色和账号状态'
+}
+
+Table user_addresses {
+  user_id NUMBER [not null, note: '所属用户']
+  address_no NUMBER [not null, note: '地址序号，弱实体部分键']
+  contact_name VARCHAR2(50) [not null, note: '联系人']
+  contact_phone VARCHAR2(20) [not null, note: '联系电话']
+  campus VARCHAR2(50) [not null, note: '校区']
+  building_room VARCHAR2(120) [not null, note: '楼栋房间']
+  is_default CHAR(1) [not null, note: 'Y/N']
+
+  indexes {
+    (user_id, address_no) [pk]
+  }
+
+  Note: '保存用户地址弱实体，由用户编号和地址序号共同标识'
+}
+
+Table runners {
+  runner_id NUMBER [pk, increment, note: '跑腿员编号']
+  user_id NUMBER [not null, unique, note: '关联用户']
+  real_name VARCHAR2(50) [not null, note: '真实姓名']
+  identity_info VARCHAR2(200) [not null, note: '身份信息']
+  audit_status VARCHAR2(20) [not null, note: 'PENDING/APPROVED/REJECTED']
+  work_status VARCHAR2(20) [not null, note: 'FREE/BUSY/OFFLINE']
+  credit_score NUMBER [not null, default: 100, note: '信誉分']
+
+  Note: '保存用户申请成为跑腿员后的资格资料和接单状态'
+}
+
+Table nodes {
+  node_id NUMBER [pk, increment, note: '节点编号']
+  node_type VARCHAR2(30) [not null, note: 'GATE/STATION/DISTRIBUTION等']
+  node_name VARCHAR2(80) [not null, note: '节点名称']
+  location VARCHAR2(200) [not null, note: '具体位置']
+  open_time VARCHAR2(100) [note: '开放时间']
+  node_status VARCHAR2(20) [not null, note: 'NORMAL/CLOSED']
+
+  Note: '保存校内交接节点、驿站或分发点信息'
+}
+
+Table service_types {
+  service_type_id NUMBER [pk, increment, note: '服务类型编号']
+  service_name VARCHAR2(50) [not null, note: '外卖分发/快递代取/私人物品等']
+  base_price NUMBER(10,2) [not null, note: '基础价格']
+  distance_rule VARCHAR2(200) [note: '距离规则']
+  urgent_rule VARCHAR2(200) [note: '加急规则']
+  type_status VARCHAR2(20) [not null, note: 'ENABLED/DISABLED']
+
+  Note: '保存服务类型及其价格规则'
+}
+
+Table service_node_rules {
+  service_type_id NUMBER [not null, note: '服务类型编号']
+  node_id NUMBER [not null, note: '节点编号']
+
+  indexes {
+    (service_type_id, node_id) [pk]
+  }
+
+  Note: '保存服务类型与节点之间的适用节点多对多联系'
+}
+
+Table tasks {
+  task_id NUMBER [pk, increment, note: '任务编号']
+  publisher_user_id NUMBER [not null, note: '发布用户']
+  service_type_id NUMBER [not null, note: '服务类型']
+  address_no NUMBER [not null, note: '使用地址序号']
+  node_id NUMBER [not null, note: '交接节点']
+  task_title VARCHAR2(100) [not null, note: '任务标题']
+  task_price NUMBER(10,2) [not null, note: '任务价格']
+  urgent_flag CHAR(1) [not null, note: 'Y/N']
+  task_status VARCHAR2(30) [not null, note: 'CREATED/ASSIGNED/FINISHED等']
+  created_at DATE [not null, note: '默认SYSDATE']
+  completed_at DATE [note: '完成时间']
+
+  Note: '保存任务主单的公共字段，并通过外键表达发布、选择类型、使用地址和节点联系'
+}
+
+Table food_delivery_details {
+  task_id NUMBER [not null, note: '任务编号']
+  detail_no NUMBER [not null, note: '明细序号，弱实体部分键']
+  merchant_name VARCHAR2(100) [not null, note: '商家名称']
+  platform_order_no VARCHAR2(80) [note: '平台订单号']
+  pickup_note VARCHAR2(200) [note: '取餐备注']
+
+  indexes {
+    (task_id, detail_no) [pk]
+  }
+
+  Note: '保存外卖发货明细弱实体的专有字段'
+}
+
+Table express_pickup_details {
+  task_id NUMBER [not null, note: '任务编号']
+  detail_no NUMBER [not null, note: '明细序号，弱实体部分键']
+  express_company VARCHAR2(80) [not null, note: '快递公司']
+  waybill_no VARCHAR2(80) [not null, note: '物流单号']
+  pickup_code VARCHAR2(50) [not null, note: '取件码']
+  pickup_note VARCHAR2(200) [note: '取件备注']
+
+  indexes {
+    (task_id, detail_no) [pk]
+  }
+
+  Note: '保存快递代取明细弱实体的专有字段'
+}
+
+Table private_task_details {
+  task_id NUMBER [not null, note: '任务编号']
+  detail_no NUMBER [not null, note: '明细序号，弱实体部分键']
+  item_category VARCHAR2(50) [not null, note: '物品类别']
+  pickup_location VARCHAR2(200) [not null, note: '取货地点']
+  delivery_location VARCHAR2(200) [not null, note: '送达地点']
+  expected_finish_at DATE [note: '期望完成时间']
+  description VARCHAR2(500) [note: '任务描述']
+
+  indexes {
+    (task_id, detail_no) [pk]
+  }
+
+  Note: '保存私人物品任务明细弱实体的专有字段'
+}
+
+Table assign_records {
+  record_id NUMBER [pk, increment, note: '记录编号']
+  task_id NUMBER [not null, note: '任务编号']
+  runner_id NUMBER [not null, note: '跑腿员']
+  operation_type VARCHAR2(20) [not null, note: 'SELF/ADMIN/REASSIGN等']
+  assigned_at DATE [not null, note: '默认SYSDATE']
+  reassign_reason VARCHAR2(200) [note: '重派原因']
+
+  Note: '保存任务形成接派后的接单、派单和重派记录'
+}
+
+Table task_status_logs {
+  log_id NUMBER [pk, increment, note: '日志编号']
+  record_id NUMBER [not null, note: '接派记录']
+  status_before VARCHAR2(30) [note: '变化前状态']
+  status_after VARCHAR2(30) [not null, note: '变化后状态']
+  operator_user_id NUMBER [not null, note: '操作人']
+  operated_at DATE [not null, note: '默认SYSDATE']
+
+  Note: '保存接派记录对应的任务状态流转日志'
+}
+
+Table payments {
+  payment_id NUMBER [pk, increment, note: '支付编号']
+  record_id NUMBER [not null, note: '接派记录']
+  order_amount NUMBER(10,2) [not null, note: '订单金额']
+  pay_amount NUMBER(10,2) [not null, note: '支付金额']
+  pay_method VARCHAR2(30) [not null, note: 'WECHAT/ALIPAY/CASH等']
+  third_trade_no VARCHAR2(100) [unique, note: '第三方流水号']
+  pay_status VARCHAR2(20) [not null, note: 'UNPAID/PAID/FAILED/REFUNDED']
+
+  Note: '保存围绕接派记录产生的支付记录，并吸收支付联系属性'
+}
+
+Table refunds {
+  refund_id NUMBER [pk, increment, note: '退款编号']
+  payment_id NUMBER [not null, note: '支付编号']
+  refund_amount NUMBER(10,2) [not null, note: '退款金额']
+  refund_reason VARCHAR2(300) [not null, note: '申请原因']
+  approved_amount NUMBER(10,2) [note: '核定金额']
+  process_status VARCHAR2(20) [not null, note: 'APPLY/APPROVED/REJECTED/DONE']
+
+  Note: '保存支付记录衍生的退款申请和处理信息'
+}
+
+Table reviews {
+  review_id NUMBER [pk, increment, note: '评价编号']
+  record_id NUMBER [not null, unique, note: '接派记录，唯一']
+  rating NUMBER [not null, note: '星级评分，1-5']
+  anonymous_flag CHAR(1) [not null, note: 'Y/N']
+  comment_text VARCHAR2(300) [note: '文字反馈']
+  reviewed_at DATE [not null, note: '默认SYSDATE']
+  credit_delta NUMBER [note: '信誉变动']
+
+  Note: '保存服务评价及其信誉变动结果'
+}
+
+Table complaints {
+  complaint_id NUMBER [pk, increment, note: '投诉编号']
+  record_id NUMBER [not null, note: '接派记录']
+  reason VARCHAR2(300) [not null, note: '投诉原因']
+  process_status VARCHAR2(20) [not null, note: 'SUBMITTED/PROCESSING/DONE']
+  process_result VARCHAR2(500) [note: '处理结果']
+
+  Note: '保存针对一次接派服务的投诉及处理结果'
+}
+
+Table settlements {
+  settlement_id NUMBER [pk, increment, note: '结算编号']
+  runner_id NUMBER [not null, note: '跑腿员']
+  order_total NUMBER(10,2) [not null, note: '订单总额']
+  platform_fee NUMBER(10,2) [not null, note: '平台抽成']
+  net_income NUMBER(10,2) [not null, note: '应得净收入']
+  settlement_status VARCHAR2(20) [not null, note: 'WAITING/DONE/BLOCKED']
+
+  Note: '保存跑腿员收入结算主表'
+}
+
+Table settlement_payment_items {
+  settlement_id NUMBER [not null, note: '结算编号']
+  payment_id NUMBER [not null, unique, note: '支付编号；一笔支付只进入一次结算']
+
+  indexes {
+    (settlement_id, payment_id) [pk]
+  }
+
+  Note: '保存支付记录与结算单之间的结算依据联系'
+}
+
+Table audit_logs {
+  audit_id NUMBER [pk, increment, note: '审计编号']
+  audit_object VARCHAR2(50) [not null, note: 'LOG/PAYMENT/REFUND等对象类型']
+  audit_result VARCHAR2(20) [not null, note: 'PASS/ABNORMAL等']
+  audited_at DATE [not null, note: '默认SYSDATE']
+  exception_note VARCHAR2(300) [note: '异常说明']
+
+  Note: '保存运营审计日志的基本信息'
+}
+
+Table audit_status_log_checks {
+  audit_id NUMBER [not null, note: '审计编号']
+  log_id NUMBER [not null, note: '状态日志编号']
+
+  indexes {
+    (audit_id, log_id) [pk]
+  }
+
+  Note: '保存审计日志与任务状态日志之间的抽查联系'
+}
+
+Table audit_payment_checks {
+  audit_id NUMBER [not null, note: '审计编号']
+  payment_id NUMBER [not null, note: '支付编号']
+
+  indexes {
+    (audit_id, payment_id) [pk]
+  }
+
+  Note: '保存审计日志与支付记录之间的核验联系'
+}
+
+Table audit_refund_checks {
+  audit_id NUMBER [not null, note: '审计编号']
+  refund_id NUMBER [not null, note: '退款编号']
+
+  indexes {
+    (audit_id, refund_id) [pk]
+  }
+
+  Note: '保存审计日志与退款记录之间的核验联系'
+}
+
+Table reports {
+  report_id NUMBER [pk, increment, note: '报表编号']
+  report_type VARCHAR2(50) [not null, note: 'ORDER/PAYMENT/COMPLAINT等']
+  stat_period VARCHAR2(50) [not null, note: '如2026-05或2026年第2周']
+  generated_at DATE [not null, note: '默认SYSDATE']
+  report_status VARCHAR2(20) [not null, note: 'GENERATED/EXPORTED等']
+
+  Note: '保存统计报表的类型、周期和生成状态'
+}
+
+Table report_audit_items {
+  report_id NUMBER [not null, note: '报表编号']
+  audit_id NUMBER [not null, note: '审计编号']
+
+  indexes {
+    (report_id, audit_id) [pk]
+  }
+
+  Note: '保存统计报表与审计日志之间的生成依据联系'
+}
+
+
+// =====================================================
+// 关系定义
+// =====================================================
+
+Ref: user_addresses.user_id > users.user_id
+
+Ref: runners.user_id - users.user_id
+
+Ref: service_node_rules.service_type_id > service_types.service_type_id
+Ref: service_node_rules.node_id > nodes.node_id
+
+Ref: tasks.publisher_user_id > users.user_id
+Ref: tasks.service_type_id > service_types.service_type_id
+Ref: tasks.node_id > nodes.node_id
+Ref: tasks.(publisher_user_id, address_no) > user_addresses.(user_id, address_no)
+Ref: tasks.(service_type_id, node_id) > service_node_rules.(service_type_id, node_id)
+
+Ref: food_delivery_details.task_id > tasks.task_id
+Ref: express_pickup_details.task_id > tasks.task_id
+Ref: private_task_details.task_id > tasks.task_id
+
+Ref: assign_records.task_id > tasks.task_id
+Ref: assign_records.runner_id > runners.runner_id
+
+Ref: task_status_logs.record_id > assign_records.record_id
+Ref: task_status_logs.operator_user_id > users.user_id
+
+Ref: payments.record_id > assign_records.record_id
+
+Ref: refunds.payment_id > payments.payment_id
+
+Ref: reviews.record_id - assign_records.record_id
+
+Ref: complaints.record_id > assign_records.record_id
+
+Ref: settlements.runner_id > runners.runner_id
+
+Ref: settlement_payment_items.settlement_id > settlements.settlement_id
+Ref: settlement_payment_items.payment_id - payments.payment_id
+
+Ref: audit_status_log_checks.audit_id > audit_logs.audit_id
+Ref: audit_status_log_checks.log_id > task_status_logs.log_id
+
+Ref: audit_payment_checks.audit_id > audit_logs.audit_id
+Ref: audit_payment_checks.payment_id > payments.payment_id
+
+Ref: audit_refund_checks.audit_id > audit_logs.audit_id
+Ref: audit_refund_checks.refund_id > refunds.refund_id
+
+Ref: report_audit_items.report_id > reports.report_id
+Ref: report_audit_items.audit_id > audit_logs.audit_id
