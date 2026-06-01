@@ -1,0 +1,151 @@
+:root {
+  color: #18202a;
+  background: #f4f6f8;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button {
+  font: inherit;
+}
+
+.app-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.workspace-panel {
+  width: min(860px, 100%);
+  padding: 28px;
+  border: 1px solid #d9e0e7;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 16px 38px rgb(25 34 45 / 8%);
+}
+
+.title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #587087;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
+  letter-spacing: 0;
+}
+
+.refresh-button {
+  min-width: 80px;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 16px;
+  color: #ffffff;
+  background: #176b87;
+  cursor: pointer;
+}
+
+.refresh-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.status-card,
+.result-box {
+  display: grid;
+  gap: 8px;
+  min-height: 116px;
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.status-card {
+  border: 1px solid #dbe4ec;
+  background: #f8fafc;
+}
+
+.status-card span,
+.result-box span {
+  color: #617487;
+  font-size: 0.88rem;
+}
+
+.status-card strong,
+.result-box strong {
+  font-size: 1.18rem;
+}
+
+.status-card small,
+.result-box small {
+  color: #66798b;
+  line-height: 1.5;
+}
+
+.result-box {
+  margin-top: 16px;
+}
+
+.result-box.success {
+  border: 1px solid #b9dbc8;
+  background: #effaf3;
+}
+
+.result-box.error {
+  border: 1px solid #e6b8b8;
+  background: #fff4f4;
+}
+
+@media (max-width: 680px) {
+  .app-shell {
+    padding: 16px;
+  }
+
+  .workspace-panel {
+    padding: 20px;
+  }
+
+  .title-row,
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .title-row {
+    display: grid;
+  }
+
+  .refresh-button {
+    width: 100%;
+  }
+}
