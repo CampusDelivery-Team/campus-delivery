@@ -1,0 +1,78 @@
+@model List<CampusRunnerSystem.ViewModels.ServiceNodeRuleViewModel>
+@{
+    ViewData["Title"] = "服务节点规则";
+}
+
+<h1 class="h4 mb-3">服务节点规则</h1>
+
+@if (!string.IsNullOrWhiteSpace(ViewBag.SuccessMessage as string))
+{
+    <div class="alert alert-success">@ViewBag.SuccessMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(ViewBag.ErrorMessage as string))
+{
+    <div class="alert alert-danger">@ViewBag.ErrorMessage</div>
+}
+
+<form asp-action="Create" method="post" class="card card-body shadow-sm mb-4">
+    @Html.AntiForgeryToken()
+    <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label" for="serviceTypeId">服务类型</label>
+            <select class="form-select" id="serviceTypeId" name="serviceTypeId" asp-items="ViewBag.ServiceTypes" required>
+                <option value="">请选择服务类型</option>
+            </select>
+        </div>
+        <div class="col-md-5">
+            <label class="form-label" for="nodeId">节点</label>
+            <select class="form-select" id="nodeId" name="nodeId" asp-items="ViewBag.Nodes" required>
+                <option value="">请选择节点</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100" type="submit">绑定</button>
+        </div>
+    </div>
+</form>
+
+@if (Model.Count == 0)
+{
+    <div class="alert alert-info">暂无服务节点规则</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle bg-white">
+            <thead class="table-light">
+                <tr>
+                    <th>服务类型编号</th>
+                    <th>服务名称</th>
+                    <th>节点编号</th>
+                    <th>节点名称</th>
+                    <th>节点类型</th>
+                    <th class="text-nowrap">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.ServiceTypeId</td>
+                        <td>@item.ServiceName</td>
+                        <td>@item.NodeId</td>
+                        <td>@item.NodeName</td>
+                        <td>@item.NodeType</td>
+                        <td>
+                            <form asp-action="Delete" method="post" onsubmit="return confirm('确认删除该绑定规则吗？');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="serviceTypeId" value="@item.ServiceTypeId" />
+                                <input type="hidden" name="nodeId" value="@item.NodeId" />
+                                <button class="btn btn-outline-danger btn-sm" type="submit">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

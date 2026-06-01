@@ -1,0 +1,22 @@
+@model CampusRunnerSystem.ViewModels.NodeViewModel
+@{
+    ViewData["Title"] = "删除节点";
+}
+
+<h1 class="h4 mb-3">删除节点</h1>
+
+@if (!string.IsNullOrWhiteSpace(TempData["ErrorMessage"] as string))
+{
+    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+}
+
+<div class="alert alert-warning">
+    确认删除节点“@Model.NodeName”吗？如果该节点已被任务或服务节点规则引用，将不能删除。
+</div>
+
+<form asp-action="DeleteConfirmed" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="nodeId" value="@Model.NodeId" />
+    <button class="btn btn-danger" type="submit">确认删除</button>
+    <a class="btn btn-outline-secondary" asp-action="Index">取消</a>
+</form>

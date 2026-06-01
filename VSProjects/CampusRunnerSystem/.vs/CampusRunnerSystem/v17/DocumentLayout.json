@@ -1,9 +1,9 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "D:\\VSProjects\\CampusRunnerSystem\\",
+  "WorkspaceRootPath": "D:\\delivery-backend\\VSProjects\\CampusRunnerSystem\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{90CF029F-45AD-491C-82DC-BB79198D443E}|CampusRunnerSystem\\CampusRunnerSystem.csproj|d:\\vsprojects\\campusrunnersystem\\campusrunnersystem\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "AbsoluteMoniker": "D:0:0:{90CF029F-45AD-491C-82DC-BB79198D443E}|CampusRunnerSystem\\CampusRunnerSystem.csproj|d:\\delivery-backend\\vsprojects\\campusrunnersystem\\campusrunnersystem\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
       "RelativeMoniker": "D:0:0:{90CF029F-45AD-491C-82DC-BB79198D443E}|CampusRunnerSystem\\CampusRunnerSystem.csproj|solutionrelative:campusrunnersystem\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     }
   ],
@@ -20,9 +20,9 @@
               "$type": "Document",
               "DocumentIndex": 0,
               "Title": "appsettings.json",
-              "DocumentMoniker": "D:\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\appsettings.json",
+              "DocumentMoniker": "D:\\delivery-backend\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\appsettings.json",
               "RelativeDocumentMoniker": "CampusRunnerSystem\\appsettings.json",
-              "ToolTip": "D:\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\appsettings.json",
+              "ToolTip": "D:\\delivery-backend\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\appsettings.json",
               "RelativeToolTip": "CampusRunnerSystem\\appsettings.json",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",

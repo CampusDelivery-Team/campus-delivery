@@ -1,0 +1,8 @@
+@{
+    ViewData["Title"] = "无权限";
+}
+
+<div class="alert alert-warning">
+    当前账号没有访问该页面的权限，请返回对应角色首页或重新登录。
+</div>
+<a class="btn btn-primary" asp-controller="Account" asp-action="Login">返回登录</a>

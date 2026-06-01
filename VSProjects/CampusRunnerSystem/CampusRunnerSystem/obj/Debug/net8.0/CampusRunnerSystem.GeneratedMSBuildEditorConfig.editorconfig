@@ -9,41 +9,113 @@ build_property.EnforceExtendedAnalyzerRules =
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = CampusRunnerSystem
 build_property.RootNamespace = CampusRunnerSystem
-build_property.ProjectDir = D:\VSProjects\CampusRunnerSystem\CampusRunnerSystem\
+build_property.ProjectDir = D:\delivery-backend\VSProjects\CampusRunnerSystem\CampusRunnerSystem\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.RazorLangVersion = 8.0
 build_property.SupportLocalizedComponentNames = 
 build_property.GenerateRazorMetadataSourceChecksumAttributes = 
-build_property.MSBuildProjectDirectory = D:\VSProjects\CampusRunnerSystem\CampusRunnerSystem
+build_property.MSBuildProjectDirectory = D:\delivery-backend\VSProjects\CampusRunnerSystem\CampusRunnerSystem
 build_property._RazorSourceGeneratorDebug = 
 build_property.EffectiveAnalysisLevelStyle = 8.0
 build_property.EnableCodeStyleSeverity = 
 
-[D:/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Home/Index.cshtml]
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Account/AccessDenied.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWNjb3VudFxBY2Nlc3NEZW5pZWQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Account/Login.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWNjb3VudFxMb2dpbi5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Account/Register.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWNjb3VudFxSZWdpc3Rlci5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/AdminDashboard/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWRtaW5EYXNoYm9hcmRcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Home/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxJbmRleC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Home/Privacy.cshtml]
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Home/Privacy.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxQcml2YWN5LmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Shared/Error.cshtml]
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/ModuleTodo/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTW9kdWxlVG9kb1xJbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Node/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTm9kZVxDcmVhdGUuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Node/Delete.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTm9kZVxEZWxldGUuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Node/Details.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTm9kZVxEZXRhaWxzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Node/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTm9kZVxFZGl0LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Node/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcTm9kZVxJbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/RunnerDashboard/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUnVubmVyRGFzaGJvYXJkXEluZGV4LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/ServiceNodeRule/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2VydmljZU5vZGVSdWxlXEluZGV4LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/ServiceType/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2VydmljZVR5cGVcQ3JlYXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/ServiceType/Delete.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2VydmljZVR5cGVcRGVsZXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/ServiceType/Details.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2VydmljZVR5cGVcRGV0YWlscy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/ServiceType/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2VydmljZVR5cGVcRWRpdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/ServiceType/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2VydmljZVR5cGVcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Shared/Error.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXEVycm9yLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Shared/_ValidationScriptsPartial.cshtml]
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Shared/_ValidationScriptsPartial.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9WYWxpZGF0aW9uU2NyaXB0c1BhcnRpYWwuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/_ViewImports.cshtml]
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/UserDashboard/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVXNlckRhc2hib2FyZFxJbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/_ViewImports.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcX1ZpZXdJbXBvcnRzLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/_ViewStart.cshtml]
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/_ViewStart.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcX1ZpZXdTdGFydC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Shared/_Layout.cshtml]
+[D:/delivery-backend/VSProjects/CampusRunnerSystem/CampusRunnerSystem/Views/Shared/_Layout.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9MYXlvdXQuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = b-yqgrdykjky

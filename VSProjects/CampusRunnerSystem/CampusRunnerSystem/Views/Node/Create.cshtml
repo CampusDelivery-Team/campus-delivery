@@ -1,0 +1,43 @@
+@using CampusRunnerSystem.Models
+@model CampusRunnerSystem.ViewModels.NodeViewModel
+@{
+    ViewData["Title"] = "新增节点";
+}
+
+<h1 class="h4 mb-3">新增节点</h1>
+
+@if (!string.IsNullOrWhiteSpace(ViewBag.ErrorMessage as string))
+{
+    <div class="alert alert-danger">@ViewBag.ErrorMessage</div>
+}
+
+<form asp-action="Create" method="post" class="card card-body shadow-sm">
+    @Html.AntiForgeryToken()
+    <div class="mb-3">
+        <label class="form-label" asp-for="NodeType">节点类型</label>
+        <input class="form-control" asp-for="NodeType" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label" asp-for="NodeName">节点名称</label>
+        <input class="form-control" asp-for="NodeName" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label" asp-for="Location">具体位置</label>
+        <input class="form-control" asp-for="Location" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label" asp-for="OpenTime">开放时间</label>
+        <input class="form-control" asp-for="OpenTime" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label" asp-for="NodeStatus">节点状态</label>
+        <select class="form-select" asp-for="NodeStatus">
+            <option value="@SystemConstants.NodeStatus.Normal">正常</option>
+            <option value="@SystemConstants.NodeStatus.Closed">关闭</option>
+        </select>
+    </div>
+    <div>
+        <button class="btn btn-primary" type="submit">保存</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">返回</a>
+    </div>
+</form>

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\CampusRunnerSystem.csproj": {}
+    "D:\\delivery-backend\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\CampusRunnerSystem.csproj": {}
   },
   "projects": {
-    "D:\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\CampusRunnerSystem.csproj": {
+    "D:\\delivery-backend\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\CampusRunnerSystem.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\CampusRunnerSystem.csproj",
+        "projectUniqueName": "D:\\delivery-backend\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\CampusRunnerSystem.csproj",
         "projectName": "CampusRunnerSystem",
-        "projectPath": "D:\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\CampusRunnerSystem.csproj",
+        "projectPath": "D:\\delivery-backend\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\CampusRunnerSystem.csproj",
         "packagesPath": "C:\\Users\\liuxc\\.nuget\\packages\\",
-        "outputPath": "D:\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\obj\\",
+        "outputPath": "D:\\delivery-backend\\VSProjects\\CampusRunnerSystem\\CampusRunnerSystem\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "D:\\vs2022共享组件工具SDK\\NuGetPackages"

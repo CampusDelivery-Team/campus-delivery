@@ -1,0 +1,59 @@
+@model List<CampusRunnerSystem.ViewModels.NodeViewModel>
+@{
+    ViewData["Title"] = "节点管理";
+}
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h4 mb-0">节点管理</h1>
+    <a class="btn btn-primary btn-sm" asp-action="Create">新增节点</a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(ViewBag.SuccessMessage as string))
+{
+    <div class="alert alert-success">@ViewBag.SuccessMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(ViewBag.ErrorMessage as string))
+{
+    <div class="alert alert-danger">@ViewBag.ErrorMessage</div>
+}
+
+@if (Model.Count == 0 && string.IsNullOrWhiteSpace(ViewBag.ErrorMessage as string))
+{
+    <div class="alert alert-info">暂无节点数据</div>
+}
+else if (Model.Count > 0)
+{
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle bg-white">
+            <thead class="table-light">
+                <tr>
+                    <th>节点编号</th>
+                    <th>节点类型</th>
+                    <th>节点名称</th>
+                    <th>具体位置</th>
+                    <th>开放时间</th>
+                    <th>节点状态</th>
+                    <th class="text-nowrap">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var node in Model)
+                {
+                    <tr>
+                        <td>@node.NodeId</td>
+                        <td>@node.NodeType</td>
+                        <td>@node.NodeName</td>
+                        <td>@node.Location</td>
+                        <td>@node.OpenTime</td>
+                        <td>@node.NodeStatus</td>
+                        <td class="text-nowrap">
+                            <a class="btn btn-outline-secondary btn-sm" asp-action="Details" asp-route-id="@node.NodeId">详情</a>
+                            <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@node.NodeId">修改</a>
+                            <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@node.NodeId">删除</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

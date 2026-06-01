@@ -1,44 +1,87 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+@using CampusRunnerSystem.Models
+@{
+    var username = Context.Session.GetString("Username");
+    var userRole = Context.Session.GetString("UserRole");
+}
+<!DOCTYPE html>
+<html lang="zh-cn">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - CampusRunnerSystem</title>
+    <title>@ViewData["Title"] - 校园中转分发与跑腿服务管理系统</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/CampusRunnerSystem.styles.css" asp-append-version="true" />
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm navbar-light bg-white border-bottom box-shadow">
             <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">CampusRunnerSystem</a>
+                <a class="navbar-brand fw-semibold" asp-controller="Account" asp-action="Login">校园中转分发与跑腿服务管理系统</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+                        aria-expanded="false" aria-label="切换导航">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-end">
+                    @if (!string.IsNullOrWhiteSpace(username))
+                    {
+                        <span class="navbar-text me-3">@username（@userRole）</span>
+                        <a class="btn btn-outline-danger btn-sm" asp-controller="Account" asp-action="Logout">退出登录</a>
+                    }
                 </div>
             </div>
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
+
+    <div class="container-fluid">
+        <div class="row">
+            @if (!string.IsNullOrWhiteSpace(userRole))
+            {
+                <aside class="col-md-3 col-lg-2 sidebar border-end">
+                    <div class="list-group list-group-flush py-3">
+                        @if (userRole == SystemConstants.Roles.User)
+                        {
+                            <a class="list-group-item list-group-item-action" asp-controller="UserDashboard" asp-action="Index">用户首页</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="AccountModule" asp-action="Index">地址管理</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="TaskModule" asp-action="Index">发布任务</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="TaskModule" asp-action="Index">我的任务</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="PaymentModule" asp-action="Index">支付记录</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="ReviewModule" asp-action="Index">评价投诉</a>
+                        }
+                        else if (userRole == SystemConstants.Roles.Runner)
+                        {
+                            <a class="list-group-item list-group-item-action" asp-controller="RunnerDashboard" asp-action="Index">跑腿员首页</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="TaskModule" asp-action="Index">任务大厅</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="AssignModule" asp-action="Index">我的接单</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="StatusLogModule" asp-action="Index">状态更新</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="SettlementModule" asp-action="Index">我的结算</a>
+                        }
+                        else if (userRole == SystemConstants.Roles.Admin)
+                        {
+                            <a class="list-group-item list-group-item-action" asp-controller="AdminDashboard" asp-action="Index">管理员首页</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="AccountModule" asp-action="Index">用户管理</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="AccountModule" asp-action="Index">跑腿员审核</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="Node" asp-action="Index">节点管理</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="ServiceType" asp-action="Index">服务类型管理</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="ServiceNodeRule" asp-action="Index">服务节点规则</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="AssignModule" asp-action="Index">派单重派</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="RefundModule" asp-action="Index">退款审核</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="ComplaintModule" asp-action="Index">投诉处理</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="AuditModule" asp-action="Index">审计日志</a>
+                            <a class="list-group-item list-group-item-action" asp-controller="ReportModule" asp-action="Index">统计报表</a>
+                        }
+                    </div>
+                </aside>
+            }
+            <main role="main" class="@(string.IsNullOrWhiteSpace(userRole) ? "col-12" : "col-md-9 col-lg-10") main-content">
+                @RenderBody()
+            </main>
+        </div>
     </div>
 
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; 2026 - CampusRunnerSystem - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            &copy; 2026 - CampusRunnerSystem
         </div>
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

@@ -1,0 +1,33 @@
+@{
+    ViewData["Title"] = "登录";
+    Layout = "_Layout";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h4 mb-3 text-center">系统登录</h1>
+                @if (!string.IsNullOrWhiteSpace(ViewBag.ErrorMessage as string))
+                {
+                    <div class="alert alert-danger">@ViewBag.ErrorMessage</div>
+                }
+                <form asp-action="Login" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label" for="username">用户名</label>
+                        <input class="form-control" id="username" name="username" autocomplete="username" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="password">密码</label>
+                        <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required />
+                    </div>
+                    <button class="btn btn-primary w-100" type="submit">登录</button>
+                </form>
+                <div class="text-center mt-3">
+                    <a asp-controller="Account" asp-action="Register">注册账号</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,25 @@
+@{
+    ViewData["Title"] = "注册";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h1 class="h4 mb-3">注册账号</h1>
+        @if (!string.IsNullOrWhiteSpace(ViewBag.Message as string))
+        {
+            <div class="alert alert-info">@ViewBag.Message</div>
+        }
+        <form asp-action="Register" method="post" class="card card-body shadow-sm">
+            @Html.AntiForgeryToken()
+            <div class="mb-3">
+                <label class="form-label" for="username">用户名</label>
+                <input class="form-control" id="username" name="username" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="password">密码</label>
+                <input class="form-control" id="password" name="password" type="password" disabled placeholder="TODO：后续接入账号写入逻辑" />
+            </div>
+            <button class="btn btn-outline-primary" type="submit">提交预留信息</button>
+        </form>
+    </div>
+</div>

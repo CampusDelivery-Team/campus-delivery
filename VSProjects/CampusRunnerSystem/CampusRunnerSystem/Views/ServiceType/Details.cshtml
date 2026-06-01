@@ -1,0 +1,28 @@
+@model CampusRunnerSystem.ViewModels.ServiceTypeViewModel
+@{
+    ViewData["Title"] = "服务类型详情";
+}
+
+<h1 class="h4 mb-3">服务类型详情</h1>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-2">服务类型编号</dt>
+            <dd class="col-sm-10">@Model.ServiceTypeId</dd>
+            <dt class="col-sm-2">服务名称</dt>
+            <dd class="col-sm-10">@Model.ServiceName</dd>
+            <dt class="col-sm-2">基础价格</dt>
+            <dd class="col-sm-10">@Model.BasePrice.ToString("0.00")</dd>
+            <dt class="col-sm-2">距离规则</dt>
+            <dd class="col-sm-10">@Model.DistanceRule</dd>
+            <dt class="col-sm-2">加急规则</dt>
+            <dd class="col-sm-10">@Model.UrgentRule</dd>
+            <dt class="col-sm-2">类型状态</dt>
+            <dd class="col-sm-10">@Model.TypeStatus</dd>
+        </dl>
+    </div>
+</div>
+<div class="mt-3">
+    <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.ServiceTypeId">修改</a>
+    <a class="btn btn-outline-secondary" asp-action="Index">返回</a>
+</div>

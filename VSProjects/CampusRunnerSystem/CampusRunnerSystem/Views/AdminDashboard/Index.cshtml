@@ -1,0 +1,28 @@
+@{
+    ViewData["Title"] = "管理员首页";
+}
+
+<h1 class="h4 mb-3">管理员首页</h1>
+<div class="row g-3">
+    <div class="col-md-4">
+        <a class="card card-body text-decoration-none" asp-controller="Node" asp-action="Index">节点管理</a>
+    </div>
+    <div class="col-md-4">
+        <a class="card card-body text-decoration-none" asp-controller="ServiceType" asp-action="Index">服务类型管理</a>
+    </div>
+    <div class="col-md-4">
+        <a class="card card-body text-decoration-none" asp-controller="ServiceNodeRule" asp-action="Index">服务节点规则</a>
+    </div>
+    <div class="col-md-4">
+        <a class="card card-body text-decoration-none" asp-controller="AccountModule" asp-action="Index">用户管理</a>
+    </div>
+    <div class="col-md-4">
+        <a class="card card-body text-decoration-none" asp-controller="AccountModule" asp-action="Index">跑腿员审核</a>
+    </div>
+    <div class="col-md-4">
+        <a class="card card-body text-decoration-none" asp-controller="ComplaintModule" asp-action="Index">投诉处理</a>
+    </div>
+    <div class="col-md-4">
+        <a class="card card-body text-decoration-none" asp-controller="ReportModule" asp-action="Index">统计报表</a>
+    </div>
+</div>

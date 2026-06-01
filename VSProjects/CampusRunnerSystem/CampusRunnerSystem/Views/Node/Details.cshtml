@@ -1,0 +1,28 @@
+@model CampusRunnerSystem.ViewModels.NodeViewModel
+@{
+    ViewData["Title"] = "节点详情";
+}
+
+<h1 class="h4 mb-3">节点详情</h1>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-2">节点编号</dt>
+            <dd class="col-sm-10">@Model.NodeId</dd>
+            <dt class="col-sm-2">节点类型</dt>
+            <dd class="col-sm-10">@Model.NodeType</dd>
+            <dt class="col-sm-2">节点名称</dt>
+            <dd class="col-sm-10">@Model.NodeName</dd>
+            <dt class="col-sm-2">具体位置</dt>
+            <dd class="col-sm-10">@Model.Location</dd>
+            <dt class="col-sm-2">开放时间</dt>
+            <dd class="col-sm-10">@Model.OpenTime</dd>
+            <dt class="col-sm-2">节点状态</dt>
+            <dd class="col-sm-10">@Model.NodeStatus</dd>
+        </dl>
+    </div>
+</div>
+<div class="mt-3">
+    <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.NodeId">修改</a>
+    <a class="btn btn-outline-secondary" asp-action="Index">返回</a>
+</div>

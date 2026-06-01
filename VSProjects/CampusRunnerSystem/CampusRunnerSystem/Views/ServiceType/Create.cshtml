@@ -1,0 +1,43 @@
+@using CampusRunnerSystem.Models
+@model CampusRunnerSystem.ViewModels.ServiceTypeViewModel
+@{
+    ViewData["Title"] = "新增服务类型";
+}
+
+<h1 class="h4 mb-3">新增服务类型</h1>
+
+@if (!string.IsNullOrWhiteSpace(ViewBag.ErrorMessage as string))
+{
+    <div class="alert alert-danger">@ViewBag.ErrorMessage</div>
+}
+
+<form asp-action="Create" method="post" class="card card-body shadow-sm">
+    @Html.AntiForgeryToken()
+    <div class="mb-3">
+        <label class="form-label" asp-for="ServiceName">服务名称</label>
+        <input class="form-control" asp-for="ServiceName" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label" asp-for="BasePrice">基础价格</label>
+        <input class="form-control" asp-for="BasePrice" type="number" step="0.01" min="0" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label" asp-for="DistanceRule">距离规则</label>
+        <input class="form-control" asp-for="DistanceRule" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label" asp-for="UrgentRule">加急规则</label>
+        <input class="form-control" asp-for="UrgentRule" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label" asp-for="TypeStatus">类型状态</label>
+        <select class="form-select" asp-for="TypeStatus">
+            <option value="@SystemConstants.ServiceTypeStatus.Enabled">启用</option>
+            <option value="@SystemConstants.ServiceTypeStatus.Disabled">禁用</option>
+        </select>
+    </div>
+    <div>
+        <button class="btn btn-primary" type="submit">保存</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">返回</a>
+    </div>
+</form>
