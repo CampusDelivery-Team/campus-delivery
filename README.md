@@ -1,197 +1,689 @@
-# CampusDelivery Database
+# CampusRunnerSystem 项目说明
 
-校园中转分发与跑腿服务管理系统数据库设计与 Oracle 建库脚本。
+CampusRunnerSystem，中文名称为“校园中转分发与跑腿服务管理系统”，是一个基于 ASP.NET Core MVC 的课程设计项目。当前项目已经完成基础框架、登录权限、管理员首页、节点管理、服务类型管理、服务节点规则绑定等基础资料模块。
 
-本仓库当前主要交付数据库相关文件：Oracle 建库 SQL、DBML 关系模型和数据库设计文档。SQL 文件会创建 24 张业务表，并包含主键、外键、唯一约束、检查约束、表/字段注释和常用索引。
+## 一、项目使用的技术
 
-## 文件说明
+- 开发框架：ASP.NET Core MVC
+- .NET 版本：.NET 8
+- 开发工具：Visual Studio 2022
+- 数据库：Oracle 19c
+- Oracle 驱动：Oracle.ManagedDataAccess.Core
+- 前端样式：Bootstrap
+- 页面模板：Razor View（`.cshtml`）
+- 会话管理：ASP.NET Core Session
+- 项目结构方式：Controller -> Service -> Repository -> OracleDbHelper 分层
+
+## 二、项目目录结构
+
+项目根目录为：
 
 ```text
-delivery-backend/
-├─ campus_runner_oracle_schema（24张表）.sql     # Oracle 建库脚本
-├─ schema.dbml                                  # DBML 关系模型
-├─ 校园中转分发与跑腿服务管理系统-数据库设计文档.docx
-├─ LICENSE
-└─ README.md
+CampusRunnerSystem/
 ```
 
-## 环境要求
+根目录下主要内容如下：
 
-- Oracle Database：建议 `18c` 或更高版本
-- 数据库客户端：`SQL Developer`、`Navicat`、`DBeaver`、`PL/SQL Developer` 或 `SQL*Plus`
-- 执行用户需要具备建表、建索引、创建约束和添加注释的权限
+```text
+CampusRunnerSystem.sln                 Visual Studio 解决方案文件
+README.md                              项目说明文件
+CampusRunnerSystem/                    ASP.NET Core MVC 项目主体
+```
 
-## 快速初始化
+## 三、内层项目目录说明
 
-### 1. 创建业务用户
+内层项目目录为：
 
-如果还没有业务用户，可以使用管理员账号连接 Oracle 后执行：
+```text
+CampusRunnerSystem/CampusRunnerSystem/
+```
+
+下面说明每个主要文件夹和文件的作用。
+
+### 1. Controllers
+
+位置：
+
+```text
+CampusRunnerSystem/Controllers/
+```
+
+该文件夹存放 MVC 控制器，负责接收浏览器请求、调用 Service 层，并返回页面。
+
+主要文件：
+
+- `AccountController.cs`：登录、注册占位、退出登录、无权限页面。
+- `AdminDashboardController.cs`：管理员首页。
+- `UserDashboardController.cs`：普通用户首页。
+- `RunnerDashboardController.cs`：跑腿员首页。
+- `NodeController.cs`：节点管理，包含列表、新增、修改、删除、详情。
+- `ServiceTypeController.cs`：服务类型管理，包含列表、新增、修改、删除、详情。
+- `ServiceNodeRuleController.cs`：服务类型与节点绑定规则管理。
+- `HomeController.cs`：ASP.NET Core MVC 默认示例控制器，当前不是主要入口。
+- `AccountModuleController.cs`、`TaskModuleController.cs`、`PaymentModuleController.cs` 等：为其他组员预留的模块占位控制器。
+
+注意：Controller 不直接写 SQL，数据库操作统一交给 Repository。
+
+### 2. Services
+
+位置：
+
+```text
+CampusRunnerSystem/Services/
+```
+
+该文件夹存放业务逻辑层。Service 层负责业务判断、状态校验、删除前检查等。
+
+主要文件：
+
+- `IAccountService.cs`、`AccountService.cs`：登录业务逻辑。
+- `INodeService.cs`、`NodeService.cs`：节点管理业务逻辑。
+- `IServiceTypeService.cs`、`ServiceTypeService.cs`：服务类型业务逻辑。
+- `IServiceNodeRuleService.cs`、`ServiceNodeRuleService.cs`：服务节点绑定规则业务逻辑。
+
+例如删除节点时，Service 会先检查该节点是否被 `tasks` 或 `service_node_rules` 引用，如果被引用就返回中文友好提示。
+
+### 3. Repositories
+
+位置：
+
+```text
+CampusRunnerSystem/Repositories/
+```
+
+该文件夹存放数据访问层，负责写 SQL 并调用 `OracleDbHelper` 执行。
+
+主要文件：
+
+- `IAccountRepository.cs`、`AccountRepository.cs`：查询 `users` 表中的登录用户信息。
+- `INodeRepository.cs`、`NodeRepository.cs`：操作 `nodes` 表。
+- `IServiceTypeRepository.cs`、`ServiceTypeRepository.cs`：操作 `service_types` 表。
+- `IServiceNodeRuleRepository.cs`、`ServiceNodeRuleRepository.cs`：操作 `service_node_rules` 表，并联查服务类型和节点名称。
+
+要求：
+
+- SQL 必须使用参数化查询。
+- 不在 Controller 中拼接 SQL。
+- 表名和字段名必须以数据库 SQL 文件为准。
+
+### 4. Helpers
+
+位置：
+
+```text
+CampusRunnerSystem/Helpers/
+```
+
+主要文件：
+
+- `OracleDbHelper.cs`
+
+作用：
+
+- 从 `appsettings.json` 读取 Oracle 连接字符串。
+- 使用 `Oracle.ManagedDataAccess.Client` 连接 Oracle。
+- 提供通用方法：`QueryDataTable`、`ExecuteNonQuery`、`ExecuteScalar`。
+
+这是整个项目连接 Oracle 数据库的公共入口。
+
+### 5. Models
+
+位置：
+
+```text
+CampusRunnerSystem/Models/
+```
+
+该文件夹存放公共模型和常量。
+
+主要文件：
+
+- `Result.cs`：统一返回结果类，包含 `Success`、`Message`、`Data`。
+- `SystemConstants.cs`：系统常量，包括角色、账号状态、任务状态、是否标志、节点状态、服务类型状态。
+- `ErrorViewModel.cs`：默认错误页面模型。
+
+项目中角色和状态必须使用中文值，例如：
+
+- `管理员`
+- `普通用户`
+- `跑腿员`
+- `正常`
+- `关闭`
+- `启用`
+- `禁用`
+
+不要使用 `ADMIN`、`NORMAL`、`CLOSED` 等英文枚举值。
+
+### 6. ViewModels
+
+位置：
+
+```text
+CampusRunnerSystem/ViewModels/
+```
+
+该文件夹存放页面展示模型，用于 Controller 和 View 之间传递数据。
+
+主要文件：
+
+- `LoginUserViewModel.cs`：登录用户信息。
+- `NodeViewModel.cs`：节点信息。
+- `ServiceTypeViewModel.cs`：服务类型信息。
+- `ServiceNodeRuleViewModel.cs`：服务节点规则信息。
+
+### 7. Filters
+
+位置：
+
+```text
+CampusRunnerSystem/Filters/
+```
+
+主要文件：
+
+- `RoleAuthorizeAttribute.cs`
+
+作用：
+
+- 判断用户是否已经登录。
+- 判断当前用户角色是否允许访问某个控制器。
+- 未登录时跳转到登录页。
+- 角色不匹配时跳转到无权限页面。
+
+例如管理员页面会使用：
+
+```csharp
+[RoleAuthorize(SystemConstants.Roles.Admin)]
+```
+
+### 8. Views
+
+位置：
+
+```text
+CampusRunnerSystem/Views/
+```
+
+该文件夹存放 Razor 页面。
+
+主要子文件夹：
+
+- `Views/Account/`：登录、注册占位、无权限页面。
+- `Views/AdminDashboard/`：管理员首页。
+- `Views/UserDashboard/`：普通用户首页。
+- `Views/RunnerDashboard/`：跑腿员首页。
+- `Views/Node/`：节点管理页面，包含列表、新增、修改、删除、详情。
+- `Views/ServiceType/`：服务类型管理页面，包含列表、新增、修改、删除、详情。
+- `Views/ServiceNodeRule/`：服务类型与节点绑定规则页面。
+- `Views/ModuleTodo/`：其他模块暂未实现时的占位页面。
+- `Views/Shared/`：公共布局页面和公共视图。
+- `Views/Home/`：ASP.NET Core MVC 默认示例页面。
+
+重要文件：
+
+- `Views/Shared/_Layout.cshtml`：公共布局，包含顶部栏、当前登录用户信息、退出按钮、左侧菜单。
+- `Views/_ViewImports.cshtml`：Razor 公共引用。
+- `Views/_ViewStart.cshtml`：默认布局配置。
+
+### 9. Database
+
+位置：
+
+```text
+CampusRunnerSystem/Database/
+```
+
+主要文件：
+
+- `campus_runner_oracle_schema_cn.sql`
+
+作用：
+
+- 创建项目所需的 24 张 Oracle 表。
+- 定义主键、外键、检查约束。
+- 定义中文枚举值。
+
+开发时必须参考这个 SQL 文件，不要自己编造表名或字段名。
+
+当前基础资料模块涉及的表：
+
+- `nodes`
+- `service_types`
+- `service_node_rules`
+
+登录涉及的表：
+
+- `users`
+
+### 10. Docs
+
+位置：
+
+```text
+CampusRunnerSystem/Docs/
+```
+
+该文件夹存放项目文档和小组协作说明，例如项目运行说明、详细分工、其他组员准备工作等。
+
+### 11. wwwroot
+
+位置：
+
+```text
+CampusRunnerSystem/wwwroot/
+```
+
+该文件夹存放静态资源。
+
+主要子文件夹：
+
+- `wwwroot/css/`：项目 CSS 文件，例如 `site.css`。
+- `wwwroot/js/`：项目 JavaScript 文件，例如 `site.js`。
+- `wwwroot/lib/`：前端库文件，包括 Bootstrap、jQuery、jQuery Validation。
+- `wwwroot/favicon.ico`：网站图标。
+
+### 12. Properties
+
+位置：
+
+```text
+CampusRunnerSystem/Properties/
+```
+
+主要文件：
+
+- `launchSettings.json`
+
+作用：
+
+- Visual Studio 启动配置。
+- 包含本地运行地址、环境变量等。
+
+### 13. bin 和 obj
+
+位置：
+
+```text
+CampusRunnerSystem/bin/
+CampusRunnerSystem/obj/
+```
+
+这两个文件夹是编译生成目录。
+
+- `bin/`：编译后的程序文件。
+- `obj/`：中间编译文件。
+
+一般不需要手动修改，也不要提交手写代码到这两个目录。
+
+## 四、重要配置文件说明
+
+### 1. appsettings.json
+
+位置：
+
+```text
+CampusRunnerSystem/appsettings.json
+```
+
+主要配置 Oracle 连接字符串：
+
+```json
+{
+  "ConnectionStrings": {
+    "OracleConnection": "User Id=campus;Password=Campus123456;Data Source=localhost:1521/orclpdb;"
+  }
+}
+```
+
+项目通过 `OracleDbHelper` 读取这个连接字符串。
+
+### 2. Program.cs
+
+位置：
+
+```text
+CampusRunnerSystem/Program.cs
+```
+
+主要作用：
+
+- 注册 MVC。
+- 启用 Session。
+- 注册 Repository 和 Service。
+- 配置静态文件。
+- 配置默认路由。
+
+当前默认路由为：
+
+```text
+/Account/Login
+```
+
+### 3. CampusRunnerSystem.csproj
+
+位置：
+
+```text
+CampusRunnerSystem/CampusRunnerSystem.csproj
+```
+
+项目工程文件，里面声明了：
+
+- 目标框架：`net8.0`
+- NuGet 包：`Oracle.ManagedDataAccess.Core`
+
+## 五、数据库准备
+
+运行项目前，请确认 Oracle 数据库已经准备好：
+
+1. Oracle 19c 已安装并运行。
+2. PDB 服务名为 `orclpdb`。
+3. 数据库用户为 `campus`。
+4. 数据库密码为 `Campus123456`。
+5. 已经在 campus 用户下执行：
+
+```text
+CampusRunnerSystem/Database/campus_runner_oracle_schema_cn.sql
+```
+
+可以用下面 SQL 检查表是否创建成功：
 
 ```sql
-CREATE USER APPUSER IDENTIFIED BY App123456;
-GRANT CONNECT, RESOURCE TO APPUSER;
-ALTER USER APPUSER QUOTA UNLIMITED ON USERS;
+SELECT table_name FROM user_tables ORDER BY table_name;
 ```
 
-如果当前 Oracle 权限策略不允许直接授予 `RESOURCE`，请按需授予 `CREATE TABLE`、`CREATE SEQUENCE`、`CREATE VIEW` 等项目实际需要的权限。
+项目要求共 24 张表。
 
-### 2. 执行建库脚本
+## 六、初步运行项目
 
-使用业务用户连接 Oracle，执行根目录下的：
+### 方式一：使用 Visual Studio 2022
 
-[campus_runner_oracle_schema（24张表）.sql](D:/delivery-backend/campus_runner_oracle_schema（24张表）.sql)
+1. 打开解决方案文件：
 
-脚本开头会按外键依赖反向删除旧表：
-
-```sql
-DROP TABLE ... CASCADE CONSTRAINTS PURGE
+```text
+CampusRunnerSystem.sln
 ```
 
-因此重复执行会重建全部表结构，同时清空旧数据。正式或含数据环境执行前请先备份。
+2. 确认启动项目是 `CampusRunnerSystem`。
+3. 确认 `appsettings.json` 中 Oracle 连接字符串正确。
+4. 点击运行，或按 `F5` / `Ctrl + F5`。
+5. 浏览器会进入登录页：
 
-### 3. 验证执行结果
-
-执行下面的查询确认 24 张表已创建：
-
-```sql
-SELECT table_name
-FROM user_tables
-WHERE table_name IN (
-  'USERS', 'USER_ADDRESSES', 'RUNNERS', 'NODES', 'SERVICE_TYPES',
-  'SERVICE_NODE_RULES', 'TASKS', 'FOOD_DELIVERY_DETAILS',
-  'EXPRESS_PICKUP_DETAILS', 'PRIVATE_TASK_DETAILS', 'ASSIGN_RECORDS',
-  'TASK_STATUS_LOGS', 'PAYMENTS', 'REFUNDS', 'REVIEWS', 'COMPLAINTS',
-  'SETTLEMENTS', 'SETTLEMENT_PAYMENT_ITEMS', 'AUDIT_LOGS',
-  'AUDIT_STATUS_LOG_CHECKS', 'AUDIT_PAYMENT_CHECKS',
-  'AUDIT_REFUND_CHECKS', 'REPORTS', 'REPORT_AUDIT_ITEMS'
-)
-ORDER BY table_name;
+```text
+/Account/Login
 ```
 
-也可以直接查看数量：
+### 方式二：使用命令行
 
-```sql
-SELECT COUNT(*) AS table_count
-FROM user_tables
-WHERE table_name IN (
-  'USERS', 'USER_ADDRESSES', 'RUNNERS', 'NODES', 'SERVICE_TYPES',
-  'SERVICE_NODE_RULES', 'TASKS', 'FOOD_DELIVERY_DETAILS',
-  'EXPRESS_PICKUP_DETAILS', 'PRIVATE_TASK_DETAILS', 'ASSIGN_RECORDS',
-  'TASK_STATUS_LOGS', 'PAYMENTS', 'REFUNDS', 'REVIEWS', 'COMPLAINTS',
-  'SETTLEMENTS', 'SETTLEMENT_PAYMENT_ITEMS', 'AUDIT_LOGS',
-  'AUDIT_STATUS_LOG_CHECKS', 'AUDIT_PAYMENT_CHECKS',
-  'AUDIT_REFUND_CHECKS', 'REPORTS', 'REPORT_AUDIT_ITEMS'
-);
+进入解决方案目录：
+
+```powershell
+cd D:\delivery-backend\VSProjects\CampusRunnerSystem
 ```
 
-返回 `24` 即表示表结构已创建完整。
+编译项目：
 
-## 数据表概览
+```powershell
+dotnet build
+```
 
-### 账户与基础资料
+运行项目：
 
-| 表名 | 说明 |
-| --- | --- |
-| `users` | 系统用户账号、角色和账号状态 |
-| `user_addresses` | 用户常用地址弱实体表，主键为 `user_id + address_no` |
-| `runners` | 跑腿员资格资料、审核状态、接单状态和信誉分 |
+```powershell
+dotnet run --project CampusRunnerSystem
+```
 
-### 节点与服务规则
+如果需要指定端口，可以使用：
 
-| 表名 | 说明 |
-| --- | --- |
-| `nodes` | 校内交接节点、驿站或分发点 |
-| `service_types` | 服务类型及基础价格、距离规则、加急规则 |
-| `service_node_rules` | 服务类型与节点的适用关系，多对多联系表 |
+```powershell
+dotnet run --project CampusRunnerSystem --urls http://127.0.0.1:5086
+```
 
-### 任务与任务明细
+然后在浏览器打开：
 
-| 表名 | 说明 |
-| --- | --- |
-| `tasks` | 任务主单，关联发布用户、服务类型、地址和交接节点 |
-| `food_delivery_details` | 外卖分发任务专有明细 |
-| `express_pickup_details` | 快递代取任务专有明细 |
-| `private_task_details` | 私人物品或私人跑腿任务专有明细 |
+```text
+http://127.0.0.1:5086/Account/Login
+```
 
-`tasks` 通过联合外键保证任务所选地址属于发布用户，并通过 `service_type_id + node_id` 保证服务类型只能选择适用节点。
+## 七、登录测试
 
-### 接派与状态流转
+当前基础登录逻辑从 `users` 表读取数据。
 
-| 表名 | 说明 |
-| --- | --- |
-| `assign_records` | 任务接单、派单和重派记录 |
-| `task_status_logs` | 接派记录对应的任务状态流转日志 |
+测试管理员账号要求：
 
-### 支付、退款、评价、投诉与结算
+```text
+用户名：admin
+密码：123456
+角色：管理员
+账号状态：正常
+```
 
-| 表名 | 说明 |
-| --- | --- |
-| `payments` | 围绕接派记录产生的支付记录 |
-| `refunds` | 支付记录衍生的退款申请和处理信息 |
-| `reviews` | 服务评价及信誉变动结果，一个接派记录最多一条评价 |
-| `complaints` | 针对一次接派服务的投诉及处理结果 |
-| `settlements` | 跑腿员收入结算主表 |
-| `settlement_payment_items` | 结算单与支付记录之间的结算依据联系 |
+对应 `users` 表中的字段应满足：
 
-### 审计与报表
+```text
+username = admin
+password_hash = 123456
+user_role = 管理员
+account_status = 正常
+```
 
-| 表名 | 说明 |
-| --- | --- |
-| `audit_logs` | 运营审计日志基本信息 |
-| `audit_status_log_checks` | 审计日志与任务状态日志之间的抽查联系 |
-| `audit_payment_checks` | 审计日志与支付记录之间的核验联系 |
-| `audit_refund_checks` | 审计日志与退款记录之间的核验联系 |
-| `reports` | 统计报表的类型、周期和生成状态 |
-| `report_audit_items` | 统计报表与审计日志之间的生成依据联系 |
+说明：当前课程设计阶段，密码暂时使用普通字符串比较。后续可以改为密码哈希验证。
 
-## 主要状态枚举
+## 八、当前可以测试的功能
 
-| 字段 | 允许值 |
-| --- | --- |
-| `users.user_role` | `USER`、`RUNNER`、`ADMIN` |
-| `users.account_status` | `NORMAL`、`DISABLED` |
-| `runners.audit_status` | `PENDING`、`APPROVED`、`REJECTED` |
-| `runners.work_status` | `FREE`、`BUSY`、`OFFLINE` |
-| `nodes.node_status` | `NORMAL`、`CLOSED` |
-| `service_types.type_status` | `ENABLED`、`DISABLED` |
-| `tasks.task_status` | `CREATED`、`PAID`、`WAITING`、`ASSIGNED`、`PICKED_UP`、`DELIVERING`、`WAIT_CONFIRM`、`FINISHED`、`CANCELLED`、`REFUNDING` |
-| `assign_records.operation_type` | `SELF`、`ADMIN`、`REASSIGN` |
-| `payments.pay_method` | `WECHAT`、`ALIPAY`、`CASH` |
-| `payments.pay_status` | `UNPAID`、`PAID`、`FAILED`、`REFUNDED` |
-| `refunds.process_status` | `APPLY`、`APPROVED`、`REJECTED`、`DONE` |
-| `complaints.process_status` | `SUBMITTED`、`PROCESSING`、`DONE` |
-| `settlements.settlement_status` | `WAITING`、`DONE`、`BLOCKED` |
-| `audit_logs.audit_object` | `LOG`、`PAYMENT`、`REFUND` |
-| `audit_logs.audit_result` | `PASS`、`ABNORMAL` |
-| `reports.report_type` | `ORDER`、`PAYMENT`、`COMPLAINT` |
-| `reports.report_status` | `GENERATED`、`EXPORTED` |
+### 1. 登录与退出
 
-## 约束与索引设计
+- 访问 `/Account/Login`。
+- 输入 `admin / 123456`。
+- 登录成功后进入管理员首页。
+- 点击右上角“退出登录”可以清空 Session 并返回登录页。
 
-- 所有核心实体表使用主键约束，部分弱实体和联系表使用联合主键。
-- 用户名、手机号、跑腿员关联用户、第三方支付流水号等字段设置唯一约束。
-- 金额、评分、信誉分、时间先后关系和状态枚举均通过 `CHECK` 约束限制。
-- 关键业务关系通过外键表达，包括用户地址、服务节点规则、任务接派、支付退款、结算、审计和报表依据。
-- 脚本末尾创建 20 个常用查询索引，覆盖任务状态、创建时间、接派记录、支付状态、退款状态、投诉状态、结算状态、审计对象和报表周期等场景。
+### 2. 管理员首页
 
-## DBML 模型
+地址：
 
-[schema.dbml](D:/delivery-backend/schema.dbml) 与 SQL 表结构对应，可导入支持 DBML 的工具生成 ER 图或辅助查看关系模型。
+```text
+/AdminDashboard/Index
+```
 
-## 常见问题
+可以进入：
 
-### 执行脚本时报表不存在或表不存在
+- 节点管理
+- 服务类型管理
+- 服务节点规则
+- 用户管理占位页
+- 跑腿员审核占位页
+- 投诉处理占位页
+- 统计报表占位页
 
-脚本开头的删除语句会自动忽略 Oracle 的 `ORA-00942` 表不存在错误。第一次执行时出现内部忽略是正常逻辑，只要后续建表成功即可。
+### 3. 节点管理
 
-### 再次执行后数据消失
+地址：
 
-这是预期行为。脚本会先删除旧表再创建新表，适合开发、课程设计和结构重建场景。需要保留数据时，请不要直接在生产数据用户下重复执行。
+```text
+/Node/Index
+```
 
-### 外键插入失败
+对应 Oracle 表：
 
-请按依赖关系插入数据。通常顺序为：`users`、`user_addresses`、`runners`、`nodes`、`service_types`、`service_node_rules`、`tasks`，再插入接派、支付、评价、投诉、结算、审计和报表相关数据。
+```text
+nodes
+```
 
-### 中文文件名执行不方便
+支持：
 
-可以在本地复制一份脚本并改成英文文件名，例如 `campus_runner_oracle_schema.sql`。脚本内容不依赖文件名。
+- 节点列表
+- 新增节点
+- 修改节点
+- 删除节点
+- 查看节点详情
+
+节点状态只能使用：
+
+```text
+正常
+关闭
+```
+
+### 4. 服务类型管理
+
+地址：
+
+```text
+/ServiceType/Index
+```
+
+对应 Oracle 表：
+
+```text
+service_types
+```
+
+支持：
+
+- 服务类型列表
+- 新增服务类型
+- 修改服务类型
+- 删除服务类型
+- 查看服务类型详情
+
+类型状态只能使用：
+
+```text
+启用
+禁用
+```
+
+### 5. 服务节点规则
+
+地址：
+
+```text
+/ServiceNodeRule/Index
+```
+
+对应 Oracle 表：
+
+```text
+service_node_rules
+```
+
+支持：
+
+- 选择一个服务类型。
+- 选择一个节点。
+- 绑定服务类型和节点。
+- 查看所有绑定规则。
+- 删除绑定规则。
+- 重复绑定时提示“该服务类型与节点已存在绑定关系”。
+
+列表中会联查显示：
+
+- 服务类型编号
+- 服务名称
+- 节点编号
+- 节点名称
+- 节点类型
+
+## 九、当前项目的分层调用关系
+
+以节点列表为例：
+
+```text
+浏览器请求 /Node/Index
+        ↓
+NodeController
+        ↓
+NodeService
+        ↓
+NodeRepository
+        ↓
+OracleDbHelper
+        ↓
+Oracle 数据库 nodes 表
+```
+
+这种结构方便小组成员继续开发其他模块，也方便总集成时排查问题。
+
+## 十、常见问题
+
+### 1. ORA-01017
+
+用户名或密码错误。
+
+优先检查：
+
+- `appsettings.json` 中的 `User Id`
+- `Password`
+- Oracle 用户是否是 `campus`
+
+### 2. ORA-12514
+
+Oracle 服务名不正确。
+
+优先检查：
+
+- PDB 是否启动。
+- 服务名是否是 `orclpdb`。
+- 连接串是否是 `localhost:1521/orclpdb`。
+
+### 3. 表不存在
+
+可能原因：
+
+- 没有执行 SQL 文件。
+- SQL 文件执行到了其他用户下。
+- 当前连接用户不是 `campus`。
+
+### 4. 中文状态插入失败
+
+可能原因：
+
+- 使用了英文状态。
+- 中文枚举值和 SQL 文件中的检查约束不一致。
+
+例如节点状态只能是：
+
+```text
+正常
+关闭
+```
+
+服务类型状态只能是：
+
+```text
+启用
+禁用
+```
+
+### 5. 登录后访问页面显示无权限
+
+可能原因：
+
+- `users.user_role` 不是 `管理员`、`普通用户`、`跑腿员` 中的一个。
+- Session 已过期。
+- 当前账号角色和页面要求角色不匹配。
+
+## 十一、后续开发建议
+
+后续组员开发时建议继续遵守：
+
+- Controller 不直接写 SQL。
+- Service 负责业务判断。
+- Repository 负责数据库访问。
+- View 只负责页面显示。
+- SQL 使用参数化查询。
+- 表名、字段名、中文枚举值以 `Database/campus_runner_oracle_schema_cn.sql` 为准。
+- 不要修改 `bin/` 和 `obj/` 中的编译输出文件。
+
+目前预留给其他组员继续实现的模块包括：
+
+- 用户资料和地址管理。
+- 跑腿员资料提交和审核。
+- 任务发布和任务详情。
+- 接单、派单、重派。
+- 任务状态日志。
+- 支付、退款、评价、投诉。
+- 跑腿员结算。
+- 审计日志。
+- 统计报表。
