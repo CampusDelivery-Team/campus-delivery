@@ -1,244 +1,211 @@
-# 校园中转分发与跑腿服务管理系统部署与开发要求文档
+# 部署与开发要求
 
 ## 1. 文档目的
 
-本文档用于明确本项目在开发阶段和后续部署阶段的基本要求，重点说明前端、后端与数据库之间的协作方式，以及本地数据库迁移到阿里云数据库时需要注意的事项。
+本文档用于统一校园跑腿系统的本地开发、数据库初始化、后续部署和联调要求。
 
-当前项目可以先基于本地 Oracle 数据库进行后端开发，待数据库结构和后端接口基本稳定后，再将数据库迁移或重新初始化到阿里云环境，并通过修改后端数据库连接配置完成联调。
+项目当前按五层架构开发：
+
+```text
+表现层 -> 控制层 -> 业务层 -> 持久层（数据访问层） -> 数据库层
+```
+
+当前仓库保留 `frontend/` 作为主页面和演示入口；后续 MVC 页面放到 `backend/src/CampusDelivery.Api/Presentation/Views/`。
 
 ## 2. 项目组成
 
-项目采用前后端分离结构，主要包括以下部分：
-
-| 模块 | 目录 | 技术/说明 |
+| 模块 | 目录 | 说明 |
 | --- | --- | --- |
-| 前端 | `frontend/` | Vue + Vite |
-| 后端 | `backend/src/CampusDelivery.Api/` | .NET Web API |
-| 数据库 | `database/oracle/` | Oracle 建表脚本 |
-| 文档 | `docs/` | 项目规范与数据库模型 |
+| 表现层 | `frontend/`、`backend/src/CampusDelivery.Api/Presentation/` | 项目主页面、MVC View、ViewModel、静态资源 |
+| 控制层 | `backend/src/CampusDelivery.Api/Controllers/` | Controller 和路由入口 |
+| 业务层 | `backend/src/CampusDelivery.Api/Services/` | 业务规则、权限判断、状态流转 |
+| 持久层 | `backend/src/CampusDelivery.Api/Repositories/`、`backend/src/CampusDelivery.Api/Persistence/` | Repository、SQL、Oracle 连接 |
+| 数据库层 | `database/`、`database/oracle/` | Oracle 建表脚本、基础数据、测试数据 |
+| 文档 | `docs/` | 架构、接口、命名和部署说明 |
 
-## 3. 当前开发环境要求
+## 3. 环境要求
 
 ### 3.1 后端环境
 
-后端开发需要满足以下环境要求：
-
-- Visual Studio 2022
 - .NET SDK 9.0
-- 可连接 Oracle 数据库
-- 后端默认启动地址：`http://localhost:5227`
+- Visual Studio 2022 或 VS Code
+- Oracle.ManagedDataAccess.Core
+- Oracle Database 19c
 
-后端健康检查接口：
+后端默认地址：
 
 ```text
-http://localhost:5227/api/health
+http://localhost:5227
 ```
 
-数据库连通性检查接口：
+检查接口：
 
 ```text
-http://localhost:5227/api/DbTest/ping
+GET /api/health
+GET /api/DbTest/ping
 ```
 
 ### 3.2 前端环境
 
-前端开发需要满足以下环境要求：
-
 - Node.js 20.19.0 或更高版本
 - npm
-- VS Code
 
-前端默认开发地址：
+当前主页面启动地址建议：
 
 ```text
-http://127.0.0.1:5173
+http://127.0.0.1:5174
 ```
-
-开发阶段前端请求 `/api/...` 时，可通过 Vite 代理转发到后端服务。
 
 ### 3.3 数据库环境
 
-开发阶段可以先使用本地 Oracle 数据库。
-
-当前默认数据库连接配置位于：
+当前本地 Oracle 配置：
 
 ```text
-backend/src/CampusDelivery.Api/appsettings.json
+服务名：ORCLPDB
+用户：APPUSER
+密码：App123456
+地址：localhost:1521/ORCLPDB
 ```
 
-当前默认连接串示例：
+后端连接串：
 
 ```json
 {
   "ConnectionStrings": {
-    "OracleDb": "User Id=APPUSER;Password=App123456;Data Source=localhost:1521/XEPDB1;"
+    "OracleDb": "User Id=APPUSER;Password=App123456;Data Source=localhost:1521/ORCLPDB;"
   }
 }
 ```
 
-本地数据库初始化脚本：
+## 4. 本地运行顺序
+
+### 4.1 启动 Oracle
+
+确认本机 Oracle 服务正在运行：
 
 ```text
-database/oracle/001_schema.sql
+OracleServiceORCL
+OracleOraDB19Home1TNSListener
 ```
 
-## 4. 开发阶段要求
+### 4.2 启动后端
 
-### 4.1 后端开发要求
+```powershell
+cd D:\delivery-backend\backend\src\CampusDelivery.Api
+dotnet run
+```
 
-后端可以先按照本地 Oracle 数据库进行开发，但需要遵守以下要求：
+验证：
 
-1. 不要在业务代码中写死数据库地址、账号或密码。
-2. 数据库连接信息统一从配置文件或环境变量读取。
-3. 所有接口应优先保证与数据库结构一致。
-4. 每次修改数据库表结构后，应同步更新数据库 SQL 脚本。
-5. 后端接口完成后，应至少验证健康检查接口和数据库连通性接口。
+```text
+http://localhost:5227/api/health
+http://localhost:5227/api/DbTest/ping
+```
 
-### 4.2 前端开发要求
+### 4.3 启动前端主页面
 
-前端可以与后端并行开发，但需要遵守以下要求：
+```powershell
+cd D:\delivery-backend\frontend
+npm.cmd install
+npm.cmd run dev -- --port 5174
+```
 
-1. 前端接口路径应统一使用 `/api/...` 风格。
-2. 开发环境可以通过 Vite 代理访问本地后端。
-3. 生产环境需要配置真实后端 API 地址，或通过 Nginx/API 网关进行反向代理。
-4. 前端不应直接连接数据库，所有数据访问必须经过后端接口。
+打开：
 
-### 4.3 数据库开发要求
+```text
+http://127.0.0.1:5174
+```
 
-数据库开发阶段需要遵守以下要求：
+## 5. 开发要求
 
-1. 本地数据库可作为开发数据库使用。
-2. 数据库表结构应以 `database/oracle/001_schema.sql` 为准。
-3. 如果新增、删除或修改字段，需要同步更新数据库设计文档和 SQL 脚本。
-4. 测试数据与正式结构建议分开维护。
-5. 不建议只依赖本地数据库导出文件作为唯一交付物。
+### 5.1 五层调用要求
 
-## 5. 阿里云部署要求
+允许：
 
-### 5.1 数据库部署要求
+```text
+View / 前端页面 -> Controller -> Service -> Repository -> OracleConnectionFactory -> Oracle
+```
 
-后续迁移到阿里云时，需要准备以下内容：
+禁止：
 
-1. 阿里云数据库实例或可访问的 Oracle 数据库环境。
-2. 数据库访问地址、端口、服务名。
-3. 业务数据库账号，例如 `APPUSER`。
-4. 数据库账号密码。
-5. 必要的网络白名单或安全组规则。
-6. 初始化建表脚本。
+```text
+View 直接访问数据库
+Controller 直接写复杂 SQL
+Service 直接返回页面
+Repository 处理页面跳转
+```
 
-数据库初始化建议流程：
+### 5.2 数据库要求
+
+1. 表结构由数据库层统一维护。
+2. 修改表结构前必须同步更新 SQL 脚本和文档。
+3. 业务状态枚举统一使用中文。
+4. 基础数据和测试数据建议分脚本维护。
+5. 每个模块完成后必须能用 SQL Developer 验证数据库变化。
+
+### 5.3 代码提交要求
+
+提交前必须确认：
+
+```powershell
+dotnet build D:\delivery-backend\backend\CampusDelivery.sln
+```
+
+如果后端正在运行导致构建文件被锁住，需要先停止后端程序再构建。
+
+## 6. 后续部署要求
+
+### 6.1 数据库部署
+
+部署到服务器或阿里云时，需要准备：
+
+1. Oracle 数据库实例。
+2. 数据库服务名、地址和端口。
+3. 业务用户 `APPUSER` 或正式业务用户。
+4. 建表脚本。
+5. 基础数据脚本。
+6. 网络白名单和安全组。
+
+部署流程：
 
 ```text
 创建数据库实例
 创建业务用户
-授权业务用户
-执行 database/oracle/001_schema.sql
-验证核心表是否创建成功
+授予 CONNECT / RESOURCE 等权限
+执行建表脚本
+执行基础数据脚本
+验证核心表
 ```
 
-### 5.2 后端部署要求
+### 6.2 后端部署
 
-后端部署到服务器或云环境后，需要将数据库连接串从本地地址切换为阿里云数据库地址。
+后端部署后，只修改连接串，不修改业务代码。
 
-生产环境连接串示例：
+生产环境建议使用环境变量或服务器配置保存数据库密码，不要把正式密码提交到仓库。
 
-```json
-{
-  "ConnectionStrings": {
-    "OracleDb": "User Id=APPUSER;Password=实际密码;Data Source=阿里云数据库地址:1521/服务名;"
-  }
-}
-```
+### 6.3 表现层部署
 
-生产环境建议使用环境变量或服务器密钥配置保存数据库密码，避免将正式密码提交到代码仓库。
+如果使用当前 `frontend/` 主页面：
 
-后端部署完成后，需要验证：
+1. 构建前端静态文件。
+2. 配置后端 API 地址或反向代理。
+3. 保证 `/api/health` 和 `/api/DbTest/ping` 可访问。
 
-```text
-/api/health
-/api/DbTest/ping
-```
+如果后续改为完整 MVC 页面：
 
-### 5.3 前端部署要求
+1. 页面放在 `Presentation/Views/`。
+2. 静态资源放在 `Presentation/wwwroot/` 或 ASP.NET Core 默认 `wwwroot/`。
+3. 由 Controller 返回 View。
 
-前端部署时需要确认后端 API 的访问方式。
+## 7. 验收要求
 
-可选方式：
+部署或开发阶段至少满足：
 
-1. 前端直接请求后端完整地址。
-2. 通过 Nginx 将 `/api` 反向代理到后端服务。
-3. 通过统一网关转发 API 请求。
-
-推荐生产环境使用反向代理方式，使前端继续使用 `/api/...` 请求路径，降低前端环境切换成本。
-
-## 6. 推荐实施流程
-
-项目可以采用以下流程推进：
-
-```text
-第 1 步：本地 Oracle 数据库初始化
-第 2 步：后端基于本地数据库开发接口
-第 3 步：前端基于接口路径并行开发页面
-第 4 步：持续维护数据库 SQL 脚本
-第 5 步：准备阿里云数据库环境
-第 6 步：在阿里云数据库执行建表脚本
-第 7 步：修改后端数据库连接配置
-第 8 步：部署后端并验证数据库连通
-第 9 步：部署前端并配置 API 访问方式
-第 10 步：完成前后端与数据库联调
-```
-
-## 7. 并行开发说明
-
-前端、后端和数据库可以同时推进，但需要明确依赖关系：
-
-| 工作项 | 是否可并行 | 依赖 |
-| --- | --- | --- |
-| 后端接口开发 | 可以 | 本地数据库结构 |
-| 前端页面开发 | 可以 | 接口路径和返回格式 |
-| 数据库阿里云部署 | 可以 | 数据库脚本 |
-| 前后端联调 | 部分可以 | 后端接口可访问 |
-| 生产环境联调 | 需要后置 | 阿里云数据库和后端部署完成 |
-
-建议优先确认数据库表结构和接口返回格式，避免前端、后端和数据库频繁互相返工。
-
-## 8. 风险与注意事项
-
-### 8.1 数据库结构不一致
-
-风险：本地数据库已经修改，但 SQL 脚本没有同步，导致阿里云数据库初始化后与本地环境不一致。
-
-要求：每次修改数据库结构后，必须同步更新 SQL 脚本。
-
-### 8.2 数据库连接串泄露
-
-风险：正式数据库账号密码被提交到代码仓库。
-
-要求：生产环境密码应使用环境变量、服务器配置或密钥管理服务保存。
-
-### 8.3 前端 API 地址不一致
-
-风险：本地使用 Vite 代理可以访问，部署后接口请求失败。
-
-要求：部署前必须明确生产环境 API 访问方式。
-
-### 8.4 云数据库网络不可达
-
-风险：后端服务器无法连接阿里云数据库。
-
-要求：需要提前配置数据库白名单、安全组和端口访问规则。
-
-## 9. 验收要求
-
-部署或迁移完成后，需要至少满足以下验收条件：
-
-1. 后端 `/api/health` 返回正常。
-2. 后端 `/api/DbTest/ping` 可以成功连接数据库。
-3. 阿里云数据库中核心业务表已创建。
-4. 前端页面可以正常访问后端 API。
-5. 前端、后端、数据库之间可以完成一次完整业务流程。
-6. 正式数据库连接信息未明文提交到代码仓库。
-
-## 10. 结论
-
-本项目可以先基于本地 Oracle 数据库进行后端开发，再将数据库迁移或初始化到阿里云环境。只要数据库结构脚本持续维护、后端连接串不写死、前端 API 地址配置清晰，前端、后端和数据库部署准备工作可以并行推进。
+1. 后端可以启动。
+2. `/api/health` 返回正常。
+3. `/api/DbTest/ping` 可以连接 Oracle。
+4. `APPUSER` 下存在 24 张业务表。
+5. 主页面可以打开。
+6. 每个业务模块按五层结构放置文件。
+7. 中文枚举和数据库约束保持一致。
+8. `dotnet build` 通过。

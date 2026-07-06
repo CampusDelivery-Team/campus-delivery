@@ -1,4 +1,4 @@
-using CampusDelivery.Api.Data;
+using CampusDelivery.Api.Persistence.Oracle;
 
 var builder = WebApplication.CreateBuilder(args);
 

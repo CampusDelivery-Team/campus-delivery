@@ -1,6 +1,6 @@
 using Oracle.ManagedDataAccess.Client;
 
-namespace CampusDelivery.Api.Data;
+namespace CampusDelivery.Api.Persistence.Oracle;
 
 public sealed class OracleConnectionFactory(IConfiguration configuration)
 {

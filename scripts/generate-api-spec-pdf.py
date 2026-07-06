@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs" / "api-frontend-backend-spec.md"
 OUTPUT_DIR = ROOT / "output" / "pdf"
 OUTPUT = OUTPUT_DIR / "api-frontend-backend-spec.pdf"
+DOCUMENT_TITLE = "校园跑腿系统 MVC 接口与模块开发规范"
 
 
 def register_fonts() -> tuple[str, str]:
@@ -231,7 +232,7 @@ def draw_footer(canvas, doc):
     canvas.saveState()
     canvas.setFont("ChineseNormal" if "ChineseNormal" in pdfmetrics.getRegisteredFontNames() else "Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#6b7280"))
-    canvas.drawString(20 * mm, 12 * mm, "校园跑腿系统接口与前后端分离规范文档")
+    canvas.drawString(20 * mm, 12 * mm, DOCUMENT_TITLE)
     canvas.drawRightString(190 * mm, 12 * mm, f"第 {doc.page} 页")
     canvas.restoreState()
 
@@ -239,7 +240,7 @@ def draw_footer(canvas, doc):
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     styles = make_styles()
-    markdown = SOURCE.read_text(encoding="utf-8")
+    markdown = SOURCE.read_text(encoding="utf-8-sig")
     story = markdown_to_story(markdown, styles)
     if story and isinstance(story[-1], PageBreak):
         story = story[:-1]
@@ -251,7 +252,7 @@ def main() -> None:
         leftMargin=16 * mm,
         topMargin=16 * mm,
         bottomMargin=18 * mm,
-        title="校园跑腿系统接口与前后端分离规范文档",
+        title=DOCUMENT_TITLE,
         author="组员1",
     )
     doc.build(story, onFirstPage=draw_footer, onLaterPages=draw_footer)
