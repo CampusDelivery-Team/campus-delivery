@@ -1,0 +1,9 @@
+SET HEADING ON
+SET FEEDBACK ON
+SET PAGESIZE 200
+SET LINESIZE 200
+
+SELECT table_name FROM user_tables ORDER BY table_name;
+SELECT COUNT(*) AS table_count FROM user_tables;
+
+EXIT
