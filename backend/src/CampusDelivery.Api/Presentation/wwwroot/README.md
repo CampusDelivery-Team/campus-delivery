@@ -1,20 +1,11 @@
-# wwwroot
+# 静态资源
 
-这里存放 MVC 页面使用的静态资源。
+本目录是 MVC 应用的 WebRoot。
 
-可放内容：
-
-```text
-css/
-js/
-images/
-lib/
-```
-
-例如：
+当前静态资源：
 
 ```text
-wwwroot/css/site.css
-wwwroot/js/site.js
-wwwroot/images/logo.png
+css/site.css
 ```
+
+页面通过 `~/css/site.css` 引用样式。

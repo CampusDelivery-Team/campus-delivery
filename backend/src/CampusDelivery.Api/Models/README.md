@@ -1,26 +1,13 @@
 # Models
 
-这里存放和业务实体相关的模型。
+本目录存放数据/领域模型。
 
-可以放：
-
-```text
-User.cs
-UserAddress.cs
-Runner.cs
-Task.cs
-Payment.cs
-Refund.cs
-Review.cs
-Complaint.cs
-Settlement.cs
-Report.cs
-```
-
-Model 用于表达业务对象或数据库查询结果，不负责页面表单展示。
-
-页面专用数据请放到：
+当前模型：
 
 ```text
-Presentation/ViewModels/
+Node.cs
 ```
+
+Model 字段保持与数据库语义一致，枚举和状态值使用英文代码。
+
+页面表单模型请放到 `Presentation/ViewModels`。

@@ -1,17 +1,22 @@
 # ViewModels
 
-这里存放页面表单和页面展示所需的数据模型。
+本目录存放页面输入和展示模型。
 
-命名建议：
+当前 ViewModel：
 
 ```text
-LoginViewModel.cs
-RegisterViewModel.cs
-AddressViewModel.cs
-TaskCreateViewModel.cs
-TaskDetailViewModel.cs
-PaymentViewModel.cs
-ReportViewModel.cs
+DatabaseStatusViewModel.cs
+NodeCreateViewModel.cs
+NodeEditViewModel.cs
+NodeIndexViewModel.cs
+NodeListItemViewModel.cs
 ```
 
-ViewModel 只服务页面输入和展示，不直接对应数据库表。
+ViewModel 只服务于页面，不直接承担数据库实体职责。
+
+数据库英文代码对应的中文显示文本，应放在展示型 ViewModel 字段中，例如：
+
+```text
+NodeStatus
+NodeStatusDisplayName
+```

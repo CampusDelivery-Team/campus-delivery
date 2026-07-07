@@ -1,0 +1,31 @@
+@model DatabaseStatusViewModel
+
+@{
+    ViewData["Title"] = "数据库状态";
+}
+
+<section class="panel">
+    <div class="section-header">
+        <div>
+            <p class="eyebrow">Oracle</p>
+            <h1>数据库状态</h1>
+        </div>
+    </div>
+
+    <dl class="status-list">
+        <div>
+            <dt>连接状态</dt>
+            <dd class="badge @(Model.IsConnected ? "success" : "danger")">
+                @(Model.IsConnected ? "已连接" : "连接失败")
+            </dd>
+        </div>
+        <div>
+            <dt>用户数量</dt>
+            <dd>@(Model.UserCount?.ToString() ?? "-")</dd>
+        </div>
+        <div>
+            <dt>消息</dt>
+            <dd>@Model.Message</dd>
+        </div>
+    </dl>
+</section>

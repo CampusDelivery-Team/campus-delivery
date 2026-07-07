@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - 校园中转分发与跑腿服务管理系统</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" asp-controller="Home" asp-action="Index">
+            <span>跑</span>
+            <strong>校园跑腿</strong>
+            <small>Campus Runner Service</small>
+        </a>
+        <nav class="nav">
+            <a asp-controller="Home" asp-action="Index" asp-fragment="services">服务类型</a>
+            <a asp-controller="Home" asp-action="Index" asp-fragment="portals">角色入口</a>
+            <a asp-controller="Home" asp-action="Index" asp-fragment="workflow">服务流程</a>
+            <a asp-controller="Database" asp-action="Status">系统检测</a>
+            <a class="nav-cta" asp-controller="Node" asp-action="Index">进入系统</a>
+        </nav>
+    </header>
+
+    <main class="page">
+        @RenderBody()
+    </main>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
