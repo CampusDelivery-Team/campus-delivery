@@ -7,3 +7,5 @@
 ```text
 Oracle/OracleConnectionFactory.cs
 ```
+
+Repository 通过该工厂创建 Oracle 连接。

@@ -2,4 +2,10 @@
 
 本目录是 MVC 应用的 WebRoot。
 
-静态文件通过 `~/css/site.css` 等路径访问。
+当前静态资源：
+
+```text
+css/site.css
+```
+
+页面通过 `~/css/site.css` 引用样式。

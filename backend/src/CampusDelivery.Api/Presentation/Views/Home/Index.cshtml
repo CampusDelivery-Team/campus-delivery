@@ -2,40 +2,171 @@
     ViewData["Title"] = "首页";
 }
 
-<section class="hero">
-    <div>
-        <p class="eyebrow">MVC 五层架构</p>
-        <h1>校园中转分发与跑腿服务管理系统</h1>
+<section class="home-hero" id="top">
+    <div class="home-hero__content">
+        <p class="eyebrow">校园中转分发与跑腿服务管理系统</p>
+        <h1>把校园里的每一次代取、配送和转交变得清楚可靠</h1>
         <p class="summary">
-            当前项目入口已切换为 ASP.NET Core MVC。请求从 Razor 页面进入 Controller，
-            经 Service 和 Repository 访问 Oracle 数据库。
+            面向普通用户、跑腿员和管理员的校园服务平台，覆盖外卖分发、快递代取、私人跑腿、
+            支付签收、评价投诉、结算审计和统计报表。
         </p>
         <div class="actions">
-            <a class="button primary" asp-controller="Node" asp-action="Index">进入节点管理</a>
-            <a class="button" asp-controller="Database" asp-action="Status">检查数据库</a>
+            <a class="button primary" href="#portals">进入系统</a>
+            <a class="button" asp-controller="Node" asp-action="Index">基础资料</a>
         </div>
+        <div class="metric-strip">
+            <div>
+                <strong>3类</strong>
+                <span>跑腿服务</span>
+            </div>
+            <div>
+                <strong>24张</strong>
+                <span>业务数据表</span>
+            </div>
+            <div>
+                <strong>全流程</strong>
+                <span>状态追踪</span>
+            </div>
+        </div>
+    </div>
+
+    <aside class="task-preview" aria-label="推荐任务">
+        <div class="task-preview__header">
+            <span>推荐任务</span>
+            <strong>快速代取</strong>
+        </div>
+        <div class="task-line blue">
+            <b>北区快递驿站</b>
+            <span>取件码、快递公司、备注统一记录</span>
+        </div>
+        <div class="task-line pink">
+            <b>学生公寓 6 号楼</b>
+            <span>送达后用户确认签收</span>
+        </div>
+        <div class="task-preview__footer">
+            <div>
+                <span>任务状态</span>
+                <strong>待接单</strong>
+            </div>
+            <div>
+                <span>预估费用</span>
+                <strong>¥6.00</strong>
+            </div>
+        </div>
+    </aside>
+</section>
+
+<section class="home-section" id="services">
+    <p class="eyebrow">SERVICES</p>
+    <div class="section-title">
+        <div>
+            <h2>常用校园跑腿服务</h2>
+            <p>围绕校园生活中的高频委托场景设计，后续模块开发可以直接从这些入口继续扩展。</p>
+        </div>
+    </div>
+
+    <div class="service-grid">
+        <article class="service-card blue">
+            <span class="pill">高频场景</span>
+            <h3>外卖分发</h3>
+            <p>将校门、食堂、商圈外卖集中分发到宿舍楼或指定节点，减少等待和重复跑动。</p>
+            <a href="#portals">发布此类任务</a>
+        </article>
+        <article class="service-card pink">
+            <span class="pill">校园刚需</span>
+            <h3>快递代取</h3>
+            <p>支持填写快递公司、取件码和交付地址，由跑腿员从驿站代取并送达。</p>
+            <a href="#portals">发布此类任务</a>
+        </article>
+        <article class="service-card cyan">
+            <span class="pill">灵活委托</span>
+            <h3>私人跑腿</h3>
+            <p>覆盖临时送物、资料递送、物品转交等个性化需求，流程清晰可追踪。</p>
+            <a href="#portals">发布此类任务</a>
+        </article>
     </div>
 </section>
 
-<section class="grid">
-    <article>
-        <h2>表现层</h2>
-        <p>Presentation/Views、ViewModels、wwwroot。</p>
-    </article>
-    <article>
-        <h2>控制层</h2>
-        <p>Controllers 接收请求并返回 View 或跳转。</p>
-    </article>
-    <article>
-        <h2>业务层</h2>
-        <p>Services 处理业务规则和流程。</p>
-    </article>
-    <article>
-        <h2>持久层</h2>
-        <p>Repositories 和 Persistence 负责 SQL 与 Oracle 连接。</p>
-    </article>
-    <article>
-        <h2>数据库层</h2>
-        <p>database/oracle/campus_runner_oracle_schema.sql 是 24 张表的标准脚本。</p>
-    </article>
+<section class="home-section portal-band" id="portals">
+    <p class="eyebrow">PORTALS</p>
+    <h2>按身份进入系统</h2>
+    <p class="section-copy">主界面提供真实项目入口，后续登录和权限完成后可接入对应页面。</p>
+
+    <div class="portal-grid">
+        <article class="portal-card">
+            <span>普通用户</span>
+            <h3>发布任务与查看进度</h3>
+            <p>维护收货地址，发布外卖、快递或私人跑腿任务，完成支付、签收、评价和投诉。</p>
+            <div class="tag-row">
+                <a href="#services">发布任务</a>
+                <a href="#">我的订单</a>
+                <a href="#">评价投诉</a>
+            </div>
+        </article>
+        <article class="portal-card">
+            <span>跑腿员</span>
+            <h3>接单配送与状态更新</h3>
+            <p>提交跑腿员申请，通过审核后进入任务大厅接单，并按流程更新配送状态。</p>
+            <div class="tag-row">
+                <a href="#">申请认证</a>
+                <a href="#">任务大厅</a>
+                <a href="#">我的接单</a>
+            </div>
+        </article>
+        <article class="portal-card">
+            <span>管理员</span>
+            <h3>审核管理与运营统计</h3>
+            <p>维护节点和服务类型，审核跑腿员，处理退款投诉，查看结算、审计和报表。</p>
+            <div class="tag-row">
+                <a asp-controller="Node" asp-action="Index">基础资料</a>
+                <a href="#">审核处理</a>
+                <a href="#">统计报表</a>
+            </div>
+        </article>
+    </div>
+</section>
+
+<section class="home-section" id="workflow">
+    <p class="eyebrow">WORKFLOW</p>
+    <h2>从发布到完成的服务闭环</h2>
+    <p class="section-copy">优先跑通发布任务、支付、接单、状态流转、签收和评价这一条主流程。</p>
+
+    <div class="workflow-grid">
+        <article>
+            <span>1</span>
+            <h3>发布需求</h3>
+            <p>用户选择服务类型，填写地址、节点、备注和价格信息。</p>
+        </article>
+        <article>
+            <span>2</span>
+            <h3>在线支付</h3>
+            <p>任务支付后进入待接单状态，跑腿员可在任务大厅查看。</p>
+        </article>
+        <article>
+            <span>3</span>
+            <h3>接单配送</h3>
+            <p>跑腿员抢单或管理员派单，配送过程写入状态日志。</p>
+        </article>
+        <article>
+            <span>4</span>
+            <h3>签收评价</h3>
+            <p>用户确认签收后可评价或投诉，管理员可继续处理售后。</p>
+        </article>
+    </div>
+</section>
+
+<section class="system-panel" id="system">
+    <div>
+        <span>后端状态</span>
+        <strong>服务正常</strong>
+    </div>
+    <div>
+        <span>应用服务</span>
+        <strong>CampusDelivery.Api</strong>
+    </div>
+    <div>
+        <span>数据库</span>
+        <strong>Oracle / XEPDB1</strong>
+    </div>
+    <a class="button" asp-controller="Database" asp-action="Status">系统检测</a>
 </section>

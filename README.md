@@ -1,56 +1,82 @@
 # 校园中转分发与跑腿服务管理系统
 
-本仓库已统一为 ASP.NET Core MVC 五层架构，不再使用 Vue/Vite 前端作为主入口。
+当前仓库已经统一为 ASP.NET Core MVC 五层架构。项目主入口是后端 MVC 页面，不再包含 Vue/Vite 前端。
 
-## 架构分层
-
-```text
-表现层 Presentation
-  backend/src/CampusDelivery.Api/Presentation/Views
-  backend/src/CampusDelivery.Api/Presentation/ViewModels
-  backend/src/CampusDelivery.Api/Presentation/wwwroot
-
-控制层 Controllers
-  backend/src/CampusDelivery.Api/Controllers
-
-业务层 Services
-  backend/src/CampusDelivery.Api/Services
-
-持久层 Repositories / Persistence
-  backend/src/CampusDelivery.Api/Repositories
-  backend/src/CampusDelivery.Api/Persistence
-
-数据库层 database/oracle
-  database/oracle/campus_runner_oracle_schema.sql
-```
-
-调用方向固定为：
+## 当前结构
 
 ```text
-Razor View -> Controller -> Service -> Repository -> OracleConnectionFactory -> Oracle
+backend/                                  # ASP.NET Core MVC 应用
+backend/src/CampusDelivery.Api/
+  Controllers/                            # 控制层
+  Services/                               # 业务层
+  Repositories/                           # 持久层
+  Persistence/Oracle/                     # Oracle 连接基础设施
+  Models/                                 # 数据/领域模型
+  Presentation/
+    Views/                                # Razor 页面
+    ViewModels/                           # 页面展示和表单模型
+    wwwroot/                              # 静态资源
+
+database/oracle/campus_runner_oracle_schema.sql
+docs/
+scripts/
 ```
+
+## 运行方式
+
+```powershell
+cd D:\delivery-backend
+.\scripts\run-backend.ps1
+```
+
+或：
+
+```powershell
+cd D:\delivery-backend
+dotnet run --project backend/src/CampusDelivery.Api/CampusDelivery.Api.csproj
+```
+
+默认访问：
+
+```text
+http://localhost:5227/
+http://localhost:5227/Node
+http://localhost:5227/Database/Status
+```
+
+## 当前已落地页面
+
+| 地址 | 说明 |
+| --- | --- |
+| `/` | 蓝粉色项目主页面，作为系统门户和其他模块入口 |
+| `/Node` | 节点管理示例模块，已打通 MVC 五层 |
+| `/Database/Status` | Oracle 连接检测页面 |
 
 ## 数据库
 
-本机开发默认 Oracle PDB 服务名为 `XEPDB1`：
+本机开发默认 Oracle PDB：
+
+```text
+localhost:1521/XEPDB1
+```
+
+连接字符串：
 
 ```text
 User Id=APPUSER;Password=App123456;Data Source=localhost:1521/XEPDB1;
 ```
 
-24 张表的标准建表脚本是：
+当前唯一标准建表脚本：
 
 ```text
 database/oracle/campus_runner_oracle_schema.sql
 ```
 
-当前仓库没有 `002_init_base_data.sql` 和 `003_init_test_data.sql`。也就是说现在只维护表结构脚本，基础数据和测试数据还没有单独脚本。
+该脚本包含 24 张业务表。当前仓库没有 `002_init_base_data.sql` 和 `003_init_test_data.sql`。
 
-如果需要初始化数据库，可先创建 `APPUSER`，再用 `APPUSER` 执行上述 24 表脚本。
+## 数据显示规则
 
-## 数据值与页面显示
-
-数据库中的枚举/状态值统一存英文代码，页面输出中文名称。例如：
+数据库保存英文代码，页面显示中文名称。例如：
 
 | 数据库存储 | 页面显示 |
 | --- | --- |
@@ -60,45 +86,7 @@ database/oracle/campus_runner_oracle_schema.sql
 | `NORMAL` | 正常 |
 | `CLOSED` | 关闭 |
 
-这个转换放在业务层或展示模型中完成，Repository 只负责读写数据库英文值。
-
-## 运行后端
-
-```powershell
-cd D:\delivery-backend
-.\scripts\run-backend.ps1
-```
-
-或直接：
-
-```powershell
-dotnet run --project backend/src/CampusDelivery.Api/CampusDelivery.Api.csproj
-```
-
-默认 MVC 入口：
-
-```text
-/
-/Node
-/Database/Status
-```
-
-## 当前已落地模块
-
-`Node` 模块已经按五层完整打通：
-
-```text
-Presentation/Views/Node/*
-Presentation/ViewModels/Node*
-Controllers/NodeController.cs
-Services/NodeService.cs
-Repositories/NodeRepository.cs
-database/oracle/campus_runner_oracle_schema.sql 中的 nodes 表
-```
-
-`Node` 页面提交到数据库的是英文值，列表页显示的是中文名称。
-
-其他模块可以按同样模式继续扩展。
+Repository 只读写英文代码；Service/ViewModel 负责准备中文显示字段；Razor View 只展示中文字段。
 
 ## 构建检查
 

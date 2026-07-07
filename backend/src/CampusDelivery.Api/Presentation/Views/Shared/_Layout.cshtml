@@ -8,11 +8,17 @@
 </head>
 <body>
     <header class="topbar">
-        <a class="brand" asp-controller="Home" asp-action="Index">校园跑腿管理系统</a>
+        <a class="brand" asp-controller="Home" asp-action="Index">
+            <span>跑</span>
+            <strong>校园跑腿</strong>
+            <small>Campus Runner Service</small>
+        </a>
         <nav class="nav">
-            <a asp-controller="Home" asp-action="Index">首页</a>
-            <a asp-controller="Node" asp-action="Index">节点管理</a>
-            <a asp-controller="Database" asp-action="Status">数据库状态</a>
+            <a asp-controller="Home" asp-action="Index" asp-fragment="services">服务类型</a>
+            <a asp-controller="Home" asp-action="Index" asp-fragment="portals">角色入口</a>
+            <a asp-controller="Home" asp-action="Index" asp-fragment="workflow">服务流程</a>
+            <a asp-controller="Database" asp-action="Status">系统检测</a>
+            <a class="nav-cta" asp-controller="Node" asp-action="Index">进入系统</a>
         </nav>
     </header>
 

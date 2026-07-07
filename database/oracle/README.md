@@ -6,7 +6,7 @@
 campus_runner_oracle_schema.sql
 ```
 
-该脚本包含 24 张表，执行前请确认已连接到正确的 PDB，例如本机开发环境：
+该脚本包含 24 张业务表。执行前请确认已连接到正确的 PDB，例如本机开发环境：
 
 ```text
 localhost:1521/XEPDB1
@@ -23,7 +23,7 @@ localhost:1521/XEPDB1
 003_init_test_data.sql
 ```
 
-如后续需要基础数据或演示数据，应按上述命名新增，并在 README 中补充执行顺序。
+如后续需要基础数据或演示数据，应按上述命名新增，并在文档中补充执行顺序。
 
 ## 中英文规则
 
@@ -37,4 +37,4 @@ STATION
 DISTRIBUTION
 ```
 
-MVC 页面展示时由业务层或 ViewModel 转换为中文。
+MVC 页面展示时由 Service 或 ViewModel 转换为中文。
