@@ -1,41 +1,13 @@
-# 控制层 Controllers
+# 控制层
 
-控制层负责接收请求、绑定参数、调用业务层，并返回页面、JSON 或跳转结果。
+Controller 负责接收 MVC 请求、绑定 ViewModel、调用 Service，并返回 View、Redirect 或少量 JSON。
 
-本层应该存放：
-
-```text
-AuthController.cs
-UserController.cs
-AddressController.cs
-RunnerController.cs
-TaskController.cs
-AssignController.cs
-PaymentController.cs
-RefundController.cs
-ReviewController.cs
-ComplaintController.cs
-SettlementController.cs
-AuditController.cs
-ReportController.cs
-```
-
-本层可以：
-
-- 接收 GET / POST 请求。
-- 校验基础参数是否为空。
-- 调用 Service。
-- 处理 `View()`、`RedirectToAction()`、`Ok()` 等返回。
-
-本层不应该：
-
-- 编写复杂业务规则。
-- 直接写 SQL。
-- 直接访问 Oracle。
-- 绕过 Service 修改核心业务状态。
-
-调用方向：
+当前控制器：
 
 ```text
-控制层 -> 业务层
+HomeController.cs       # 首页门户
+NodeController.cs       # 节点管理
+DatabaseController.cs   # 数据库连接检测
 ```
+
+不要在 Controller 中直接写复杂 SQL，也不要直接访问 Oracle。

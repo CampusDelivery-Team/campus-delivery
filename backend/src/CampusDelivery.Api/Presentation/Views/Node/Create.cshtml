@@ -1,0 +1,22 @@
+@model NodeCreateViewModel
+
+@{
+    ViewData["Title"] = "新增节点";
+}
+
+<section class="panel narrow">
+    <div class="section-header">
+        <div>
+            <p class="eyebrow">基础资料</p>
+            <h1>新增节点</h1>
+        </div>
+    </div>
+
+    <form asp-action="Create" method="post" class="form">
+        <partial name="_NodeForm" model="Model" />
+        <div class="form-actions">
+            <button class="button primary" type="submit">保存</button>
+            <a class="button" asp-action="Index">返回</a>
+        </div>
+    </form>
+</section>

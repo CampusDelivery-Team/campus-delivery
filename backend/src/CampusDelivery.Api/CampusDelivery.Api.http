@@ -1,9 +1,0 @@
-@CampusDelivery.Api_HostAddress = http://localhost:5227
-
-GET {{CampusDelivery.Api_HostAddress}}/api/health
-Accept: application/json
-
-###
-
-GET {{CampusDelivery.Api_HostAddress}}/api/DbTest/ping
-Accept: application/json
