@@ -1,24 +1,15 @@
-# Views
+# Razor Views
 
-这里存放 Razor 页面。
+本目录存放 MVC Razor 页面。
 
-建议按 Controller 名称分目录：
+页面按控制器分目录，例如：
 
 ```text
-Views/Auth/
-Views/User/
-Views/Address/
-Views/Runner/
-Views/Task/
-Views/Assign/
-Views/Payment/
-Views/Refund/
-Views/Review/
-Views/Complaint/
-Views/Settlement/
-Views/Audit/
-Views/Report/
-Views/Shared/
+Home/Index.cshtml
+Node/Index.cshtml
+Node/Create.cshtml
+Node/Edit.cshtml
+Database/Status.cshtml
 ```
 
-View 只负责展示和提交表单，不直接访问数据库。
+页面应显示中文名称。数据库英文代码的转换应由 Service/ViewModel 先准备好，View 中尽量只做展示。

@@ -1,26 +1,40 @@
-# Oracle 脚本目录
+# Oracle 脚本
 
-这里存放 Oracle 19c 使用的数据库脚本。
-
-当前已有：
+## 标准建表脚本
 
 ```text
-001_schema.sql
+campus_runner_oracle_schema.sql
 ```
 
-建议后续补充：
+该脚本包含 24 张表，执行前请确认已连接到正确的 PDB，例如本机开发环境：
+
+```text
+localhost:1521/XEPDB1
+```
+
+建议使用 `APPUSER` 执行建表脚本。
+
+## 当前未提供的脚本
+
+仓库中没有以下文件：
 
 ```text
 002_init_base_data.sql
 003_init_test_data.sql
 ```
 
-执行顺序建议：
+如后续需要基础数据或演示数据，应按上述命名新增，并在 README 中补充执行顺序。
+
+## 中英文规则
+
+数据库字段值存英文代码，例如：
 
 ```text
-1. 创建 APPUSER 用户并授权
-2. 执行建表脚本
-3. 执行基础数据脚本
-4. 执行测试数据脚本
-5. 使用 SQL Developer 验证关键表数据
+NORMAL
+CLOSED
+GATE
+STATION
+DISTRIBUTION
 ```
+
+MVC 页面展示时由业务层或 ViewModel 转换为中文。

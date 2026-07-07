@@ -1,0 +1,41 @@
+@{
+    ViewData["Title"] = "首页";
+}
+
+<section class="hero">
+    <div>
+        <p class="eyebrow">MVC 五层架构</p>
+        <h1>校园中转分发与跑腿服务管理系统</h1>
+        <p class="summary">
+            当前项目入口已切换为 ASP.NET Core MVC。请求从 Razor 页面进入 Controller，
+            经 Service 和 Repository 访问 Oracle 数据库。
+        </p>
+        <div class="actions">
+            <a class="button primary" asp-controller="Node" asp-action="Index">进入节点管理</a>
+            <a class="button" asp-controller="Database" asp-action="Status">检查数据库</a>
+        </div>
+    </div>
+</section>
+
+<section class="grid">
+    <article>
+        <h2>表现层</h2>
+        <p>Presentation/Views、ViewModels、wwwroot。</p>
+    </article>
+    <article>
+        <h2>控制层</h2>
+        <p>Controllers 接收请求并返回 View 或跳转。</p>
+    </article>
+    <article>
+        <h2>业务层</h2>
+        <p>Services 处理业务规则和流程。</p>
+    </article>
+    <article>
+        <h2>持久层</h2>
+        <p>Repositories 和 Persistence 负责 SQL 与 Oracle 连接。</p>
+    </article>
+    <article>
+        <h2>数据库层</h2>
+        <p>database/oracle/campus_runner_oracle_schema.sql 是 24 张表的标准脚本。</p>
+    </article>
+</section>
