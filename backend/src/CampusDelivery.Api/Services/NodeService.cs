@@ -12,7 +12,8 @@ public sealed class NodeService(NodeRepository nodeRepository)
 
         return new NodeIndexViewModel
         {
-            Nodes = nodes.Select(ToListItem).ToList()
+            Nodes = nodes.Select(ToListItem).ToList(),
+            IsReadOnly = true
         };
     }
 

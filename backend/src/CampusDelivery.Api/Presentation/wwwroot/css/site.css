@@ -480,6 +480,15 @@ th {
     text-align: center;
 }
 
+.readonly-note {
+    background: #fff6e5;
+    border: 1px solid #f1d3a2;
+    border-radius: 6px;
+    color: #7a3e00;
+    margin: 0 0 20px;
+    padding: 12px 14px;
+}
+
 .badge {
     border-radius: 999px;
     display: inline-flex;

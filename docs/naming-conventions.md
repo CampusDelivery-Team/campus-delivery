@@ -41,20 +41,23 @@ Presentation/wwwroot/css/site.css
 
 ## 数据库脚本
 
-当前唯一建表脚本：
+当前建表脚本：
 
 ```text
 database/oracle/campus_runner_oracle_schema.sql
 ```
 
-如果后续新增初始化数据脚本，命名为：
+当前已提供基础数据脚本：
 
 ```text
 database/oracle/002_init_base_data.sql
-database/oracle/003_init_test_data.sql
 ```
 
-当前仓库尚未提供这两个文件。
+后续如需完整业务演示数据，命名为：
+
+```text
+database/oracle/003_init_test_data.sql
+```
 
 ## 中文显示字段
 

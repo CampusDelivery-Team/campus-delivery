@@ -8,6 +8,13 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     WebRootPath = "Presentation/wwwroot"
 });
 
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+}
+
+builder.Configuration.AddEnvironmentVariables();
+
 builder.Services.AddControllersWithViews()
     .AddRazorOptions(options =>
     {
