@@ -1,0 +1,47 @@
+@model CampusDelivery.Api.Presentation.ViewModels.UserViewModel
+@{
+    ViewData["Title"] = "个人中心";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 rounded-lg">
+                <div class="card-header bg-dark text-white text-center py-3">
+                    <h4 class="font-weight-light my-1">我的个人信息</h4>
+                </div>
+                <div class="card-body p-4">
+                    
+                    <div class="mb-3 border-bottom pb-2">
+                        <span class="fw-bold text-muted">用户编号：</span>
+                        <span class="fs-5 float-end">@Model.UserId</span>
+                    </div>
+                    
+                    <div class="mb-3 border-bottom pb-2">
+                        <span class="fw-bold text-muted">账号：</span>
+                        <span class="fs-5 float-end">@Model.Username</span>
+                    </div>
+
+                    <div class="mb-3 border-bottom pb-2">
+                        <span class="fw-bold text-muted">手机号：</span>
+                        <span class="fs-5 float-end">@Model.Phone</span>
+                    </div>
+
+                    <div class="mb-4 border-bottom pb-2">
+                        <span class="fw-bold text-muted">系统身份：</span>
+                        <span class="badge bg-primary fs-6 float-end">@Model.UserRole</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="/User/Edit" class="btn btn-outline-primary">修改信息</a>
+                        
+                        <form asp-controller="Auth" asp-action="Logout" method="post">
+                            <button type="submit" class="btn btn-danger">退出登录</button>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

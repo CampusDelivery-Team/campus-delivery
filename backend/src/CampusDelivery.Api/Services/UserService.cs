@@ -80,5 +80,17 @@ namespace CampusDelivery.Api.Services
                 _ => "未知角色"
             };
         }
+        /// <summary>
+        /// 更新用户手机号
+        /// </summary>
+        public (bool Success, string ErrorMessage) UpdatePhone(int userId, string newPhone)
+        {
+            bool isUpdated = _userRepository.UpdateUserPhone(userId, newPhone);
+            if (isUpdated)
+            {
+                return (true, "");
+            }
+            return (false, "系统繁忙，更新失败，请稍后再试");
+        }
     }
 }

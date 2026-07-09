@@ -102,5 +102,16 @@ namespace CampusDelivery.Api.Controllers
             TempData["SuccessMessage"] = "账号注册成功，请登录！";
             return RedirectToAction("Login");
         }
+        // 5. 退出登录 (POST)
+        [HttpPost]
+        public async Task<IActionResult> Logout()
+        {
+            // 清除系统发放的 Cookie 通行证
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            // 提示退出成功，并跳转回登录页
+            TempData["SuccessMessage"] = "您已安全退出系统";
+            return RedirectToAction("Login");
+        }
     }
 }

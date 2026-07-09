@@ -58,7 +58,7 @@ namespace CampusDelivery.Api.Repositories
             using (OracleConnection conn = new OracleConnection(_connectionString))
             {
                 conn.Open();
-                // ⚠️ 同样注意 APPUSER. 前缀
+            
                 string sql = @"INSERT INTO APPUSER.users 
                                (username, phone, password_hash, user_role, account_status) 
                                VALUES 
@@ -78,5 +78,24 @@ namespace CampusDelivery.Api.Repositories
                 }
             }
         }
+        // 3. 更新用户手机号
+        public bool UpdateUserPhone(int userId, string newPhone)
+        {
+            using (OracleConnection conn = new OracleConnection(_connectionString))
+            {
+                conn.Open();
+   
+                string sql = @"UPDATE APPUSER.users SET phone = :phone WHERE user_id = :user_id";
+
+                using (OracleCommand cmd = new OracleCommand(sql, conn))
+                {
+                    cmd.Parameters.Add(new OracleParameter("phone", newPhone));
+                    cmd.Parameters.Add(new OracleParameter("user_id", userId));
+
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+        }
     }
+
 }
