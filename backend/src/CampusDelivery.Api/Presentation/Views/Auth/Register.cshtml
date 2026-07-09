@@ -1,0 +1,53 @@
+@model CampusDelivery.Api.Presentation.ViewModels.RegisterViewModel
+@{
+    ViewData["Title"] = "用户注册";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 rounded-lg mt-5">
+                <div class="card-header bg-success text-white text-center py-3">
+                    <h3 class="font-weight-light my-2">注册新账号</h3>
+                </div>
+                <div class="card-body p-4">
+                    
+                    <form asp-controller="Auth" asp-action="Register" method="post" autocomplete="off">
+                        <div asp-validation-summary="ModelOnly" class="text-danger fw-bold mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Username" class="form-label fw-bold">账号 (3-50个字符)</label>
+                            <input asp-for="Username" class="form-control" placeholder="请输入账号" autocomplete="off" />
+                            <span asp-validation-for="Username" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Phone" class="form-label fw-bold">手机号</label>
+                            <input asp-for="Phone" class="form-control" placeholder="请输入手机号" autocomplete="off" />
+                            <span asp-validation-for="Phone" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Password" class="form-label fw-bold">密码 (至少6个字符)</label>
+                            <input asp-for="Password" class="form-control" placeholder="请输入密码" autocomplete="new-password" />
+                            <span asp-validation-for="Password" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="ConfirmPassword" class="form-label fw-bold">确认密码</label>
+                            <input asp-for="ConfirmPassword" class="form-control" placeholder="请再次确认密码" autocomplete="new-password" />
+                            <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4 mb-0">
+                            <button class="btn btn-success btn-lg" type="submit">注 册</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center py-3">
+                    <div class="small"><a href="/Auth/Login">已有账号？返回登录</a></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
