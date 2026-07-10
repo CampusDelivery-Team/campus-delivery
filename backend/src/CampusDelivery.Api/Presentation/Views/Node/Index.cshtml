@@ -10,8 +10,12 @@
             <p class="eyebrow">基础资料</p>
             <h1>节点管理</h1>
         </div>
-        <a class="button primary" asp-action="Create">新增节点</a>
     </div>
+
+    @if (Model.IsReadOnly)
+    {
+        <p class="readonly-note">当前联调环境的节点资料页为只读展示，新增、编辑、删除入口已关闭。</p>
+    }
 
     <div class="table-wrap">
         <table>
@@ -23,14 +27,17 @@
                     <th>位置</th>
                     <th>开放时间</th>
                     <th>状态</th>
-                    <th>操作</th>
+                    @if (!Model.IsReadOnly)
+                    {
+                        <th>操作</th>
+                    }
                 </tr>
             </thead>
             <tbody>
             @if (Model.Nodes.Count == 0)
             {
                 <tr>
-                    <td colspan="7" class="empty">暂无节点数据</td>
+                    <td colspan="@(Model.IsReadOnly ? 6 : 7)" class="empty">暂无节点数据</td>
                 </tr>
             }
             else
@@ -44,12 +51,15 @@
                         <td>@node.Location</td>
                         <td>@(node.OpenTime ?? "-")</td>
                         <td><span class="badge @(node.NodeStatus == "NORMAL" ? "success" : "muted")">@node.NodeStatusDisplayName</span></td>
-                        <td class="row-actions">
-                            <a asp-action="Edit" asp-route-id="@node.NodeId">编辑</a>
-                            <form asp-action="Delete" asp-route-id="@node.NodeId" method="post">
-                                <button type="submit" class="link-button">删除</button>
-                            </form>
-                        </td>
+                        @if (!Model.IsReadOnly)
+                        {
+                            <td class="row-actions">
+                                <a asp-action="Edit" asp-route-id="@node.NodeId">编辑</a>
+                                <form asp-action="Delete" asp-route-id="@node.NodeId" method="post">
+                                    <button type="submit" class="link-button">删除</button>
+                                </form>
+                            </td>
+                        }
                     </tr>
                 }
             }

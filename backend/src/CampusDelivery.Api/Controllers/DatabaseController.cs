@@ -1,10 +1,13 @@
 using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Presentation.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 
 namespace CampusDelivery.Api.Controllers;
 
-public sealed class DatabaseController(OracleConnectionFactory connectionFactory) : Controller
+public sealed class DatabaseController(
+    OracleConnectionFactory connectionFactory,
+    IHostEnvironment environment) : Controller
 {
     public async Task<IActionResult> Status(CancellationToken cancellationToken)
     {
@@ -26,7 +29,9 @@ public sealed class DatabaseController(OracleConnectionFactory connectionFactory
         catch (Exception ex)
         {
             model.IsConnected = false;
-            model.Message = ex.Message;
+            model.Message = environment.IsDevelopment()
+                ? ex.Message
+                : "数据库连接失败，请联系服务器负责人查看后端日志。";
         }
 
         return View(model);
