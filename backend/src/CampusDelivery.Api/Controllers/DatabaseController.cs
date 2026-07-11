@@ -1,10 +1,12 @@
 using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Presentation.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 
 namespace CampusDelivery.Api.Controllers;
 
+[Authorize(Roles = "ADMIN")]
 public sealed class DatabaseController(
     OracleConnectionFactory connectionFactory,
     IHostEnvironment environment) : Controller

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>@ViewData["Title"] - 校园中转分发与跑腿服务管理系统</title>
+    <title>@ViewData["Title"] - 校园跑腿服务管理系统</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
@@ -15,10 +15,28 @@
         </a>
         <nav class="nav">
             <a asp-controller="Home" asp-action="Index" asp-fragment="services">服务类型</a>
-            <a asp-controller="Home" asp-action="Index" asp-fragment="portals">角色入口</a>
-            <a asp-controller="Home" asp-action="Index" asp-fragment="workflow">服务流程</a>
-            <a asp-controller="Database" asp-action="Status">系统检测</a>
-            <a class="nav-cta" asp-controller="Node" asp-action="Index">进入系统</a>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a asp-controller="User" asp-action="Profile">个人中心</a>
+
+                @if (User.IsInRole("ADMIN"))
+                {
+                    <a asp-controller="Node" asp-action="Index">节点资料</a>
+                    <a asp-controller="Database" asp-action="Status">系统检测</a>
+                }
+
+                <span class="nav-user">@User.Identity.Name</span>
+                <form class="nav-logout" asp-controller="Auth" asp-action="Logout" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="nav-cta">退出登录</button>
+                </form>
+            }
+            else
+            {
+                <a asp-controller="Home" asp-action="Index" asp-fragment="workflow">服务流程</a>
+                <a asp-controller="Auth" asp-action="Login">登录</a>
+                <a class="nav-cta" asp-controller="Auth" asp-action="Register">注册</a>
+            }
         </nav>
     </header>
 

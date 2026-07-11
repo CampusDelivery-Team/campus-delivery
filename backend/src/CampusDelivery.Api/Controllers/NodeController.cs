@@ -1,9 +1,11 @@
 using CampusDelivery.Api.Presentation.ViewModels;
 using CampusDelivery.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CampusDelivery.Api.Controllers;
 
+[Authorize(Roles = "ADMIN")]
 public sealed class NodeController(NodeService nodeService) : Controller
 {
     public async Task<IActionResult> Index(CancellationToken cancellationToken)

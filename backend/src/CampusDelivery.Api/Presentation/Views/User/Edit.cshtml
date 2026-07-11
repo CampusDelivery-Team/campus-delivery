@@ -1,46 +1,40 @@
 @model CampusDelivery.Api.Presentation.ViewModels.UserViewModel
 @{
-    ViewData["Title"] = "修改信息";
+    ViewData["Title"] = "编辑个人信息";
 }
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 rounded-lg">
-                <div class="card-header bg-dark text-white text-center py-3">
-                    <h4 class="font-weight-light my-1">修改个人信息</h4>
-                </div>
-                <div class="card-body p-4">
-                    
-                    <form asp-controller="User" asp-action="Edit" method="post" autocomplete="off">
-                        <div asp-validation-summary="ModelOnly" class="text-danger fw-bold mb-3"></div>
-                        
-                        <input type="hidden" asp-for="UserId" />
+<section class="profile-page profile-edit-page">
+    <div class="profile-edit-heading">
+        <p class="eyebrow">ACCOUNT SETTINGS</p>
+        <h1>编辑个人信息</h1>
+        <p>账户和系统身份由平台维护，当前仅支持修改联系电话。</p>
+    </div>
 
-                        <div class="mb-3">
-                            <label asp-for="Username" class="form-label fw-bold">账号</label>
-                            <input asp-for="Username" class="form-control bg-light" readonly />
-                        </div>
+    <form class="profile-edit-form" asp-controller="User" asp-action="Edit" method="post" autocomplete="off">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
 
-                        <div class="mb-3">
-                            <label asp-for="UserRole" class="form-label fw-bold">系统身份</label>
-                            <input asp-for="UserRole" class="form-control bg-light" readonly />
-                        </div>
-
-                        <div class="mb-4">
-                            <label asp-for="Phone" class="form-label fw-bold text-primary">手机号</label>
-                            <input asp-for="Phone" class="form-control border-primary" placeholder="请输入新的手机号" />
-                            <span asp-validation-for="Phone" class="text-danger small"></span>
-                        </div>
-
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="/User/Profile" class="btn btn-secondary">取消返回</a>
-                            <button type="submit" class="btn btn-primary">保存修改</button>
-                        </div>
-                    </form>
-
-                </div>
+        <div class="profile-readonly-grid">
+            <div>
+                <span>登录账号</span>
+                <strong>@Model.Username</strong>
+            </div>
+            <div>
+                <span>系统身份</span>
+                <strong>@Model.UserRole</strong>
+                <small>不可自行修改</small>
             </div>
         </div>
-    </div>
-</div>
+
+        <div class="profile-edit-field">
+            <label asp-for="Phone">联系电话</label>
+            <input asp-for="Phone" autocomplete="tel" placeholder="请输入新的手机号" />
+            <span asp-validation-for="Phone" class="validation-message"></span>
+        </div>
+
+        <div class="profile-footer-actions">
+            <a class="button" asp-controller="User" asp-action="Profile">取消</a>
+            <button type="submit" class="button primary">保存修改</button>
+        </div>
+    </form>
+</section>
