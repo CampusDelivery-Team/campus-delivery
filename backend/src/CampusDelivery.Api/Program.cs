@@ -26,6 +26,8 @@ builder.Services.AddControllersWithViews()
 builder.Services.AddSingleton<OracleConnectionFactory>();
 builder.Services.AddScoped<NodeRepository>();
 builder.Services.AddScoped<NodeService>();
+builder.Services.AddScoped<ServiceTypeRepository>();
+builder.Services.AddScoped<ServiceTypeService>();
 
 // ---> 新增 1：注册账户模块服务
 builder.Services.AddScoped<UserRepository>();

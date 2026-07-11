@@ -56,7 +56,7 @@
 | --- | --- |
 | 外卖分发 | `food_delivery_details` |
 | 快递代取 | `express_pickup_details` |
-| 私人任务 | `private_task_details` |
+| 私人跑腿 | `private_task_details` |
 
 ## 任务大厅规则
 

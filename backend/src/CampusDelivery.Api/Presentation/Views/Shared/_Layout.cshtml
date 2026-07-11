@@ -21,6 +21,7 @@
 
                 @if (User.IsInRole("ADMIN"))
                 {
+                    <a asp-controller="ServiceType" asp-action="Index">服务类型管理</a>
                     <a asp-controller="Node" asp-action="Index">节点资料</a>
                     <a asp-controller="Database" asp-action="Status">系统检测</a>
                 }

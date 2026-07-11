@@ -543,13 +543,18 @@ dt {
 }
 
 input,
-select {
+select,
+textarea {
     border: 1px solid #c9d9ef;
     border-radius: 6px;
     font: inherit;
     min-height: 42px;
     padding: 8px 10px;
     width: 100%;
+}
+
+textarea {
+    resize: vertical;
 }
 
 .validation-message,
@@ -563,6 +568,99 @@ select {
     color: #b91c1c;
     min-height: auto;
     padding: 0;
+}
+
+.muted-text {
+    color: #6b7893;
+}
+
+.service-type-table {
+    min-width: 980px;
+    table-layout: fixed;
+}
+
+.service-type-id-column {
+    width: 6%;
+}
+
+.service-type-name-column {
+    width: 16%;
+}
+
+.service-type-price-column {
+    width: 13%;
+}
+
+.service-type-distance-column {
+    width: 23%;
+}
+
+.service-type-urgent-column {
+    width: 18%;
+}
+
+.service-type-status-column {
+    width: 12%;
+}
+
+.service-type-actions-column {
+    width: 12%;
+}
+
+.service-type-editor-row {
+    background: #f8fbff;
+}
+
+.service-type-editor-row.is-hidden {
+    display: none;
+}
+
+.service-type-editor-row td {
+    vertical-align: top;
+}
+
+.service-type-editor-row input,
+.service-type-editor-row select {
+    min-width: 0;
+}
+
+.service-type-editor-row .validation-message {
+    display: block;
+    margin-top: 5px;
+}
+
+.editor-id {
+    color: #385071;
+    font-weight: 800;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 12px;
+    white-space: nowrap;
+}
+
+.service-type-row-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.service-type-row-actions form {
+    margin: 0;
+}
+
+.edit-service-type {
+    color: #385071;
+}
+
+.link-button.enable-action {
+    color: #166534;
+}
+
+#show-service-type-editor.is-hidden {
+    display: none;
 }
 
 .status-list {

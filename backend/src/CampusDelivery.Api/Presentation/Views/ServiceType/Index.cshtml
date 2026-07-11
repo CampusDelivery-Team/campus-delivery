@@ -1,0 +1,320 @@
+@model ServiceTypeIndexViewModel
+
+@{
+    ViewData["Title"] = "服务类型管理";
+    var showCreateEditor = ViewData.ModelState.Keys.Any(
+        key => key.StartsWith($"{nameof(Model.CreateModel)}.", StringComparison.Ordinal));
+    var showEditEditor = ViewData.ModelState.Keys.Any(
+        key => key.StartsWith($"{nameof(Model.EditModel)}.", StringComparison.Ordinal));
+}
+
+<section class="panel">
+    <div class="section-header">
+        <div>
+            <p class="eyebrow">基础资料</p>
+            <h1>服务类型管理</h1>
+        </div>
+        <button
+            id="show-service-type-editor"
+            class="button primary"
+            type="button"
+            aria-controls="service-type-editor-row"
+            aria-expanded="@(showCreateEditor ? "true" : "false")">
+            新增服务类型
+        </button>
+    </div>
+
+    <form id="service-type-create-form" asp-action="Create" method="post"></form>
+    <form id="service-type-edit-form" asp-action="Edit" method="post"></form>
+    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+    <div class="table-wrap">
+        <table class="service-type-table">
+            <colgroup>
+                <col class="service-type-id-column" />
+                <col class="service-type-name-column" />
+                <col class="service-type-price-column" />
+                <col class="service-type-distance-column" />
+                <col class="service-type-urgent-column" />
+                <col class="service-type-status-column" />
+                <col class="service-type-actions-column" />
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>编号</th>
+                    <th>服务名称</th>
+                    <th>基础价格</th>
+                    <th>距离规则</th>
+                    <th>加急规则</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.ServiceTypes.Count == 0)
+            {
+                <tr>
+                    <td colspan="7" class="empty">暂无服务类型数据</td>
+                </tr>
+            }
+            else
+            {
+                foreach (var serviceType in Model.ServiceTypes)
+                {
+                    <tr id="service-type-row-@serviceType.ServiceTypeId">
+                        <td>@serviceType.ServiceTypeId</td>
+                        <td>@serviceType.ServiceName</td>
+                        <td>@serviceType.BasePrice.ToString("F2") 元</td>
+                        <td>@(serviceType.DistanceRule ?? "-")</td>
+                        <td>@(serviceType.UrgentRule ?? "-")</td>
+                        <td>
+                            <span class="badge @(serviceType.TypeStatus == "ENABLED" ? "success" : "muted")">
+                                @serviceType.TypeStatusDisplayName
+                            </span>
+                        </td>
+                        <td>
+                            <div class="service-type-row-actions">
+                                <button
+                                    class="link-button edit-service-type"
+                                    type="button"
+                                    data-service-type-id="@serviceType.ServiceTypeId"
+                                    data-service-name="@serviceType.ServiceName"
+                                    data-base-price="@serviceType.BasePrice.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                    data-distance-rule="@serviceType.DistanceRule"
+                                    data-urgent-rule="@serviceType.UrgentRule"
+                                    data-type-status="@serviceType.TypeStatus">
+                                    编辑
+                                </button>
+                                @if (serviceType.TypeStatus != "DISABLED")
+                                {
+                                    <form asp-action="ChangeStatus" asp-route-id="@serviceType.ServiceTypeId" method="post">
+                                        <input type="hidden" name="status" value="DISABLED" />
+                                        <button type="submit" class="link-button">停用</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form asp-action="ChangeStatus" asp-route-id="@serviceType.ServiceTypeId" method="post">
+                                        <input type="hidden" name="status" value="ENABLED" />
+                                        <button type="submit" class="link-button enable-action">启用</button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+                <tr
+                    id="service-type-editor-row"
+                    class="service-type-editor-row @(showCreateEditor ? "" : "is-hidden")"
+                    data-has-errors="@(showCreateEditor ? "true" : "false")">
+                    <td class="editor-id">-</td>
+                    <td>
+                        <input
+                            asp-for="CreateModel.ServiceName"
+                            form="service-type-create-form"
+                            maxlength="50"
+                            placeholder="服务名称" />
+                        <span asp-validation-for="CreateModel.ServiceName" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <input
+                            asp-for="CreateModel.BasePrice"
+                            form="service-type-create-form"
+                            type="number"
+                            min="0"
+                            max="99999999.99"
+                            step="0.01"
+                            placeholder="0.00" />
+                        <span asp-validation-for="CreateModel.BasePrice" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <input
+                            asp-for="CreateModel.DistanceRule"
+                            form="service-type-create-form"
+                            maxlength="200"
+                            placeholder="距离规则" />
+                        <span asp-validation-for="CreateModel.DistanceRule" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <input
+                            asp-for="CreateModel.UrgentRule"
+                            form="service-type-create-form"
+                            maxlength="200"
+                            placeholder="加急规则" />
+                        <span asp-validation-for="CreateModel.UrgentRule" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <select asp-for="CreateModel.TypeStatus" form="service-type-create-form">
+                            <option value="">选择状态</option>
+                            <option value="ENABLED">启用</option>
+                            <option value="DISABLED">停用</option>
+                        </select>
+                        <span asp-validation-for="CreateModel.TypeStatus" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <div class="editor-actions">
+                            <button class="link-button enable-action" type="submit" form="service-type-create-form">保存</button>
+                            <button id="cancel-service-type-editor" class="link-button" type="button">取消</button>
+                        </div>
+                    </td>
+                </tr>
+                <tr
+                    id="service-type-edit-row"
+                    class="service-type-editor-row @(showEditEditor ? "" : "is-hidden")"
+                    data-has-errors="@(showEditEditor ? "true" : "false")">
+                    <td class="editor-id">
+                        <span id="editing-service-type-id">@Model.EditModel.ServiceTypeId</span>
+                        <input
+                            asp-for="EditModel.ServiceTypeId"
+                            form="service-type-edit-form"
+                            type="hidden" />
+                    </td>
+                    <td>
+                        <input
+                            asp-for="EditModel.ServiceName"
+                            form="service-type-edit-form"
+                            maxlength="50"
+                            placeholder="服务名称" />
+                        <span asp-validation-for="EditModel.ServiceName" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <input
+                            asp-for="EditModel.BasePrice"
+                            form="service-type-edit-form"
+                            type="number"
+                            min="0"
+                            max="99999999.99"
+                            step="0.01"
+                            placeholder="0.00" />
+                        <span asp-validation-for="EditModel.BasePrice" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <input
+                            asp-for="EditModel.DistanceRule"
+                            form="service-type-edit-form"
+                            maxlength="200"
+                            placeholder="距离规则" />
+                        <span asp-validation-for="EditModel.DistanceRule" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <input
+                            asp-for="EditModel.UrgentRule"
+                            form="service-type-edit-form"
+                            maxlength="200"
+                            placeholder="加急规则" />
+                        <span asp-validation-for="EditModel.UrgentRule" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <select asp-for="EditModel.TypeStatus" form="service-type-edit-form">
+                            <option value="ENABLED">启用</option>
+                            <option value="DISABLED">停用</option>
+                        </select>
+                        <span asp-validation-for="EditModel.TypeStatus" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <div class="editor-actions">
+                            <button class="link-button enable-action" type="submit" form="service-type-edit-form">保存</button>
+                            <button id="cancel-service-type-edit" class="link-button" type="button">取消</button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (() => {
+            const openButton = document.getElementById("show-service-type-editor");
+            const cancelButton = document.getElementById("cancel-service-type-editor");
+            const editorRow = document.getElementById("service-type-editor-row");
+            const form = document.getElementById("service-type-create-form");
+            const nameInput = document.getElementById("CreateModel_ServiceName");
+            const editButtons = document.querySelectorAll(".edit-service-type");
+            const editRow = document.getElementById("service-type-edit-row");
+            const editForm = document.getElementById("service-type-edit-form");
+            const editCancelButton = document.getElementById("cancel-service-type-edit");
+            const editingIdText = document.getElementById("editing-service-type-id");
+            const editIdInput = document.getElementById("EditModel_ServiceTypeId");
+            const editNameInput = document.getElementById("EditModel_ServiceName");
+            const editPriceInput = document.getElementById("EditModel_BasePrice");
+            const editDistanceInput = document.getElementById("EditModel_DistanceRule");
+            const editUrgentInput = document.getElementById("EditModel_UrgentRule");
+            const editStatusInput = document.getElementById("EditModel_TypeStatus");
+
+            const closeEdit = () => {
+                editRow.classList.add("is-hidden");
+                editForm.reset();
+            };
+
+            const setEditorOpen = (isOpen) => {
+                if (isOpen) {
+                    closeEdit();
+                }
+
+                editorRow.classList.toggle("is-hidden", !isOpen);
+                openButton.classList.toggle("is-hidden", isOpen);
+                openButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+
+                if (isOpen) {
+                    nameInput.focus();
+                }
+            };
+
+            const openEdit = (button) => {
+                form.reset();
+                editorRow.classList.add("is-hidden");
+                openButton.classList.remove("is-hidden");
+                openButton.setAttribute("aria-expanded", "false");
+
+                editIdInput.value = button.dataset.serviceTypeId;
+                editingIdText.textContent = button.dataset.serviceTypeId;
+                editNameInput.value = button.dataset.serviceName;
+                editPriceInput.value = button.dataset.basePrice;
+                editDistanceInput.value = button.dataset.distanceRule;
+                editUrgentInput.value = button.dataset.urgentRule;
+                editStatusInput.value = button.dataset.typeStatus;
+
+                document.getElementById(`service-type-row-${button.dataset.serviceTypeId}`).after(editRow);
+                editRow.classList.remove("is-hidden");
+                editNameInput.focus();
+            };
+
+            openButton.addEventListener("click", () => setEditorOpen(true));
+            cancelButton.addEventListener("click", () => {
+                if (editorRow.dataset.hasErrors === "true") {
+                    window.location.href = "@Url.Action("Index", "ServiceType")";
+                    return;
+                }
+
+                form.reset();
+                setEditorOpen(false);
+            });
+
+            editButtons.forEach((button) => {
+                button.addEventListener("click", () => openEdit(button));
+            });
+
+            editCancelButton.addEventListener("click", () => {
+                if (editRow.dataset.hasErrors === "true") {
+                    window.location.href = "@Url.Action("Index", "ServiceType")";
+                    return;
+                }
+
+                closeEdit();
+            });
+
+            if (editRow.dataset.hasErrors === "true") {
+                const targetRow = document.getElementById(`service-type-row-${editIdInput.value}`);
+                if (targetRow) {
+                    targetRow.after(editRow);
+                }
+                editRow.classList.remove("is-hidden");
+            } else {
+                setEditorOpen(editorRow.dataset.hasErrors === "true");
+            }
+        })();
+    </script>
+}

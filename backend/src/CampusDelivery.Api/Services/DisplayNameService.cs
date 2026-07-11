@@ -22,4 +22,14 @@ public static class DisplayNameService
             _ => value
         };
     }
+
+    public static string GetServiceTypeStatusName(string value)
+    {
+        return value switch
+        {
+            "ENABLED" => "启用",
+            "DISABLED" => "停用",
+            _ => value
+        };
+    }
 }
