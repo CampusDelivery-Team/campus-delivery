@@ -14,36 +14,110 @@ public sealed class NodeController(NodeService nodeService) : Controller
         return View(model);
     }
 
-    [HttpGet]
-    public IActionResult Create()
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(
+        [Bind(Prefix = nameof(NodeIndexViewModel.CreateModel))]
+        NodeCreateViewModel model,
+        CancellationToken cancellationToken)
     {
-        return Forbid();
+        if (!ModelState.IsValid)
+        {
+            return await ViewIndexAsync(
+                createModel: model,
+                cancellationToken: cancellationToken);
+        }
+
+        if (!await nodeService.CreateAsync(model, cancellationToken))
+        {
+            ModelState.AddModelError(
+                $"{nameof(NodeIndexViewModel.CreateModel)}.{nameof(model.NodeName)}",
+                "节点名称已存在，请使用其他名称");
+            return await ViewIndexAsync(
+                createModel: model,
+                cancellationToken: cancellationToken);
+        }
+
+        TempData["NodeMessage"] = "节点已新增";
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Create(NodeCreateViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(
+        [Bind(Prefix = nameof(NodeIndexViewModel.EditModel))]
+        NodeEditViewModel model,
+        CancellationToken cancellationToken)
     {
-        return Forbid();
-    }
+        if (!ModelState.IsValid)
+        {
+            return await ViewIndexAsync(
+                editModel: model,
+                cancellationToken: cancellationToken);
+        }
 
-    [HttpGet]
-    public IActionResult Edit(int id, CancellationToken cancellationToken)
-    {
-        return Forbid();
+        var result = await nodeService.UpdateAsync(model, cancellationToken);
+        if (result == NodeUpdateResult.DuplicateName)
+        {
+            ModelState.AddModelError(
+                $"{nameof(NodeIndexViewModel.EditModel)}.{nameof(model.NodeName)}",
+                "节点名称已存在，请使用其他名称");
+            return await ViewIndexAsync(
+                editModel: model,
+                cancellationToken: cancellationToken);
+        }
+
+        if (result == NodeUpdateResult.NotFound)
+        {
+            ModelState.AddModelError(string.Empty, "节点不存在或已被移除");
+            return await ViewIndexAsync(
+                editModel: model,
+                cancellationToken: cancellationToken);
+        }
+
+        TempData["NodeMessage"] = "节点资料已更新";
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Edit(NodeEditViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> ChangeStatus(
+        int id,
+        string status,
+        CancellationToken cancellationToken)
     {
-        return Forbid();
+        if (id <= 0 || status is not ("NORMAL" or "CLOSED"))
+        {
+            return BadRequest();
+        }
+
+        var result = await nodeService.UpdateStatusAsync(id, status, cancellationToken);
+        TempData["NodeMessage"] = result switch
+        {
+            NodeStatusUpdateResult.Success when status == "NORMAL" => "节点已恢复正常",
+            NodeStatusUpdateResult.Success => "节点已关闭",
+            NodeStatusUpdateResult.NotFound => "节点不存在",
+            _ => "节点状态没有变化"
+        };
+        return RedirectToAction(nameof(Index));
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public IActionResult Delete(int id, CancellationToken cancellationToken)
+    private async Task<IActionResult> ViewIndexAsync(
+        CancellationToken cancellationToken,
+        NodeCreateViewModel? createModel = null,
+        NodeEditViewModel? editModel = null)
     {
-        return Forbid();
+        var indexModel = await nodeService.GetIndexAsync(cancellationToken);
+        if (createModel is not null)
+        {
+            indexModel.CreateModel = createModel;
+        }
+
+        if (editModel is not null)
+        {
+            indexModel.EditModel = editModel;
+        }
+
+        return View(nameof(Index), indexModel);
     }
 }

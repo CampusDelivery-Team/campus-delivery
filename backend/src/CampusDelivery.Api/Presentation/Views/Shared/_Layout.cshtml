@@ -19,11 +19,27 @@
             {
                 <a asp-controller="User" asp-action="Profile">个人中心</a>
 
+                @if (!User.IsInRole("ADMIN"))
+                {
+                    <a asp-controller="Runner" asp-action="Apply">跑腿员资格</a>
+                }
+
                 @if (User.IsInRole("ADMIN"))
                 {
-                    <a asp-controller="ServiceType" asp-action="Index">服务类型管理</a>
-                    <a asp-controller="Node" asp-action="Index">节点资料</a>
-                    <a asp-controller="Database" asp-action="Status">系统检测</a>
+                    <details class="nav-menu">
+                        <summary>管理</summary>
+                        <div class="nav-menu-panel">
+                            <span class="nav-menu-label">基础资料</span>
+                            <a asp-controller="Node" asp-action="Index">节点管理</a>
+                            <a asp-controller="ServiceType" asp-action="Index">服务类型</a>
+                            <a asp-controller="ServiceNodeRule" asp-action="Index">服务节点规则</a>
+                            <span class="nav-menu-label">人员管理</span>
+                            <a asp-controller="Runner" asp-action="Index">跑腿员资料</a>
+                            <a asp-controller="Runner" asp-action="Pending">跑腿员审核</a>
+                            <span class="nav-menu-label">系统</span>
+                            <a asp-controller="Database" asp-action="Status">系统检测</a>
+                        </div>
+                    </details>
                 }
 
                 <span class="nav-user">@User.Identity.Name</span>
@@ -45,6 +61,19 @@
         @RenderBody()
     </main>
 
+    <script>
+        (() => {
+            const menu = document.querySelector(".nav-menu");
+            if (!menu) return;
+
+            document.addEventListener("click", event => {
+                if (!menu.contains(event.target)) menu.removeAttribute("open");
+            });
+            document.addEventListener("keydown", event => {
+                if (event.key === "Escape") menu.removeAttribute("open");
+            });
+        })();
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

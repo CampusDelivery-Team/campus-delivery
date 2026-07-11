@@ -1,0 +1,28 @@
+@model RunnerIndexViewModel
+
+@{
+    ViewData["Title"] = "跑腿员申请审核";
+}
+
+<section class="panel management-panel">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">资格审核</p>
+            <h1>待审核申请</h1>
+            <p class="section-description">审核通过会同步授予跑腿员角色并进入可接单状态。</p>
+        </div>
+        <a class="button" asp-action="Index">返回全部跑腿员</a>
+    </div>
+
+    <div class="review-guidance">
+        <span>待处理 <strong>@Model.PendingCount</strong></span>
+        <p>通过：资格设为“已通过”、工作状态设为“可接单”；拒绝：资格设为“已拒绝”、保持离线。</p>
+    </div>
+
+    @if (TempData["RunnerMessage"] is string message)
+    {
+        <div class="inline-notice">@message</div>
+    }
+
+    <partial name="_RunnerTable" model="Model" />
+</section>

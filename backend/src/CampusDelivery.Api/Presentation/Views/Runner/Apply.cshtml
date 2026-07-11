@@ -1,0 +1,77 @@
+@model RunnerApplicationPageViewModel
+
+@{
+    ViewData["Title"] = "跑腿员申请";
+}
+
+<section class="application-shell">
+    <header class="application-heading">
+        <p class="eyebrow">跑腿员资格</p>
+        <h1>@(Model.IsResubmission ? "重新提交申请" : "申请成为跑腿员")</h1>
+        <p>提交真实身份资料，审核通过后可进入平台接单。</p>
+    </header>
+
+    @if (TempData["RunnerApplicationMessage"] is string message)
+    {
+        <div class="inline-notice">@message</div>
+    }
+
+    @if (Model.HasApplication)
+    {
+        <div class="application-status-band">
+            <div>
+                <span>审核状态</span>
+                <strong class="badge audit-@Model.AuditStatus.ToLowerInvariant()">@Model.AuditStatusDisplayName</strong>
+            </div>
+            <div>
+                <span>工作状态</span>
+                <strong class="status-dot status-@Model.WorkStatus.ToLowerInvariant()">@Model.WorkStatusDisplayName</strong>
+            </div>
+            <p>
+                @if (Model.AuditStatus == "PENDING")
+                {
+                    @:申请正在审核中，请耐心等待。
+                }
+                else if (Model.AuditStatus == "APPROVED")
+                {
+                    @:资格已经通过。若当前登录仍显示普通用户，请重新登录刷新角色权限。
+                }
+                else
+                {
+                    @:申请未通过，可以核对资料后重新提交。
+                }
+            </p>
+        </div>
+    }
+
+    @if (Model.CanSubmit)
+    {
+        <form asp-action="Apply" method="post" class="application-form">
+            <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+            <div class="application-field">
+                <label asp-for="Form.RealName"></label>
+                <input asp-for="Form.RealName" maxlength="50" autocomplete="name" placeholder="请输入真实姓名" />
+                <span asp-validation-for="Form.RealName" class="validation-message"></span>
+            </div>
+
+            <div class="application-field">
+                <label asp-for="Form.IdentityInfo"></label>
+                <textarea asp-for="Form.IdentityInfo" maxlength="200" rows="4" placeholder="例如：学生证类型及编号"></textarea>
+                <small>仅用于管理员资格审核，最多 200 个字符。</small>
+                <span asp-validation-for="Form.IdentityInfo" class="validation-message"></span>
+            </div>
+
+            <div class="application-actions">
+                <button type="submit" class="button primary">@(Model.IsResubmission ? "重新提交" : "提交申请")</button>
+                <a class="button" asp-controller="User" asp-action="Profile">返回个人中心</a>
+            </div>
+        </form>
+    }
+    else if (!Model.HasApplication)
+    {
+        <div class="application-unavailable">
+            当前账号状态不允许提交跑腿员申请。
+        </div>
+    }
+</section>

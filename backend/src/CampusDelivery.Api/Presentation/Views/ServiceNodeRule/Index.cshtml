@@ -1,0 +1,162 @@
+@model ServiceNodeRuleIndexViewModel
+
+@{
+    ViewData["Title"] = "服务节点规则管理";
+    var showEditor = !ViewData.ModelState.IsValid;
+}
+
+<section class="panel management-panel">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">基础资料</p>
+            <h1>服务节点规则管理</h1>
+            <p class="section-description">维护每种服务可使用的校内交接节点。</p>
+        </div>
+        <button
+            id="show-rule-editor"
+            class="button primary"
+            type="button"
+            aria-controls="rule-editor-row"
+            aria-expanded="@(showEditor ? "true" : "false")">
+            新增节点绑定
+        </button>
+    </div>
+
+    <div class="summary-strip" aria-label="规则概况">
+        <div><strong>@Model.Rules.Count</strong><span>绑定关系</span></div>
+        <div><strong>@Model.ServiceTypeCount</strong><span>已配置服务</span></div>
+        <div><strong>@Model.NodeCount</strong><span>已使用节点</span></div>
+    </div>
+
+    @if (TempData["ServiceNodeRuleMessage"] is string message)
+    {
+        <div class="inline-notice">@message</div>
+    }
+
+    <form id="rule-create-form" asp-action="Create" method="post"></form>
+    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+    <div class="table-wrap">
+        <table class="management-table rule-table">
+            <thead>
+                <tr>
+                    <th>服务</th>
+                    <th>服务状态</th>
+                    <th>适用节点</th>
+                    <th>节点类型</th>
+                    <th>节点状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Rules.Count == 0)
+            {
+                <tr><td colspan="6" class="empty">暂无服务节点绑定</td></tr>
+            }
+            else
+            {
+                foreach (var rule in Model.Rules)
+                {
+                    <tr>
+                        <td>
+                            <strong class="table-primary">@rule.ServiceName</strong>
+                            <small class="table-secondary">服务编号 #@rule.ServiceTypeId</small>
+                        </td>
+                        <td>
+                            <span class="badge @(rule.ServiceTypeStatus == "ENABLED" ? "success" : "muted")">
+                                @rule.ServiceTypeStatusDisplayName
+                            </span>
+                        </td>
+                        <td>
+                            <strong class="table-primary">@rule.NodeName</strong>
+                            <small class="table-secondary">节点编号 #@rule.NodeId</small>
+                        </td>
+                        <td>@rule.NodeTypeDisplayName</td>
+                        <td>
+                            <span class="badge @(rule.NodeStatus == "NORMAL" ? "success" : "muted")">
+                                @rule.NodeStatusDisplayName
+                            </span>
+                        </td>
+                        <td>
+                            @if (rule.CanRemove)
+                            {
+                                <form asp-action="Remove" method="post" onsubmit="return confirm('确认解除该服务与节点的绑定吗？');">
+                                    <input type="hidden" name="serviceTypeId" value="@rule.ServiceTypeId" />
+                                    <input type="hidden" name="nodeId" value="@rule.NodeId" />
+                                    <button type="submit" class="link-button">解除</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="locked-action" title="该绑定已被历史任务引用">已使用</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+                <tr id="rule-editor-row" class="inline-editor-row @(showEditor ? "" : "is-hidden")" data-has-errors="@(showEditor ? "true" : "false")">
+                    <td colspan="2">
+                        <label asp-for="CreateModel.ServiceTypeId">服务类型</label>
+                        <select asp-for="CreateModel.ServiceTypeId" form="rule-create-form">
+                            <option value="0">选择启用的服务类型</option>
+                            @foreach (var option in Model.ServiceTypes)
+                            {
+                                <option value="@option.Id">@option.DisplayName</option>
+                            }
+                        </select>
+                        <span asp-validation-for="CreateModel.ServiceTypeId" class="validation-message"></span>
+                    </td>
+                    <td colspan="2">
+                        <label asp-for="CreateModel.NodeId">适用节点</label>
+                        <select asp-for="CreateModel.NodeId" form="rule-create-form">
+                            <option value="0">选择状态正常的节点</option>
+                            @foreach (var option in Model.Nodes)
+                            {
+                                <option value="@option.Id">@option.DisplayName</option>
+                            }
+                        </select>
+                        <span asp-validation-for="CreateModel.NodeId" class="validation-message"></span>
+                    </td>
+                    <td colspan="2">
+                        <div class="editor-actions rule-editor-actions">
+                            <button class="link-button enable-action" type="submit" form="rule-create-form">保存绑定</button>
+                            <button id="cancel-rule-editor" class="link-button" type="button">取消</button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (() => {
+            const openButton = document.getElementById("show-rule-editor");
+            const cancelButton = document.getElementById("cancel-rule-editor");
+            const editorRow = document.getElementById("rule-editor-row");
+            const form = document.getElementById("rule-create-form");
+            const firstField = document.getElementById("CreateModel_ServiceTypeId");
+
+            const setOpen = (isOpen) => {
+                editorRow.classList.toggle("is-hidden", !isOpen);
+                openButton.classList.toggle("is-hidden", isOpen);
+                openButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+                if (isOpen) firstField.focus();
+            };
+
+            openButton.addEventListener("click", () => setOpen(true));
+            cancelButton.addEventListener("click", () => {
+                if (editorRow.dataset.hasErrors === "true") {
+                    window.location.href = "@Url.Action("Index", "ServiceNodeRule")";
+                    return;
+                }
+
+                form.reset();
+                setOpen(false);
+            });
+
+            setOpen(editorRow.dataset.hasErrors === "true");
+        })();
+    </script>
+}

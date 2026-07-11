@@ -98,7 +98,12 @@ database/oracle/002_init_base_data.sql
 
 ```text
 /                 项目主页面
-/Node             节点管理（当前联调环境只读）
+/Node             节点管理（ADMIN，可新增、修改、关闭和恢复）
+/ServiceType      服务类型管理（ADMIN）
+/ServiceNodeRule  服务节点规则管理（ADMIN）
+/Runner           跑腿员资料管理（ADMIN）
+/Runner/Pending   跑腿员申请审核（ADMIN）
+/Runner/Apply     跑腿员资格申请（登录用户）
 /Database/Status  数据库连接检测
 ```
 

@@ -1,0 +1,83 @@
+@model RunnerIndexViewModel
+
+<div class="table-wrap">
+    <table class="management-table runner-table">
+        <thead>
+            <tr>
+                <th>跑腿员</th>
+                <th>联系方式</th>
+                <th>身份信息</th>
+                <th>审核状态</th>
+                <th>工作状态</th>
+                <th>信誉分</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+        @if (Model.Runners.Count == 0)
+        {
+            <tr>
+                <td colspan="7" class="empty">
+                    @(Model.PendingOnly ? "当前没有待审核申请" : "暂无跑腿员资料")
+                </td>
+            </tr>
+        }
+        else
+        {
+            foreach (var runner in Model.Runners)
+            {
+                <tr>
+                    <td>
+                        <strong class="table-primary">@runner.RealName</strong>
+                        <small class="table-secondary">@runner.Username · #@runner.RunnerId</small>
+                    </td>
+                    <td>
+                        <span class="table-primary">@runner.Phone</span>
+                        <small class="table-secondary">用户编号 #@runner.UserId</small>
+                    </td>
+                    <td><span class="identity-text" title="@runner.IdentityInfo">@runner.IdentityInfo</span></td>
+                    <td>
+                        <span class="badge audit-@runner.AuditStatus.ToLowerInvariant()">
+                            @runner.AuditStatusDisplayName
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-dot status-@runner.WorkStatus.ToLowerInvariant()">
+                            @runner.WorkStatusDisplayName
+                        </span>
+                    </td>
+                    <td>@runner.CreditScore.ToString("0.##")</td>
+                    <td>
+                        <div class="row-action-group">
+                        @if (runner.CanReview)
+                        {
+                            <form asp-action="Review" asp-route-id="@runner.RunnerId" method="post">
+                                <input type="hidden" name="decision" value="APPROVED" />
+                                <button type="submit" class="link-button enable-action">通过</button>
+                            </form>
+                            <form asp-action="Review" asp-route-id="@runner.RunnerId" method="post" onsubmit="return confirm('确认拒绝该跑腿员申请吗？');">
+                                <input type="hidden" name="decision" value="REJECTED" />
+                                <button type="submit" class="link-button">拒绝</button>
+                            </form>
+                        }
+                        else if (runner.CanChangeAvailability)
+                        {
+                            <form asp-action="ChangeWorkStatus" asp-route-id="@runner.RunnerId" method="post">
+                                <input type="hidden" name="status" value="@(runner.WorkStatus == "FREE" ? "OFFLINE" : "FREE")" />
+                                <button type="submit" class="link-button @(runner.WorkStatus == "FREE" ? "" : "enable-action")">
+                                    @(runner.WorkStatus == "FREE" ? "设为离线" : "设为可接单")
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="locked-action">不可操作</span>
+                        }
+                        </div>
+                    </td>
+                </tr>
+            }
+        }
+        </tbody>
+    </table>
+</div>

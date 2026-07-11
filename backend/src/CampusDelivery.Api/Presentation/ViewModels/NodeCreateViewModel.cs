@@ -6,6 +6,7 @@ public class NodeCreateViewModel
 {
     [Required(ErrorMessage = "节点类型不能为空")]
     [StringLength(30, ErrorMessage = "节点类型不能超过 30 个字符")]
+    [RegularExpression("GATE|STATION|DISTRIBUTION", ErrorMessage = "请选择有效的节点类型")]
     [Display(Name = "节点类型")]
     public string NodeType { get; set; } = string.Empty;
 

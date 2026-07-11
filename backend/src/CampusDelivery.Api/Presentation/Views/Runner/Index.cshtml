@@ -1,0 +1,35 @@
+@model RunnerIndexViewModel
+
+@{
+    ViewData["Title"] = "跑腿员管理";
+}
+
+<section class="panel management-panel">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">人员资格</p>
+            <h1>跑腿员管理</h1>
+            <p class="section-description">查看资格、接单状态与信誉信息。</p>
+        </div>
+        <a class="button primary" asp-action="Pending">
+            待审核申请
+            @if (Model.PendingCount > 0)
+            {
+                <span class="button-count">@Model.PendingCount</span>
+            }
+        </a>
+    </div>
+
+    <div class="summary-strip runner-summary" aria-label="跑腿员概况">
+        <div><strong>@Model.Runners.Count</strong><span>全部资料</span></div>
+        <div><strong>@Model.ApprovedCount</strong><span>审核通过</span></div>
+        <div><strong>@Model.AvailableCount</strong><span>当前可接单</span></div>
+    </div>
+
+    @if (TempData["RunnerMessage"] is string message)
+    {
+        <div class="inline-notice">@message</div>
+    }
+
+    <partial name="_RunnerTable" model="Model" />
+</section>

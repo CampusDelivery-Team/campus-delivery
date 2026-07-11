@@ -2,23 +2,49 @@
 
 @{
     ViewData["Title"] = "节点管理";
+    var showCreateEditor = ViewData.ModelState.Keys.Any(
+        key => key.StartsWith($"{nameof(Model.CreateModel)}.", StringComparison.Ordinal));
+    var showEditEditor = ViewData.ModelState.Keys.Any(
+        key => key.StartsWith($"{nameof(Model.EditModel)}.", StringComparison.Ordinal));
 }
 
-<section class="panel">
-    <div class="section-header">
+<section class="panel management-panel">
+    <div class="section-header management-heading">
         <div>
             <p class="eyebrow">基础资料</p>
             <h1>节点管理</h1>
+            <p class="section-description">维护校门、驿站和分发点资料，关闭节点不会删除历史关系。</p>
         </div>
+        <button
+            id="show-node-editor"
+            class="button primary"
+            type="button"
+            aria-controls="node-editor-row"
+            aria-expanded="@(showCreateEditor ? "true" : "false")">
+            新增节点
+        </button>
     </div>
 
-    @if (Model.IsReadOnly)
+    @if (TempData["NodeMessage"] is string message)
     {
-        <p class="readonly-note">当前联调环境的节点资料页为只读展示，新增、编辑、删除入口已关闭。</p>
+        <div class="inline-notice">@message</div>
     }
 
+    <form id="node-create-form" asp-action="Create" method="post"></form>
+    <form id="node-edit-form" asp-action="Edit" method="post"></form>
+    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
     <div class="table-wrap">
-        <table>
+        <table class="management-table node-table">
+            <colgroup>
+                <col class="node-id-column" />
+                <col class="node-type-column" />
+                <col class="node-name-column" />
+                <col class="node-location-column" />
+                <col class="node-time-column" />
+                <col class="node-status-column" />
+                <col class="node-actions-column" />
+            </colgroup>
             <thead>
                 <tr>
                     <th>编号</th>
@@ -27,43 +53,220 @@
                     <th>位置</th>
                     <th>开放时间</th>
                     <th>状态</th>
-                    @if (!Model.IsReadOnly)
-                    {
-                        <th>操作</th>
-                    }
+                    <th>操作</th>
                 </tr>
             </thead>
             <tbody>
             @if (Model.Nodes.Count == 0)
             {
-                <tr>
-                    <td colspan="@(Model.IsReadOnly ? 6 : 7)" class="empty">暂无节点数据</td>
-                </tr>
+                <tr><td colspan="7" class="empty">暂无节点数据</td></tr>
             }
             else
             {
                 foreach (var node in Model.Nodes)
                 {
-                    <tr>
+                    <tr id="node-row-@node.NodeId">
                         <td>@node.NodeId</td>
                         <td>@node.NodeTypeDisplayName</td>
-                        <td>@node.NodeName</td>
+                        <td><strong class="table-primary">@node.NodeName</strong></td>
                         <td>@node.Location</td>
                         <td>@(node.OpenTime ?? "-")</td>
-                        <td><span class="badge @(node.NodeStatus == "NORMAL" ? "success" : "muted")">@node.NodeStatusDisplayName</span></td>
-                        @if (!Model.IsReadOnly)
-                        {
-                            <td class="row-actions">
-                                <a asp-action="Edit" asp-route-id="@node.NodeId">编辑</a>
-                                <form asp-action="Delete" asp-route-id="@node.NodeId" method="post">
-                                    <button type="submit" class="link-button">删除</button>
+                        <td>
+                            <span class="badge @(node.NodeStatus == "NORMAL" ? "success" : "muted")">
+                                @node.NodeStatusDisplayName
+                            </span>
+                        </td>
+                        <td>
+                            <div class="row-action-group">
+                                <button
+                                    class="link-button edit-node"
+                                    type="button"
+                                    data-node-id="@node.NodeId"
+                                    data-node-type="@node.NodeType"
+                                    data-node-name="@node.NodeName"
+                                    data-location="@node.Location"
+                                    data-open-time="@node.OpenTime"
+                                    data-node-status="@node.NodeStatus">
+                                    编辑
+                                </button>
+                                <form asp-action="ChangeStatus" asp-route-id="@node.NodeId" method="post">
+                                    <input type="hidden" name="status" value="@(node.NodeStatus == "NORMAL" ? "CLOSED" : "NORMAL")" />
+                                    <button type="submit" class="link-button @(node.NodeStatus == "CLOSED" ? "enable-action" : "")">
+                                        @(node.NodeStatus == "NORMAL" ? "关闭" : "恢复")
+                                    </button>
                                 </form>
-                            </td>
-                        }
+                            </div>
+                        </td>
                     </tr>
                 }
             }
+                <tr
+                    id="node-editor-row"
+                    class="inline-editor-row node-editor-row @(showCreateEditor ? "" : "is-hidden")"
+                    data-has-errors="@(showCreateEditor ? "true" : "false")">
+                    <td class="editor-id">-</td>
+                    <td>
+                        <select asp-for="CreateModel.NodeType" form="node-create-form" required>
+                            <option value="">选择类型</option>
+                            <option value="GATE">校门</option>
+                            <option value="STATION">驿站</option>
+                            <option value="DISTRIBUTION">分发点</option>
+                        </select>
+                        <span asp-validation-for="CreateModel.NodeType" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <input asp-for="CreateModel.NodeName" form="node-create-form" maxlength="80" placeholder="节点名称" required />
+                        <span asp-validation-for="CreateModel.NodeName" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <input asp-for="CreateModel.Location" form="node-create-form" maxlength="200" placeholder="具体位置" required />
+                        <span asp-validation-for="CreateModel.Location" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <input asp-for="CreateModel.OpenTime" form="node-create-form" maxlength="100" placeholder="例如 08:00-22:00" />
+                        <span asp-validation-for="CreateModel.OpenTime" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <select asp-for="CreateModel.NodeStatus" form="node-create-form">
+                            <option value="NORMAL">正常</option>
+                            <option value="CLOSED">关闭</option>
+                        </select>
+                        <span asp-validation-for="CreateModel.NodeStatus" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <div class="editor-actions">
+                            <button class="link-button enable-action" type="submit" form="node-create-form">保存</button>
+                            <button id="cancel-node-editor" class="link-button" type="button">取消</button>
+                        </div>
+                    </td>
+                </tr>
+                <tr
+                    id="node-edit-row"
+                    class="inline-editor-row node-editor-row @(showEditEditor ? "" : "is-hidden")"
+                    data-has-errors="@(showEditEditor ? "true" : "false")">
+                    <td class="editor-id">
+                        <span id="editing-node-id">@Model.EditModel.NodeId</span>
+                        <input asp-for="EditModel.NodeId" form="node-edit-form" type="hidden" />
+                    </td>
+                    <td>
+                        <select asp-for="EditModel.NodeType" form="node-edit-form" required>
+                            <option value="GATE">校门</option>
+                            <option value="STATION">驿站</option>
+                            <option value="DISTRIBUTION">分发点</option>
+                        </select>
+                        <span asp-validation-for="EditModel.NodeType" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <input asp-for="EditModel.NodeName" form="node-edit-form" maxlength="80" placeholder="节点名称" required />
+                        <span asp-validation-for="EditModel.NodeName" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <input asp-for="EditModel.Location" form="node-edit-form" maxlength="200" placeholder="具体位置" required />
+                        <span asp-validation-for="EditModel.Location" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <input asp-for="EditModel.OpenTime" form="node-edit-form" maxlength="100" placeholder="例如 08:00-22:00" />
+                        <span asp-validation-for="EditModel.OpenTime" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <select asp-for="EditModel.NodeStatus" form="node-edit-form">
+                            <option value="NORMAL">正常</option>
+                            <option value="CLOSED">关闭</option>
+                        </select>
+                        <span asp-validation-for="EditModel.NodeStatus" class="validation-message"></span>
+                    </td>
+                    <td>
+                        <div class="editor-actions">
+                            <button class="link-button enable-action" type="submit" form="node-edit-form">保存</button>
+                            <button id="cancel-node-edit" class="link-button" type="button">取消</button>
+                        </div>
+                    </td>
+                </tr>
             </tbody>
         </table>
     </div>
 </section>
+
+@section Scripts {
+    <script>
+        (() => {
+            const openButton = document.getElementById("show-node-editor");
+            const cancelButton = document.getElementById("cancel-node-editor");
+            const createRow = document.getElementById("node-editor-row");
+            const createForm = document.getElementById("node-create-form");
+            const createTypeInput = document.getElementById("CreateModel_NodeType");
+            const editButtons = document.querySelectorAll(".edit-node");
+            const editRow = document.getElementById("node-edit-row");
+            const editForm = document.getElementById("node-edit-form");
+            const editCancelButton = document.getElementById("cancel-node-edit");
+            const editingIdText = document.getElementById("editing-node-id");
+            const editIdInput = document.getElementById("EditModel_NodeId");
+            const editTypeInput = document.getElementById("EditModel_NodeType");
+            const editNameInput = document.getElementById("EditModel_NodeName");
+            const editLocationInput = document.getElementById("EditModel_Location");
+            const editOpenTimeInput = document.getElementById("EditModel_OpenTime");
+            const editStatusInput = document.getElementById("EditModel_NodeStatus");
+
+            const closeEdit = () => {
+                editRow.classList.add("is-hidden");
+                editForm.reset();
+            };
+
+            const setCreateOpen = (isOpen) => {
+                if (isOpen) closeEdit();
+                createRow.classList.toggle("is-hidden", !isOpen);
+                openButton.classList.toggle("is-hidden", isOpen);
+                openButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+                if (isOpen) createTypeInput.focus();
+                if (isOpen) createRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            };
+
+            const openEdit = (button) => {
+                createForm.reset();
+                createRow.classList.add("is-hidden");
+                openButton.classList.remove("is-hidden");
+                openButton.setAttribute("aria-expanded", "false");
+
+                editIdInput.value = button.dataset.nodeId;
+                editingIdText.textContent = button.dataset.nodeId;
+                editTypeInput.value = button.dataset.nodeType;
+                editNameInput.value = button.dataset.nodeName;
+                editLocationInput.value = button.dataset.location;
+                editOpenTimeInput.value = button.dataset.openTime;
+                editStatusInput.value = button.dataset.nodeStatus;
+
+                document.getElementById(`node-row-${button.dataset.nodeId}`).after(editRow);
+                editRow.classList.remove("is-hidden");
+                editNameInput.focus();
+                editRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            };
+
+            openButton.addEventListener("click", () => setCreateOpen(true));
+            cancelButton.addEventListener("click", () => {
+                if (createRow.dataset.hasErrors === "true") {
+                    window.location.href = "@Url.Action("Index", "Node")";
+                    return;
+                }
+                createForm.reset();
+                setCreateOpen(false);
+            });
+
+            editButtons.forEach(button => button.addEventListener("click", () => openEdit(button)));
+            editCancelButton.addEventListener("click", () => {
+                if (editRow.dataset.hasErrors === "true") {
+                    window.location.href = "@Url.Action("Index", "Node")";
+                    return;
+                }
+                closeEdit();
+            });
+
+            if (editRow.dataset.hasErrors === "true") {
+                const targetRow = document.getElementById(`node-row-${editIdInput.value}`);
+                if (targetRow) targetRow.after(editRow);
+                editRow.classList.remove("is-hidden");
+            } else {
+                setCreateOpen(createRow.dataset.hasErrors === "true");
+            }
+        })();
+    </script>
+}

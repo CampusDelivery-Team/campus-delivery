@@ -49,7 +49,12 @@ http://localhost:5227/Database/Status
 | 地址 | 说明 |
 | --- | --- |
 | `/` | 项目主页面，作为系统门户和其他模块入口 |
-| `/Node` | 节点管理示例模块，当前联调环境按只读方式展示 |
+| `/Node` | 管理员新增、修改、关闭和恢复节点资料 |
+| `/ServiceType` | 管理员维护服务类型、价格规则和启用状态 |
+| `/ServiceNodeRule` | 管理员维护服务类型与适用节点绑定 |
+| `/Runner` | 管理员查看跑腿员资格和工作状态 |
+| `/Runner/Pending` | 管理员审核待处理的跑腿员申请 |
+| `/Runner/Apply` | 登录用户提交或查看跑腿员申请 |
 | `/Database/Status` | Oracle 连接检测页面 |
 
 ## 数据库连接
