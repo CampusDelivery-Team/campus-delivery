@@ -1,172 +1,256 @@
 @{
     ViewData["Title"] = "首页";
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var isAdmin = User.IsInRole("ADMIN");
+    var isRunner = User.IsInRole("RUNNER");
 }
 
 <section class="home-hero" id="top">
     <div class="home-hero__content">
-        <p class="eyebrow">校园中转分发与跑腿服务管理系统</p>
-        <h1>把校园里的每一次代取、配送和转交变得清楚可靠</h1>
+        <p class="eyebrow">CAMPUS RUNNER SERVICE</p>
+        <h1><span>校园跑腿服务</span><span>管理系统</span></h1>
         <p class="summary">
-            面向普通用户、跑腿员和管理员的校园服务平台，覆盖外卖分发、快递代取、私人跑腿、
-            支付签收、评价投诉、结算审计和统计报表。
+            在一个清晰的入口中管理账户、跑腿员资格和服务基础资料。系统会根据当前登录身份展示可以实际使用的功能。
         </p>
         <div class="actions">
-            <a class="button primary" href="#portals">进入系统</a>
-            <a class="button" asp-controller="Node" asp-action="Index">基础资料</a>
+            @if (!isAuthenticated)
+            {
+                <a class="button primary" asp-controller="Auth" asp-action="Login">登录系统</a>
+                <a class="button" asp-controller="Auth" asp-action="Register">注册账号</a>
+            }
+            else if (isAdmin)
+            {
+                <a class="button primary" asp-controller="ServiceType" asp-action="Index">进入服务管理</a>
+                <a class="button" asp-controller="User" asp-action="Profile">个人中心</a>
+            }
+            else
+            {
+                <a class="button primary" asp-controller="User" asp-action="Profile">进入个人中心</a>
+                <a class="button" asp-controller="Runner" asp-action="Apply">跑腿员资格</a>
+            }
         </div>
-        <div class="metric-strip">
+        <div class="metric-strip" aria-label="系统基础信息">
             <div>
-                <strong>3类</strong>
-                <span>跑腿服务</span>
+                <strong>3 类</strong>
+                <span>基础服务类型</span>
             </div>
             <div>
-                <strong>24张</strong>
-                <span>业务数据表</span>
+                <strong>角色分层</strong>
+                <span>用户、跑腿员、管理员</span>
             </div>
             <div>
-                <strong>全流程</strong>
-                <span>状态追踪</span>
+                <strong>Oracle</strong>
+                <span>统一业务数据</span>
             </div>
         </div>
     </div>
 
-    <aside class="task-preview" aria-label="推荐任务">
-        <div class="task-preview__header">
-            <span>推荐任务</span>
-            <strong>快速代取</strong>
-        </div>
-        <div class="task-line blue">
-            <b>北区快递驿站</b>
-            <span>取件码、快递公司、备注统一记录</span>
-        </div>
-        <div class="task-line pink">
-            <b>学生公寓 6 号楼</b>
-            <span>送达后用户确认签收</span>
-        </div>
-        <div class="task-preview__footer">
+    <aside class="home-quick-panel" aria-label="当前可用入口">
+        <div class="home-quick-panel__header">
             <div>
-                <span>任务状态</span>
-                <strong>待接单</strong>
+                <p class="eyebrow">AVAILABLE NOW</p>
+                <h2>当前可用入口</h2>
             </div>
-            <div>
-                <span>预估费用</span>
-                <strong>¥6.00</strong>
-            </div>
+            @if (!isAuthenticated)
+            {
+                <span class="status-chip">访客</span>
+            }
+            else if (isAdmin)
+            {
+                <span class="status-chip success-chip">管理员</span>
+            }
+            else if (isRunner)
+            {
+                <span class="status-chip runner-chip">跑腿员</span>
+            }
+            else
+            {
+                <span class="status-chip">普通用户</span>
+            }
         </div>
+
+        @if (!isAuthenticated)
+        {
+            <a class="quick-entry" asp-controller="Auth" asp-action="Login">
+                <span class="quick-entry__mark">01</span>
+                <span><strong>账户登录</strong><small>使用已有校园跑腿账户</small></span>
+            </a>
+            <a class="quick-entry" asp-controller="Auth" asp-action="Register">
+                <span class="quick-entry__mark">02</span>
+                <span><strong>新用户注册</strong><small>注册后默认获得普通用户身份</small></span>
+            </a>
+        }
+        else if (isAdmin)
+        {
+            <a class="quick-entry" asp-controller="Runner" asp-action="Pending">
+                <span class="quick-entry__mark">01</span>
+                <span><strong>跑腿员审核</strong><small>处理待审核的资格申请</small></span>
+            </a>
+            <a class="quick-entry" asp-controller="ServiceNodeRule" asp-action="Index">
+                <span class="quick-entry__mark">02</span>
+                <span><strong>服务节点规则</strong><small>维护服务类型与节点的可用关系</small></span>
+            </a>
+            <a class="quick-entry" asp-controller="Database" asp-action="Status">
+                <span class="quick-entry__mark">03</span>
+                <span><strong>系统检测</strong><small>检查当前 Oracle 数据库连接</small></span>
+            </a>
+        }
+        else
+        {
+            <a class="quick-entry" asp-controller="User" asp-action="Profile">
+                <span class="quick-entry__mark">01</span>
+                <span><strong>个人中心</strong><small>查看账户信息和常用收货地址</small></span>
+            </a>
+            <a class="quick-entry" asp-controller="Runner" asp-action="Apply">
+                <span class="quick-entry__mark">02</span>
+                <span><strong>跑腿员资格</strong><small>提交申请或查看当前审核状态</small></span>
+            </a>
+            <div class="quick-entry quick-entry--muted" aria-disabled="true">
+                <span class="quick-entry__mark">03</span>
+                <span><strong>任务与订单</strong><small>等待任务模块接入后开放</small></span>
+            </div>
+        }
     </aside>
 </section>
 
 <section class="home-section" id="services">
-    <p class="eyebrow">SERVICES</p>
+    <p class="eyebrow">SERVICE CATALOG</p>
     <div class="section-title">
         <div>
-            <h2>常用校园跑腿服务</h2>
-            <p>围绕校园生活中的高频委托场景设计，后续模块开发可以直接从这些入口继续扩展。</p>
+            <h2>校园服务类型</h2>
+            <p>以下为系统目前配置的服务场景。服务创建、订单和配送流程由后续任务模块统一承接，不再使用会跳回首页的临时链接。</p>
         </div>
+        @if (isAdmin)
+        {
+            <a class="button" asp-controller="ServiceType" asp-action="Index">管理服务类型</a>
+        }
     </div>
 
     <div class="service-grid">
         <article class="service-card blue">
-            <span class="pill">高频场景</span>
+            <span class="pill">集中分发</span>
             <h3>外卖分发</h3>
-            <p>将校门、食堂、商圈外卖集中分发到宿舍楼或指定节点，减少等待和重复跑动。</p>
-            <a href="#portals">发布此类任务</a>
+            <p>将校门、食堂或商圈的外卖集中分发到宿舍楼或指定服务节点。</p>
         </article>
         <article class="service-card pink">
-            <span class="pill">校园刚需</span>
+            <span class="pill">代取服务</span>
             <h3>快递代取</h3>
-            <p>支持填写快递公司、取件码和交付地址，由跑腿员从驿站代取并送达。</p>
-            <a href="#portals">发布此类任务</a>
+            <p>记录快递公司、取件信息和交付位置，为代取配送提供统一基础资料。</p>
         </article>
         <article class="service-card cyan">
             <span class="pill">灵活委托</span>
             <h3>私人跑腿</h3>
-            <p>覆盖临时送物、资料递送、物品转交等个性化需求，流程清晰可追踪。</p>
-            <a href="#portals">发布此类任务</a>
+            <p>覆盖资料递送、物品转交等个性化校园委托场景。</p>
         </article>
     </div>
 </section>
 
-<section class="home-section portal-band" id="portals">
-    <p class="eyebrow">PORTALS</p>
-    <h2>按身份进入系统</h2>
-    <p class="section-copy">主界面提供真实项目入口，后续登录和权限完成后可接入对应页面。</p>
-
-    <div class="portal-grid">
-        <article class="portal-card">
-            <span>普通用户</span>
-            <h3>发布任务与查看进度</h3>
-            <p>维护收货地址，发布外卖、快递或私人跑腿任务，送达后确认付款、评价和投诉。</p>
-            <div class="tag-row">
-                <a href="#services">发布任务</a>
-                <a href="#">我的订单</a>
-                <a href="#">评价投诉</a>
-            </div>
-        </article>
-        <article class="portal-card">
-            <span>跑腿员</span>
-            <h3>接单配送与状态更新</h3>
-            <p>提交跑腿员申请，通过审核后进入任务大厅接单，并按流程更新配送状态。</p>
-            <div class="tag-row">
-                <a asp-controller="Runner" asp-action="Apply">申请认证</a>
-                <a href="#">任务大厅</a>
-                <a href="#">我的接单</a>
-            </div>
-        </article>
-        <article class="portal-card">
-            <span>管理员</span>
-            <h3>审核管理与运营统计</h3>
-            <p>维护节点和服务类型，审核跑腿员，处理退款投诉，查看结算、审计和报表。</p>
-            <div class="tag-row">
-                <a asp-controller="Node" asp-action="Index">基础资料</a>
-                <a href="#">审核处理</a>
-                <a href="#">统计报表</a>
-            </div>
-        </article>
-    </div>
-</section>
+@if (isAdmin)
+{
+    <section class="home-section portal-band" id="management">
+        <p class="eyebrow">MANAGEMENT</p>
+        <h2>管理工作台</h2>
+        <p class="section-copy">所有入口均已连接到实际可访问的管理页面。</p>
+        <div class="portal-grid">
+            <article class="portal-card">
+                <span>基础资料</span>
+                <h3>服务与节点</h3>
+                <p>维护节点、服务类型及两者之间的服务范围规则。</p>
+                <div class="tag-row">
+                    <a asp-controller="Node" asp-action="Index">节点管理</a>
+                    <a asp-controller="ServiceType" asp-action="Index">服务类型</a>
+                    <a asp-controller="ServiceNodeRule" asp-action="Index">服务节点规则</a>
+                </div>
+            </article>
+            <article class="portal-card">
+                <span>人员管理</span>
+                <h3>跑腿员审核</h3>
+                <p>查看申请进度、完成审核，并维护已通过跑腿员的工作状态。</p>
+                <div class="tag-row">
+                    <a asp-controller="Runner" asp-action="Pending">待审核申请</a>
+                    <a asp-controller="Runner" asp-action="Index">跑腿员资料</a>
+                </div>
+            </article>
+            <article class="portal-card">
+                <span>系统状态</span>
+                <h3>数据库检测</h3>
+                <p>验证当前应用到 Oracle 数据库的连接状态，并查看基础用户统计。</p>
+                <div class="tag-row">
+                    <a asp-controller="Database" asp-action="Status">打开系统检测</a>
+                    <a asp-controller="User" asp-action="Profile">个人中心</a>
+                </div>
+            </article>
+        </div>
+    </section>
+}
+else
+{
+    <section class="home-section portal-band" id="account">
+        <p class="eyebrow">ACCOUNT</p>
+        <h2>账户与跑腿员资格</h2>
+        <p class="section-copy">先完成账户登录，再根据个人意愿提交跑腿员资格申请。每个入口都会直接打开对应功能页面。</p>
+        <div class="portal-grid">
+            <article class="portal-card">
+                <span>账户资料</span>
+                <h3>@(isAuthenticated ? "管理个人账户" : "登录或注册")</h3>
+                <p>@(isAuthenticated ? "查看账号、联系电话和默认收货地址。" : "已有账号可登录；首次使用请先注册普通用户账号。")</p>
+                <div class="tag-row">
+                    @if (isAuthenticated)
+                    {
+                        <a asp-controller="User" asp-action="Profile">个人中心</a>
+                    }
+                    else
+                    {
+                        <a asp-controller="Auth" asp-action="Login">登录</a>
+                        <a asp-controller="Auth" asp-action="Register">注册</a>
+                    }
+                </div>
+            </article>
+            <article class="portal-card">
+                <span>跑腿员资格</span>
+                <h3>提交与查看申请</h3>
+                <p>填写身份信息后提交审核；管理员审核通过后，账户角色更新为跑腿员。</p>
+                <div class="tag-row">
+                    @if (isAuthenticated)
+                    {
+                        <a asp-controller="Runner" asp-action="Apply">跑腿员资格</a>
+                    }
+                    else
+                    {
+                        <a asp-controller="Auth" asp-action="Login">登录后申请</a>
+                    }
+                </div>
+            </article>
+            <article class="portal-card">
+                <span>任务服务</span>
+                <h3>任务模块待接入</h3>
+                <p>发布任务、订单查询、接单和配送流程尚未在当前版本提供路由入口。</p>
+                <div class="tag-row">
+                    <span class="tag-row__disabled" aria-disabled="true">暂不可用</span>
+                </div>
+            </article>
+        </div>
+    </section>
+}
 
 <section class="home-section" id="workflow">
     <p class="eyebrow">WORKFLOW</p>
-    <h2>从发布到完成的服务闭环</h2>
-    <p class="section-copy">优先跑通发布任务、接单、状态流转、送达确认、付款和评价这一条主流程。</p>
-
+    <h2>完整服务流程</h2>
+    <p class="section-copy">以下流程说明系统的业务目标；目前已完成的基础资料、资格申请和审核入口均可从本页直接进入。</p>
     <div class="workflow-grid">
-        <article>
-            <span>1</span>
-            <h3>发布需求</h3>
-            <p>用户选择服务类型，填写地址、节点、备注和价格信息。</p>
-        </article>
-        <article>
-            <span>2</span>
-            <h3>发布待接单</h3>
-            <p>任务发布后进入待接单状态，跑腿员可在任务大厅查看并接单。</p>
-        </article>
-        <article>
-            <span>3</span>
-            <h3>接单配送</h3>
-            <p>跑腿员抢单或管理员派单，配送过程写入状态日志。</p>
-        </article>
-        <article>
-            <span>4</span>
-            <h3>签收评价</h3>
-            <p>用户确认签收后可评价或投诉，管理员可继续处理售后。</p>
-        </article>
+        <article><span>1</span><h3>维护资料</h3><p>管理员配置服务类型、服务节点及适用范围。</p></article>
+        <article><span>2</span><h3>资格审核</h3><p>用户申请成为跑腿员，管理员进行审核处理。</p></article>
+        <article><span>3</span><h3>任务配送</h3><p>任务发布、接单与配送状态将在任务模块中实现。</p></article>
+        <article><span>4</span><h3>完成评价</h3><p>确认、结算与评价投诉将在订单相关模块中实现。</p></article>
     </div>
 </section>
 
-<section class="system-panel" id="system">
-    <div>
-        <span>后端状态</span>
-        <strong>服务正常</strong>
-    </div>
-    <div>
-        <span>应用服务</span>
-        <strong>CampusDelivery.Api</strong>
-    </div>
-    <div>
-        <span>数据库</span>
-        <strong>Oracle 19c</strong>
-    </div>
-    <a class="button" asp-controller="Database" asp-action="Status">系统检测</a>
-</section>
+@if (isAdmin)
+{
+    <section class="system-panel" id="system">
+        <div><span>应用服务</span><strong>CampusDelivery.Api</strong></div>
+        <div><span>数据库</span><strong>Oracle</strong></div>
+        <div><span>当前身份</span><strong>管理员</strong></div>
+        <a class="button" asp-controller="Database" asp-action="Status">系统检测</a>
+    </section>
+}

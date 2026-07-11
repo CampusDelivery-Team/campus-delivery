@@ -1,8 +1,12 @@
 @{
-    ViewData["Title"] = "错误";
+    ViewData["Title"] = "请求处理失败";
 }
 
-<section class="panel">
-    <h1>请求处理失败</h1>
-    <p>请检查后端日志或数据库连接配置。</p>
+<section class="state-page">
+    <p class="eyebrow">REQUEST ERROR</p>
+    <h1>请求暂时无法完成</h1>
+    <p>请返回首页后重试。若问题持续出现，请联系系统负责人检查后端日志和数据库连接。</p>
+    <div class="actions">
+        <a class="button primary" asp-controller="Home" asp-action="Index">返回首页</a>
+    </div>
 </section>

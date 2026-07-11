@@ -16,7 +16,7 @@
 | ViewModel | 提供 `XxxDisplayName` 字段给页面 |
 | Razor View | 显示中文字段，不直接写转换逻辑 |
 
-## 当前 Node 示例
+## 当前基础资料与跑腿员示例
 
 | 字段 | 英文代码 | 中文显示 |
 | --- | --- | --- |
@@ -25,6 +25,14 @@
 | `NodeType` | `DISTRIBUTION` | 分发点 |
 | `NodeStatus` | `NORMAL` | 正常 |
 | `NodeStatus` | `CLOSED` | 关闭 |
+| `ServiceTypeStatus` | `ENABLED` | 启用 |
+| `ServiceTypeStatus` | `DISABLED` | 停用 |
+| `RunnerAuditStatus` | `PENDING` | 待审核 |
+| `RunnerAuditStatus` | `APPROVED` | 已通过 |
+| `RunnerAuditStatus` | `REJECTED` | 已拒绝 |
+| `RunnerWorkStatus` | `FREE` | 可接单 |
+| `RunnerWorkStatus` | `BUSY` | 配送中 |
+| `RunnerWorkStatus` | `OFFLINE` | 离线 |
 
 表单示例：
 

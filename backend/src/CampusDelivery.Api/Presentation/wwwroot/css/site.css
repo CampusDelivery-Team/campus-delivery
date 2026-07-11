@@ -194,10 +194,14 @@ a {
 
 .home-hero__content h1 {
     color: #071a3d;
-    font-size: clamp(38px, 5vw, 62px);
+    font-size: clamp(38px, 4.5vw, 58px);
     line-height: 1.08;
     margin: 0 0 20px;
     max-width: 720px;
+}
+
+.home-hero__content h1 span {
+    display: block;
 }
 
 .eyebrow {
@@ -1411,6 +1415,263 @@ textarea {
     outline: none;
 }
 
+/* Home, account and state pages use only routes that exist in this application. */
+.home-quick-panel {
+    align-self: stretch;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid #c9d9ef;
+    border-radius: 8px;
+    box-shadow: 0 22px 48px rgba(49, 74, 130, 0.08);
+    display: grid;
+    gap: 10px;
+    justify-self: end;
+    max-width: 500px;
+    padding: 26px;
+    width: 100%;
+}
+
+.home-quick-panel__header {
+    align-items: flex-start;
+    border-bottom: 1px solid #dce6f4;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    padding-bottom: 18px;
+}
+
+.home-quick-panel__header .eyebrow {
+    margin-bottom: 6px;
+}
+
+.home-quick-panel__header h2 {
+    font-size: 24px;
+    margin-bottom: 0;
+}
+
+.status-chip {
+    background: #edf3ff;
+    border-radius: 999px;
+    color: #245cff;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 7px 10px;
+    white-space: nowrap;
+}
+
+.success-chip {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.runner-chip {
+    background: #fff0f7;
+    color: #c92e75;
+}
+
+.quick-entry {
+    align-items: center;
+    border: 1px solid #dce6f4;
+    border-radius: 6px;
+    color: #142d5c;
+    display: grid;
+    gap: 14px;
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: 78px;
+    padding: 13px 14px;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+a.quick-entry:hover,
+a.quick-entry:focus-visible {
+    border-color: #92ace8;
+    box-shadow: 0 10px 20px rgba(49, 74, 130, 0.1);
+    outline: none;
+    transform: translateY(-1px);
+}
+
+.quick-entry__mark {
+    align-items: center;
+    background: #edf3ff;
+    border-radius: 6px;
+    color: #315efb;
+    display: inline-flex;
+    font-size: 12px;
+    font-weight: 900;
+    height: 38px;
+    justify-content: center;
+    width: 38px;
+}
+
+.quick-entry strong,
+.quick-entry small {
+    display: block;
+}
+
+.quick-entry strong {
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.quick-entry small {
+    color: #60728f;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.quick-entry--muted {
+    background: #f8fafc;
+    border-style: dashed;
+    cursor: not-allowed;
+    opacity: 0.76;
+}
+
+.quick-entry--muted .quick-entry__mark {
+    background: #eef2f8;
+    color: #75839a;
+}
+
+.portal-band {
+    margin-top: 0;
+}
+
+.section-title .button {
+    flex: 0 0 auto;
+    margin-left: 24px;
+}
+
+.tag-row__disabled {
+    background: #eef2f8;
+    border: 1px solid #d7dfeb;
+    border-radius: 999px;
+    color: #75839a;
+    cursor: not-allowed;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 7px 12px;
+}
+
+.auth-page {
+    align-items: center;
+    display: grid;
+    gap: 72px;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+    margin: 28px auto;
+    max-width: 1050px;
+    min-height: calc(100vh - 230px);
+}
+
+.auth-intro {
+    max-width: 530px;
+}
+
+.auth-intro h1 {
+    font-size: 42px;
+    line-height: 1.16;
+    margin-bottom: 18px;
+}
+
+.auth-intro > p:not(.eyebrow) {
+    color: #385071;
+    font-size: 16px;
+    line-height: 1.85;
+    margin-bottom: 24px;
+}
+
+.auth-intro > a {
+    color: #315efb;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.auth-card {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #c9d9ef;
+    border-radius: 8px;
+    box-shadow: 0 22px 48px rgba(49, 74, 130, 0.1);
+    padding: 32px;
+}
+
+.auth-card__heading {
+    border-bottom: 1px solid #e5edf7;
+    margin-bottom: 24px;
+    padding-bottom: 18px;
+}
+
+.auth-card__heading .eyebrow {
+    margin-bottom: 6px;
+}
+
+.auth-card__heading h2 {
+    font-size: 26px;
+    margin-bottom: 0;
+}
+
+.auth-form,
+.auth-field {
+    display: grid;
+}
+
+.auth-form {
+    gap: 18px;
+}
+
+.auth-field {
+    gap: 8px;
+}
+
+.auth-field label {
+    color: #385071;
+    font-weight: 800;
+}
+
+.auth-field input:focus {
+    border-color: #4c6ef5;
+    box-shadow: 0 0 0 3px rgba(76, 110, 245, 0.14);
+    outline: none;
+}
+
+.auth-submit {
+    justify-content: center;
+    margin-top: 4px;
+    width: 100%;
+}
+
+.auth-switch {
+    border-top: 1px solid #e5edf7;
+    color: #60728f;
+    font-size: 14px;
+    margin: 24px 0 0;
+    padding-top: 20px;
+    text-align: center;
+}
+
+.auth-switch a {
+    font-weight: 800;
+}
+
+.state-page {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #c9d9ef;
+    border-left: 4px solid #4771ff;
+    border-radius: 8px;
+    box-shadow: 0 22px 48px rgba(49, 74, 130, 0.08);
+    margin: 70px auto;
+    max-width: 720px;
+    padding: 36px;
+}
+
+.state-page h1 {
+    font-size: 32px;
+    margin-bottom: 14px;
+}
+
+.state-page > p:not(.eyebrow) {
+    color: #385071;
+    line-height: 1.8;
+    margin-bottom: 24px;
+}
+
 @media (max-width: 920px) {
     .home-hero,
     .service-grid,
@@ -1423,6 +1684,17 @@ textarea {
     .task-preview {
         justify-self: stretch;
         max-width: none;
+    }
+
+    .home-quick-panel {
+        justify-self: stretch;
+        max-width: none;
+    }
+
+    .auth-page {
+        gap: 36px;
+        grid-template-columns: 1fr;
+        max-width: 620px;
     }
 
     .nav {
@@ -1466,6 +1738,32 @@ textarea {
 
     .home-hero__content h1 {
         font-size: 38px;
+    }
+
+    .section-title {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .section-title .button {
+        margin-left: 0;
+    }
+
+    .home-quick-panel,
+    .portal-band,
+    .auth-card,
+    .state-page {
+        padding: 22px;
+    }
+
+    .auth-page {
+        margin: 12px auto;
+        min-height: auto;
+    }
+
+    .auth-intro h1 {
+        font-size: 34px;
     }
 
     .profile-overview,
@@ -1544,4 +1842,4 @@ textarea {
         padding: 20px;
     }
 }
-}
+

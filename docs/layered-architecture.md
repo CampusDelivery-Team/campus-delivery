@@ -18,29 +18,18 @@
 View -> Controller -> Service -> Repository -> OracleConnectionFactory -> Oracle
 ```
 
-不允许：
-
-```text
-View 直接访问 Repository
-Controller 直接写复杂 SQL
-Service 返回 Razor View
-Repository 处理页面跳转或中文展示文案
-```
+不允许 View 直接访问 Repository、Controller 直接写复杂 SQL、Service 返回 Razor View，或 Repository 处理页面跳转和中文展示文案。
 
 ## 当前落地模块
 
-`Node` 模块已经完成五层闭环：
+| 模块 | 数据表 | 已实现能力 |
+| --- | --- | --- |
+| `Node` | `nodes` | 管理员同页新增、编辑、关闭和恢复 |
+| `ServiceType` | `service_types` | 管理员同页新增、编辑、启用和停用 |
+| `ServiceNodeRule` | `service_node_rules` | 管理员绑定服务类型和节点、受限解除 |
+| `Runner` | `runners`、`users` | 用户资格申请/重新申请，管理员审核与工作状态维护 |
 
-```text
-Presentation/Views/Node/*
-Presentation/ViewModels/Node*
-Controllers/NodeController.cs
-Services/NodeService.cs
-Repositories/NodeRepository.cs
-database/oracle/campus_runner_oracle_schema.sql 中的 nodes 表
-```
-
-首页 `/` 是系统门户页面，用于展示真实项目入口、服务类型、角色入口、流程和系统检测入口。
+首页 `/` 会根据访客、普通用户、跑腿员和管理员身份展示真实入口。任务发布、订单、任务大厅、接单、配送、评价、投诉、结算和报表仍是后续模块，当前没有 Controller 路由或可点击入口。
 
 ## 数据值显示规则
 
@@ -53,11 +42,7 @@ database/oracle/campus_runner_oracle_schema.sql 中的 nodes 表
 | `nodes.node_type` | `DISTRIBUTION` | 分发点 |
 | `nodes.node_status` | `NORMAL` | 正常 |
 | `nodes.node_status` | `CLOSED` | 关闭 |
+| `service_types.type_status` | `ENABLED` | 启用 |
+| `service_types.type_status` | `DISABLED` | 停用 |
 
-职责边界：
-
-```text
-Repository：读写英文代码
-Service/ViewModel：转换或承载中文显示名
-View：展示中文文本
-```
+Repository 读写英文代码；Service/ViewModel 转换或承载中文显示名；View 展示中文文本。
