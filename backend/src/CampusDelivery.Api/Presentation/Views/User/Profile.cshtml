@@ -32,14 +32,19 @@
                         <span class="badge bg-primary fs-6 float-end">@Model.UserRole</span>
                     </div>
 
-                    <div class="d-flex justify-content-between mt-4">
-                        <a href="/User/Edit" class="btn btn-outline-primary">修改信息</a>
+                   <div class="mt-4 pt-3 border-top">
+                        <div class="mb-3">
+                            <a href="/User/Edit" class="text-primary text-decoration-none" style="font-size: 1.1rem;">修改信息</a>
+                        </div>
                         
-                        <form asp-controller="Auth" asp-action="Logout" method="post">
-                            <button type="submit" class="btn btn-danger">退出登录</button>
+                        <div class="mb-4">
+                            <a href="/Address/Index" class="text-primary text-decoration-none" style="font-size: 1.1rem;">管理我的地址</a>
+                        </div>
+                        
+                        <form asp-controller="Auth" asp-action="Logout" method="post" class="m-0">
+                            <button type="submit" class="btn btn-outline-danger">退出登录</button>
                         </form>
                     </div>
-
                 </div>
             </div>
         </div>
