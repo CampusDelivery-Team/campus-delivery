@@ -104,6 +104,7 @@ namespace CampusDelivery.Api.Controllers
         }
         // 5. 退出登录 (POST)
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
             // 清除系统发放的 Cookie 通行证

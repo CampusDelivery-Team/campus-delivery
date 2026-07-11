@@ -35,6 +35,7 @@ builder.Services.AddScoped<UserService>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
+        options.AccessDeniedPath = "/Home/AccessDenied";
         options.LoginPath = "/Auth/Login"; // 告诉系统，没登录的人强制踢回这个页面
     });
 
