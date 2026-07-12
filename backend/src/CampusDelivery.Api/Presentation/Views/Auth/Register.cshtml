@@ -17,6 +17,7 @@
             <h2>创建新账号</h2>
         </div>
         <form class="auth-form" asp-controller="Auth" asp-action="Register" method="post" autocomplete="off">
+            @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
             <div class="auth-field">
                 <label asp-for="Username">账号</label>

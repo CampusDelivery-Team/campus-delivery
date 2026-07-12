@@ -23,6 +23,7 @@
         }
 
         <form class="auth-form" asp-controller="Auth" asp-action="Login" method="post" autocomplete="off">
+            @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
             <div class="auth-field">
                 <label asp-for="Username">账号</label>

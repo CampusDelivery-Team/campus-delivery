@@ -978,6 +978,7 @@ textarea {
     overflow: hidden;
     overflow-wrap: anywhere;
     -webkit-box-orient: vertical;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
 }
 
@@ -1842,4 +1843,3 @@ a.quick-entry:focus-visible {
         padding: 20px;
     }
 }
-
