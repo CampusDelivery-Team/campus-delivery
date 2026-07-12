@@ -2,10 +2,10 @@
     ViewData["Title"] = "无访问权限";
 }
 
-<section class="panel narrow">
+<section class="state-page">
     <p class="eyebrow">ACCESS DENIED</p>
-    <h1>你没有访问此页面的权限</h1>
-    <p>请使用具备对应角色的账号登录，或返回个人中心继续操作。</p>
+    <h1>当前账户没有访问权限</h1>
+    <p>该页面仅对具备对应角色的账户开放。请返回个人中心查看当前身份，或使用正确账户重新登录。</p>
     <div class="actions">
         <a class="button primary" asp-controller="Home" asp-action="Index">返回首页</a>
         @if (User.Identity?.IsAuthenticated == true)

@@ -121,13 +121,23 @@ WHERE NOT EXISTS (
     SELECT 1 FROM service_types WHERE service_name = '快递代取'
 );
 
+-- 重跑脚本时保留原服务编号及其节点规则，只更新业务显示名称。
+UPDATE service_types
+SET service_name = '私人跑腿'
+WHERE service_name = '私人任务'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM service_types existing_service
+      WHERE existing_service.service_name = '私人跑腿'
+  );
+
 INSERT INTO service_types (
     service_name, base_price, distance_rule, urgent_rule, type_status
 )
-SELECT '私人任务', 5.00, '按任务复杂度和距离综合计费', '加急加收3元', 'ENABLED'
+SELECT '私人跑腿', 5.00, '按任务复杂度和距离综合计费', '加急加收3元', 'ENABLED'
 FROM dual
 WHERE NOT EXISTS (
-    SELECT 1 FROM service_types WHERE service_name = '私人任务'
+    SELECT 1 FROM service_types WHERE service_name = '私人跑腿'
 );
 
 INSERT INTO service_node_rules (service_type_id, node_id)
@@ -158,7 +168,7 @@ INSERT INTO service_node_rules (service_type_id, node_id)
 SELECT st.service_type_id, n.node_id
 FROM service_types st
 JOIN nodes n ON n.node_name IN ('嘉定校区南门', '外卖分发点')
-WHERE st.service_name = '私人任务'
+WHERE st.service_name = '私人跑腿'
   AND NOT EXISTS (
       SELECT 1
       FROM service_node_rules r

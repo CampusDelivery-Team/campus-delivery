@@ -17,6 +17,7 @@ dist/
 .env
 .env.local
 appsettings.Local.json
+personal-workspace/
 
 npm-debug.log*
 yarn-debug.log*

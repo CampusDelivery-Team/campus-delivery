@@ -3,46 +3,41 @@
     ViewData["Title"] = "系统登录";
 }
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-5">
-            <div class="card shadow-sm border-0 rounded-lg mt-5">
-                <div class="card-header bg-primary text-white text-center py-3">
-                    <h3 class="font-weight-light my-2">校园跑腿系统登录</h3>
-                </div>
-                <div class="card-body p-4">
-                    
-                    @if (TempData["SuccessMessage"] != null)
-                    {
-                        <div class="alert alert-success text-center">
-                            @TempData["SuccessMessage"]
-                        </div>
-                    }
-
-                    <form asp-controller="Auth" asp-action="Login" method="post" autocomplete="off">
-                        <div asp-validation-summary="ModelOnly" class="text-danger fw-bold mb-3"></div>
-
-                        <div class="mb-3">
-                            <label asp-for="Username" class="form-label fw-bold">账号</label>
-                            <input asp-for="Username" class="form-control" placeholder="请输入账号" autocomplete="off" />
-                            <span asp-validation-for="Username" class="text-danger small"></span>
-                        </div>
-
-                        <div class="mb-4">
-                            <label asp-for="Password" class="form-label fw-bold">密码</label>
-                            <input asp-for="Password" class="form-control" placeholder="请输入密码" autocomplete="new-password" />
-                            <span asp-validation-for="Password" class="text-danger small"></span>
-                        </div>
-
-                        <div class="d-grid gap-2 mt-4 mb-0">
-                            <button class="btn btn-primary btn-lg" type="submit">登 录</button>
-                        </div>
-                    </form>
-                </div>
-                <div class="card-footer text-center py-3">
-                    <div class="small"><a href="/Auth/Register">还没有账号？点击注册</a></div>
-                </div>
-            </div>
-        </div>
+<section class="auth-page">
+    <div class="auth-intro">
+        <p class="eyebrow">WELCOME BACK</p>
+        <h1>登录校园跑腿服务</h1>
+        <p>登录后，系统会依据账户角色开放个人资料、跑腿员资格或基础资料管理入口。</p>
+        <a asp-controller="Home" asp-action="Index">返回首页</a>
     </div>
-</div>
+
+    <div class="auth-card">
+        <div class="auth-card__heading">
+            <p class="eyebrow">SIGN IN</p>
+            <h2>账户登录</h2>
+        </div>
+
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="inline-notice" role="status">@TempData["SuccessMessage"]</div>
+        }
+
+        <form class="auth-form" asp-controller="Auth" asp-action="Login" method="post" autocomplete="off">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+            <div class="auth-field">
+                <label asp-for="Username">账号</label>
+                <input asp-for="Username" placeholder="请输入账号" autocomplete="username" />
+                <span asp-validation-for="Username" class="validation-message"></span>
+            </div>
+            <div class="auth-field">
+                <label asp-for="Password">密码</label>
+                <input asp-for="Password" placeholder="请输入密码" autocomplete="current-password" />
+                <span asp-validation-for="Password" class="validation-message"></span>
+            </div>
+            <button class="button primary auth-submit" type="submit">登录</button>
+        </form>
+
+        <p class="auth-switch">还没有账号？<a asp-controller="Auth" asp-action="Register">注册新账号</a></p>
+    </div>
+</section>

@@ -46,6 +46,36 @@ public sealed class NodeRepository(OracleConnectionFactory connectionFactory)
         return await reader.ReadAsync(cancellationToken) ? MapNode(reader) : null;
     }
 
+    public async Task<bool> ExistsByNameAsync(
+        string nodeName,
+        int? excludedNodeId = null,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = excludedNodeId.HasValue
+            ? """
+                SELECT COUNT(*)
+                FROM nodes
+                WHERE UPPER(node_name) = UPPER(:nodeName)
+                  AND node_id <> :excludedNodeId
+                """
+            : """
+                SELECT COUNT(*)
+                FROM nodes
+                WHERE UPPER(node_name) = UPPER(:nodeName)
+                """;
+        command.Parameters.Add(new OracleParameter("nodeName", nodeName));
+        if (excludedNodeId.HasValue)
+        {
+            command.Parameters.Add(new OracleParameter("excludedNodeId", excludedNodeId.Value));
+        }
+
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+    }
+
     public async Task InsertAsync(Node node, CancellationToken cancellationToken = default)
     {
         await using var connection = connectionFactory.CreateConnection();
@@ -61,7 +91,7 @@ public sealed class NodeRepository(OracleConnectionFactory connectionFactory)
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public async Task UpdateAsync(Node node, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateAsync(Node node, CancellationToken cancellationToken = default)
     {
         await using var connection = connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
@@ -79,19 +109,28 @@ public sealed class NodeRepository(OracleConnectionFactory connectionFactory)
         AddEditableParameters(command, node);
         command.Parameters.Add(new OracleParameter("nodeId", node.NodeId));
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
     }
 
-    public async Task DeleteAsync(int nodeId, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateStatusAsync(
+        int nodeId,
+        string nodeStatus,
+        CancellationToken cancellationToken = default)
     {
         await using var connection = connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
         await using var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM nodes WHERE node_id = :nodeId";
+        command.CommandText = """
+            UPDATE nodes
+            SET node_status = :nodeStatus
+            WHERE node_id = :nodeId
+              AND node_status <> :nodeStatus
+            """;
+        command.Parameters.Add(new OracleParameter("nodeStatus", nodeStatus));
         command.Parameters.Add(new OracleParameter("nodeId", nodeId));
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
     }
 
     private static Node MapNode(OracleDataReader reader)
