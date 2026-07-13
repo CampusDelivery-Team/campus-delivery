@@ -1,0 +1,161 @@
+@model AdminAssignViewModel
+
+@{
+    ViewData["Title"] = "管理员指派与重派控制台";
+}
+
+<section class="panel">
+    <div class="section-header" style="margin-bottom: 24px;">
+        <div>
+            <p class="eyebrow">管理调度</p>
+            <h1>管理员指派与重派控制台</h1>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert" style="background:#e6f4ea; border:1px solid #a8dab5; color:#137333; padding:14px 20px; border-radius:6px; margin-bottom:20px; font-weight:600;">
+            @TempData["SuccessMessage"]
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert" style="background:#fce8e6; border:1px solid #fad2cf; color:#c5221f; padding:14px 20px; border-radius:6px; margin-bottom:20px; font-weight:600;">
+            @TempData["ErrorMessage"]
+        </div>
+    }
+
+    <div style="display:grid; grid-template-columns: 1.8fr 1.2fr; gap: 24px; margin-bottom: 30px;">
+        <!-- 待指派任务列表 -->
+        <article style="background:#fff; border:1px solid #c9d9ef; border-radius:8px; padding:20px;">
+            <h2 style="font-size:18px; margin-top:0; margin-bottom:16px; color:#071a3d; border-bottom:1px solid #eef3fb; padding-bottom:8px;">待指派任务</h2>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>标题</th>
+                            <th>服务</th>
+                            <th>价格</th>
+                            <th>指派操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.WaitingTasks.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="5" class="empty" style="text-align:center; padding:30px 0; color:#6b7893;">暂无等待指派的订单</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var task in Model.WaitingTasks)
+                            {
+                                <tr>
+                                    <td>@task.TaskId</td>
+                                    <td>
+                                        <strong style="color:#071a3d;">@task.TaskTitle</strong><br/>
+                                        <small style="color:#80868b;">送达: @task.CreatedAddress</small>
+                                    </td>
+                                    <td><span class="badge" style="background:#e8f0fe; color:#1a73e8;">@task.ServiceTypeName</span></td>
+                                    <td style="color:#245cff; font-weight:700;">¥@task.TaskPrice.ToString("F2")</td>
+                                    <td>
+                                        @if (Model.FreeRunners.Count == 0)
+                                        {
+                                            <span style="color:#c5221f; font-size:12px; font-weight:600;">无空闲跑腿员</span>
+                                        }
+                                        else
+                                        {
+                                            <form asp-action="AdminAssign" method="post" style="display:flex; align-items:center; gap:6px; margin:0;">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="taskId" value="@task.TaskId" />
+                                                <select name="runnerId" style="height:30px; border:1px solid #bfd0ea; border-radius:4px; font-size:12px; padding:0 4px; background:#fff;">
+                                                    @foreach (var runner in Model.FreeRunners)
+                                                    {
+                                                        <option value="@runner.RunnerId">@runner.RealName (信誉:@runner.CreditScore)</option>
+                                                    }
+                                                </select>
+                                                <button type="submit" class="button primary" style="min-height:30px; height:30px; padding:0 8px; font-size:11px;">指派</button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <!-- 空闲跑腿员状态 -->
+        <article style="background:#fff; border:1px solid #c9d9ef; border-radius:8px; padding:20px;">
+            <h2 style="font-size:18px; margin-top:0; margin-bottom:16px; color:#071a3d; border-bottom:1px solid #eef3fb; padding-bottom:8px;">空闲跑腿员 (APPROVED & FREE)</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>姓名</th>
+                            <th>信誉分</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.FreeRunners.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="3" class="empty" style="text-align:center; padding:30px 0; color:#6b7893;">当前没有空闲的跑腿员</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var runner in Model.FreeRunners)
+                            {
+                                <tr>
+                                    <td>@runner.RunnerId</td>
+                                    <td style="font-weight:600;">@runner.RealName</td>
+                                    <td><span class="badge success">@runner.CreditScore 分</span></td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </div>
+
+    <!-- 异常订单紧急调度 (重派) -->
+    <article style="background:#fff; border:1px solid #c9d9ef; border-radius:8px; padding:20px;">
+        <h2 style="font-size:18px; margin-top:0; margin-bottom:16px; color:#071a3d; border-bottom:1px solid #eef3fb; padding-bottom:8px;">异常订单紧急重指派 (调度干预)</h2>
+        <p style="color:#5f6368; font-size:13px; margin-bottom:16px;">当接单人出现配送异常（故障/违规）时，管理员可以在此强制解除原跑腿员的绑定，并将订单重新指派给其他空闲跑腿员。原跑腿员将恢复为空闲状态。</p>
+
+        <form asp-action="AdminReassign" method="post" style="display:grid; grid-template-columns: 1fr 1fr 1.5fr auto; gap:16px; align-items:end;">
+            @Html.AntiForgeryToken()
+            <div>
+                <label style="display:block; font-size:12px; font-weight:700; color:#5f6368; margin-bottom:4px;">任务编号 (Task ID)</label>
+                <input type="number" name="taskId" required style="width:100%; height:36px; border:1px solid #bfd0ea; border-radius:4px; padding:0 8px; font-size:13px;" placeholder="例如: 2" />
+            </div>
+            <div>
+                <label style="display:block; font-size:12px; font-weight:700; color:#5f6368; margin-bottom:4px;">新派跑腿员 (New Runner)</label>
+                <select name="runnerId" required style="width:100%; height:36px; border:1px solid #bfd0ea; border-radius:4px; font-size:13px; padding:0 8px; background:#fff;">
+                    @if (Model.FreeRunners.Count == 0)
+                    {
+                        <option value="">暂无空闲跑腿员</option>
+                    }
+                    else
+                    {
+                        @foreach (var runner in Model.FreeRunners)
+                        {
+                            <option value="@runner.RunnerId">@runner.RealName (ID:@runner.RunnerId)</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div>
+                <label style="display:block; font-size:12px; font-weight:700; color:#5f6368; margin-bottom:4px;">调度重派原因</label>
+                <input type="text" name="reason" required style="width:100%; height:36px; border:1px solid #bfd0ea; border-radius:4px; padding:0 8px; font-size:13px;" placeholder="原跑腿员爆胎/临时有事无法送达" />
+            </div>
+            <button type="submit" class="button primary" style="min-height:36px; height:36px; font-size:13px;">执行紧急重派</button>
+        </form>
+    </article>
+</section>

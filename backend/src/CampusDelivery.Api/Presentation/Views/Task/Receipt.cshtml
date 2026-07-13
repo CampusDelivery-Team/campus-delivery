@@ -1,0 +1,70 @@
+@model ReceiptTasksViewModel
+
+@{
+    ViewData["Title"] = "确认收货";
+}
+
+<section class="panel">
+    <div class="section-header" style="margin-bottom:24px;">
+        <div>
+            <p class="eyebrow">我的任务</p>
+            <h1>待确认收货</h1>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert" style="background:#e6f4ea; border:1px solid #a8dab5; color:#137333; padding:14px 20px; border-radius:6px; margin-bottom:20px; font-weight:600;">
+            @TempData["SuccessMessage"]
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert" style="background:#fce8e6; border:1px solid #fad2cf; color:#c5221f; padding:14px 20px; border-radius:6px; margin-bottom:20px; font-weight:600;">
+            @TempData["ErrorMessage"]
+        </div>
+    }
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>任务编号</th>
+                    <th>服务类型</th>
+                    <th>任务标题</th>
+                    <th>任务金额</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Tasks.Count == 0)
+                {
+                    <tr>
+                        <td colspan="5" class="empty" style="text-align:center; padding:40px 0; color:#6b7893;">暂无待确认收货的任务</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var task in Model.Tasks)
+                    {
+                        <tr>
+                            <td>#@task.TaskId</td>
+                            <td>@task.ServiceTypeName</td>
+                            <td>@task.TaskTitle</td>
+                            <td style="color:#245cff; font-weight:700;">¥@task.TaskPrice.ToString("F2")</td>
+                            <td>
+                                <form asp-action="ConfirmReceipt" method="post" style="margin:0;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="taskId" value="@task.TaskId" />
+                                    <button type="submit" class="button primary" style="min-height:32px; height:32px; padding:0 12px; font-size:12px;">确认收货</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <p style="margin-top:16px; color:#5f6368; font-size:13px;">确认收货后，任务进入收货后支付环节。</p>
+</section>
