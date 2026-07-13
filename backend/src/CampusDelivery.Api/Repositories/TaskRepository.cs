@@ -70,7 +70,11 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
         return null;
     }
 
-    public async Task<IReadOnlyList<CampusTask>> GetActiveTasksByRunnerIdAsync(int runnerId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<CampusTask>> GetActiveTasksByRunnerIdAsync(
+        int runnerId,
+        int offset,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
         var tasks = new List<CampusTask>();
         await using var connection = connectionFactory.CreateConnection();
@@ -91,9 +95,11 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
               )
               AND t.task_status IN ('ASSIGNED', 'PICKED_UP', 'DELIVERING', 'WAIT_CONFIRM')
             ORDER BY t.created_at DESC
-
+            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
             """;
         command.Parameters.Add(new OracleParameter("runnerId", runnerId));
+        command.Parameters.Add(new OracleParameter("offset", offset));
+        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
@@ -103,7 +109,37 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
         return tasks;
     }
 
-    public async Task<IReadOnlyList<CampusTask>> GetTasksWaitingForReceiptAsync(int publisherUserId, CancellationToken cancellationToken = default)
+    public async Task<int> GetActiveTaskCountByRunnerIdAsync(int runnerId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM APPUSER.tasks t
+            JOIN APPUSER.assign_records r ON t.task_id = r.task_id
+            WHERE r.runner_id = :runnerId
+              AND r.record_id = (
+                  SELECT MAX(r2.record_id)
+                  FROM APPUSER.assign_records r2
+                  WHERE r2.task_id = t.task_id
+              )
+              AND t.task_status IN ('ASSIGNED', 'PICKED_UP', 'DELIVERING', 'WAIT_CONFIRM')
+            """;
+        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToInt32(result);
+    }
+
+
+    public async Task<IReadOnlyList<CampusTask>> GetTasksWaitingForReceiptAsync(
+        int publisherUserId,
+        int offset,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
         var tasks = new List<CampusTask>();
         await using var connection = connectionFactory.CreateConnection();
@@ -131,8 +167,11 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
                     AND l.operator_user_id = :publisherUserId
               )
             ORDER BY t.created_at DESC
+            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
             """;
         command.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
+        command.Parameters.Add(new OracleParameter("offset", offset));
+        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
@@ -141,6 +180,41 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
         }
         return tasks;
     }
+
+    public async Task<int> GetTasksWaitingForReceiptCountAsync(
+        int publisherUserId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM APPUSER.tasks t
+            JOIN APPUSER.assign_records ar ON ar.record_id = (
+                SELECT MAX(ar2.record_id)
+                FROM APPUSER.assign_records ar2
+                WHERE ar2.task_id = t.task_id
+            )
+            WHERE t.publisher_user_id = :publisherUserId
+              AND t.task_status = 'WAIT_CONFIRM'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM APPUSER.task_status_logs l
+                  WHERE l.record_id = ar.record_id
+                    AND l.status_before = 'WAIT_CONFIRM'
+                    AND l.status_after = 'WAIT_CONFIRM'
+                    AND l.operator_user_id = :publisherUserId
+              )
+            """;
+        command.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToInt32(result);
+    }
+
 
     public async Task<string?> GetTaskStatusWithLockAsync(int taskId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
 
@@ -323,7 +397,10 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
         return null;
     }
 
-    public async Task<IReadOnlyList<CampusTask>> GetWaitingTasksForAdminAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<CampusTask>> GetWaitingTasksForAdminAsync(
+        int offset,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
         var tasks = new List<CampusTask>();
         await using var connection = connectionFactory.CreateConnection();
@@ -337,7 +414,10 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
             FROM APPUSER.tasks
             WHERE task_status = 'WAITING'
             ORDER BY created_at DESC
+            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
             """;
+        command.Parameters.Add(new OracleParameter("offset", offset));
+        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
@@ -347,7 +427,22 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
         return tasks;
     }
 
-    public async Task<IReadOnlyList<Runner>> GetFreeRunnersForAdminAsync(CancellationToken cancellationToken = default)
+    public async Task<int> GetWaitingTasksForAdminCountAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM APPUSER.tasks WHERE task_status = 'WAITING'";
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToInt32(result);
+    }
+
+
+    public async Task<IReadOnlyList<Runner>> GetFreeRunnersForAdminAsync(
+        int offset,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
         var runners = new List<Runner>();
         await using var connection = connectionFactory.CreateConnection();
@@ -360,7 +455,10 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
             FROM APPUSER.runners
             WHERE audit_status = 'APPROVED' AND work_status = 'FREE'
             ORDER BY runner_id
+            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
             """;
+        command.Parameters.Add(new OracleParameter("offset", offset));
+        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
@@ -369,6 +467,22 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
         }
         return runners;
     }
+
+    public async Task<int> GetFreeRunnersForAdminCountAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM APPUSER.runners
+            WHERE audit_status = 'APPROVED' AND work_status = 'FREE'
+            """;
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToInt32(result);
+    }
+
 
 
 

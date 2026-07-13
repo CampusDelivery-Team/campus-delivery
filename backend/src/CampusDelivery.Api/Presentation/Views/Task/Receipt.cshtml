@@ -4,8 +4,8 @@
     ViewData["Title"] = "确认收货";
 }
 
-<section class="panel">
-    <div class="section-header" style="margin-bottom:24px;">
+<section class="panel task-page">
+    <div class="section-header task-page__header">
         <div>
             <p class="eyebrow">我的任务</p>
             <h1>待确认收货</h1>
@@ -14,15 +14,11 @@
 
     @if (TempData["SuccessMessage"] != null)
     {
-        <div class="alert" style="background:#e6f4ea; border:1px solid #a8dab5; color:#137333; padding:14px 20px; border-radius:6px; margin-bottom:20px; font-weight:600;">
-            @TempData["SuccessMessage"]
-        </div>
+        <div class="task-alert task-alert--success">@TempData["SuccessMessage"]</div>
     }
     @if (TempData["ErrorMessage"] != null)
     {
-        <div class="alert" style="background:#fce8e6; border:1px solid #fad2cf; color:#c5221f; padding:14px 20px; border-radius:6px; margin-bottom:20px; font-weight:600;">
-            @TempData["ErrorMessage"]
-        </div>
+        <div class="task-alert task-alert--error">@TempData["ErrorMessage"]</div>
     }
 
     <div class="table-wrap">
@@ -40,7 +36,7 @@
                 @if (Model.Tasks.Count == 0)
                 {
                     <tr>
-                        <td colspan="5" class="empty" style="text-align:center; padding:40px 0; color:#6b7893;">暂无待确认收货的任务</td>
+                        <td colspan="5" class="empty task-table__empty">暂无待确认收货的任务</td>
                     </tr>
                 }
                 else
@@ -51,12 +47,12 @@
                             <td>#@task.TaskId</td>
                             <td>@task.ServiceTypeName</td>
                             <td>@task.TaskTitle</td>
-                            <td style="color:#245cff; font-weight:700;">¥@task.TaskPrice.ToString("F2")</td>
+                            <td class="task-price">¥@task.TaskPrice.ToString("F2")</td>
                             <td>
-                                <form asp-action="ConfirmReceipt" method="post" style="margin:0;">
+                                <form asp-action="ConfirmReceipt" method="post" class="task-inline-form">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="taskId" value="@task.TaskId" />
-                                    <button type="submit" class="button primary" style="min-height:32px; height:32px; padding:0 12px; font-size:12px;">确认收货</button>
+                                    <button type="submit" class="button primary task-button--small">确认收货</button>
                                 </form>
                             </td>
                         </tr>
@@ -66,5 +62,6 @@
         </table>
     </div>
 
-    <p style="margin-top:16px; color:#5f6368; font-size:13px;">确认收货后，任务进入收货后支付环节。</p>
+    <partial name="_TaskPagination" model="@(new TaskPaginationViewModel { ActionName = "Receipt", PageNumber = Model.PageNumber, TotalPages = Model.TotalPages, PageSize = Model.PageSize })" />
+    <p class="task-page__note">确认收货后，任务进入收货后支付环节；跑腿员在支付成功、任务完成后恢复为空闲。</p>
 </section>

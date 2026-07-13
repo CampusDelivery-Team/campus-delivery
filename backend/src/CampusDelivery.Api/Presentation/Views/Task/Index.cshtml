@@ -4,35 +4,31 @@
     ViewData["Title"] = "任务大厅";
 }
 
-<section class="panel">
-    <div class="section-header" style="margin-bottom: 24px;">
+<section class="panel task-page">
+    <div class="section-header task-page__header">
         <div>
             <p class="eyebrow">任务调度</p>
             <h1>任务大厅</h1>
         </div>
-        <div style="text-align: right;">
+        <div class="task-page__identity">
             @if (Model.ActiveRunnerId.HasValue)
             {
-                <span class="badge success" style="padding: 10px 14px; font-size: 13px;">跑腿员在线 (ID: @Model.ActiveRunnerId.Value)</span>
+                <span class="badge success task-page__badge">跑腿员在线 (ID: @Model.ActiveRunnerId.Value)</span>
             }
             else
             {
-                <span class="badge danger" style="padding: 10px 14px; font-size: 13px;">无跑腿员资质 (仅限只读)</span>
+                <span class="badge danger task-page__badge">无跑腿员资质 (仅限只读)</span>
             }
         </div>
     </div>
 
     @if (TempData["SuccessMessage"] != null)
     {
-        <div class="alert" style="background:#e6f4ea; border:1px solid #a8dab5; color:#137333; padding:14px 20px; border-radius:6px; margin-bottom:20px; font-weight:600;">
-            @TempData["SuccessMessage"]
-        </div>
+        <div class="task-alert task-alert--success">@TempData["SuccessMessage"]</div>
     }
     @if (TempData["ErrorMessage"] != null)
     {
-        <div class="alert" style="background:#fce8e6; border:1px solid #fad2cf; color:#c5221f; padding:14px 20px; border-radius:6px; margin-bottom:20px; font-weight:600;">
-            @TempData["ErrorMessage"]
-        </div>
+        <div class="task-alert task-alert--error">@TempData["ErrorMessage"]</div>
     }
 
     <div class="table-wrap">
@@ -51,68 +47,54 @@
                 </tr>
             </thead>
             <tbody>
-            @if (Model.Tasks.Count == 0)
-            {
-                <tr>
-                    <td colspan="9" class="empty" style="text-align:center; padding: 40px 0; color: #6b7893;">暂无等待接单的任务</td>
-                </tr>
-            }
-            else
-            {
-                foreach (var task in Model.Tasks)
+                @if (Model.Tasks.Count == 0)
                 {
                     <tr>
-                        <td>@task.TaskId</td>
-                        <td><span style="font-weight: 600;">@task.ServiceTypeName</span></td>
-                        <td>@task.TaskTitle</td>
-                        <td>@task.NodeName</td>
-                        <td>@task.AddressDisplay</td>
-                        <td style="color: #245cff; font-weight: 800;">¥@task.TaskPrice.ToString("F2")</td>
-                        <td>
-                            @if (task.UrgentFlag == "Y")
-                            {
-                                <span class="badge danger" style="background:#fce8e6; color:#c5221f;">加急</span>
-                            }
-                            else
-                            {
-                                <span style="color:#9e9e9e;">普通</span>
-                            }
-                        </td>
-                        <td><span class="badge warning">@task.TaskStatusDisplayName</span></td>
-                        <td>
-                            @if (Model.ActiveRunnerId.HasValue && Model.ActiveRunnerStatus == "FREE")
-                            {
-                                <form asp-action="Grab" method="post" style="display:inline;">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="taskId" value="@task.TaskId" />
-                                    <button type="submit" class="button primary" style="min-height:32px; height:32px; padding: 0 12px; font-size:12px; font-weight:700;">抢单</button>
-                                </form>
-                            }
-                            else
-                            {
-                                <button class="button" disabled style="min-height:32px; height:32px; padding: 0 12px; font-size:12px; cursor:not-allowed; opacity:0.6;">不可接单</button>
-                            }
-
-                        </td>
+                        <td colspan="9" class="empty task-table__empty">暂无等待接单的任务</td>
                     </tr>
                 }
-            }
+                else
+                {
+                    foreach (var task in Model.Tasks)
+                    {
+                        <tr>
+                            <td>@task.TaskId</td>
+                            <td><strong>@task.ServiceTypeName</strong></td>
+                            <td>@task.TaskTitle</td>
+                            <td>@task.NodeName</td>
+                            <td>@task.AddressDisplay</td>
+                            <td class="task-price">¥@task.TaskPrice.ToString("F2")</td>
+                            <td>
+                                @if (task.UrgentFlag == "Y")
+                                {
+                                    <span class="badge danger">加急</span>
+                                }
+                                else
+                                {
+                                    <span class="muted-text">普通</span>
+                                }
+                            </td>
+                            <td><span class="badge audit-pending">@task.TaskStatusDisplayName</span></td>
+                            <td>
+                                @if (Model.ActiveRunnerId.HasValue && Model.ActiveRunnerStatus == "FREE")
+                                {
+                                    <form asp-action="Grab" method="post" class="task-inline-form">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="taskId" value="@task.TaskId" />
+                                        <button type="submit" class="button primary task-button--small">抢单</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <button class="button task-button--small" disabled>不可接单</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
             </tbody>
         </table>
     </div>
 
-    @if (Model.TotalPages > 1)
-    {
-        <div class="pagination" style="display:flex; justify-content:center; gap:8px; margin-top:24px;">
-            @if (Model.PageNumber > 1)
-            {
-                <a class="button" asp-action="Index" asp-route-page="@(Model.PageNumber - 1)" asp-route-size="@Model.PageSize" style="min-height:36px; padding:0 14px; font-size:13px;">上一页</a>
-            }
-            <span style="align-self:center; color:#5f6368; font-size:13px; font-weight:600;">第 @Model.PageNumber 页 / 共 @Model.TotalPages 页</span>
-            @if (Model.PageNumber < Model.TotalPages)
-            {
-                <a class="button" asp-action="Index" asp-route-page="@(Model.PageNumber + 1)" asp-route-size="@Model.PageSize" style="min-height:36px; padding:0 14px; font-size:13px;">下一页</a>
-            }
-        </div>
-    }
+    <partial name="_TaskPagination" model="@(new TaskPaginationViewModel { ActionName = "Index", PageNumber = Model.PageNumber, TotalPages = Model.TotalPages, PageSize = Model.PageSize })" />
 </section>

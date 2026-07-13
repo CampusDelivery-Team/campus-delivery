@@ -4,6 +4,10 @@ public sealed class MyTasksViewModel
 {
     public List<MyTaskItemViewModel> ActiveTasks { get; set; } = new();
     public int RunnerId { get; set; }
+    public int PageNumber { get; set; }
+    public int TotalPages { get; set; }
+    public int TotalCount { get; set; }
+    public int PageSize { get; set; }
 }
 
 public sealed class MyTaskItemViewModel
@@ -23,7 +27,6 @@ public sealed class MyTaskItemViewModel
     public DateTime AssignedAt { get; set; }
     public bool ReceiptConfirmed { get; set; }
     public List<TaskStatusLogViewModel> Logs { get; set; } = new();
-
 }
 
 public sealed class TaskStatusLogViewModel
@@ -35,10 +38,13 @@ public sealed class TaskStatusLogViewModel
     public DateTime OperatedAt { get; set; }
 }
 
-
 public sealed class ReceiptTasksViewModel
 {
     public List<ReceiptTaskItemViewModel> Tasks { get; set; } = new();
+    public int PageNumber { get; set; }
+    public int TotalPages { get; set; }
+    public int TotalCount { get; set; }
+    public int PageSize { get; set; }
 }
 
 public sealed class ReceiptTaskItemViewModel
@@ -48,7 +54,3 @@ public sealed class ReceiptTaskItemViewModel
     public decimal TaskPrice { get; set; }
     public string ServiceTypeName { get; set; } = string.Empty;
 }
-
-
-
-

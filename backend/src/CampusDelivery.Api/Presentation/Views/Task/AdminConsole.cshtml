@@ -4,8 +4,8 @@
     ViewData["Title"] = "管理员指派与重派控制台";
 }
 
-<section class="panel">
-    <div class="section-header" style="margin-bottom: 24px;">
+<section class="panel task-page">
+    <div class="section-header task-page__header">
         <div>
             <p class="eyebrow">管理调度</p>
             <h1>管理员指派与重派控制台</h1>
@@ -14,22 +14,16 @@
 
     @if (TempData["SuccessMessage"] != null)
     {
-        <div class="alert" style="background:#e6f4ea; border:1px solid #a8dab5; color:#137333; padding:14px 20px; border-radius:6px; margin-bottom:20px; font-weight:600;">
-            @TempData["SuccessMessage"]
-        </div>
+        <div class="task-alert task-alert--success">@TempData["SuccessMessage"]</div>
     }
     @if (TempData["ErrorMessage"] != null)
     {
-        <div class="alert" style="background:#fce8e6; border:1px solid #fad2cf; color:#c5221f; padding:14px 20px; border-radius:6px; margin-bottom:20px; font-weight:600;">
-            @TempData["ErrorMessage"]
-        </div>
+        <div class="task-alert task-alert--error">@TempData["ErrorMessage"]</div>
     }
 
-    <div style="display:grid; grid-template-columns: 1.8fr 1.2fr; gap: 24px; margin-bottom: 30px;">
-        <!-- 待指派任务列表 -->
-        <article style="background:#fff; border:1px solid #c9d9ef; border-radius:8px; padding:20px;">
-            <h2 style="font-size:18px; margin-top:0; margin-bottom:16px; color:#071a3d; border-bottom:1px solid #eef3fb; padding-bottom:8px;">待指派任务</h2>
-
+    <div class="task-admin-grid">
+        <article class="task-admin-panel">
+            <h2>待指派任务</h2>
             <div class="table-wrap">
                 <table>
                     <thead>
@@ -45,7 +39,7 @@
                         @if (Model.WaitingTasks.Count == 0)
                         {
                             <tr>
-                                <td colspan="5" class="empty" style="text-align:center; padding:30px 0; color:#6b7893;">暂无等待指派的订单</td>
+                                <td colspan="5" class="empty task-table__empty">暂无等待指派的订单</td>
                             </tr>
                         }
                         else
@@ -55,28 +49,28 @@
                                 <tr>
                                     <td>@task.TaskId</td>
                                     <td>
-                                        <strong style="color:#071a3d;">@task.TaskTitle</strong><br/>
-                                        <small style="color:#80868b;">送达: @task.CreatedAddress</small>
+                                        <strong>@task.TaskTitle</strong><br />
+                                        <small class="muted-text">送达: @task.CreatedAddress</small>
                                     </td>
-                                    <td><span class="badge" style="background:#e8f0fe; color:#1a73e8;">@task.ServiceTypeName</span></td>
-                                    <td style="color:#245cff; font-weight:700;">¥@task.TaskPrice.ToString("F2")</td>
+                                    <td><span class="badge task-badge--service">@task.ServiceTypeName</span></td>
+                                    <td class="task-price">¥@task.TaskPrice.ToString("F2")</td>
                                     <td>
                                         @if (Model.FreeRunners.Count == 0)
                                         {
-                                            <span style="color:#c5221f; font-size:12px; font-weight:600;">无空闲跑腿员</span>
+                                            <span class="task-status-text task-status-text--error">当前页无空闲跑腿员</span>
                                         }
                                         else
                                         {
-                                            <form asp-action="AdminAssign" method="post" style="display:flex; align-items:center; gap:6px; margin:0;">
+                                            <form asp-action="AdminAssign" method="post" class="task-assign-form">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="taskId" value="@task.TaskId" />
-                                                <select name="runnerId" style="height:30px; border:1px solid #bfd0ea; border-radius:4px; font-size:12px; padding:0 4px; background:#fff;">
+                                                <select name="runnerId">
                                                     @foreach (var runner in Model.FreeRunners)
                                                     {
                                                         <option value="@runner.RunnerId">@runner.RealName (信誉:@runner.CreditScore)</option>
                                                     }
                                                 </select>
-                                                <button type="submit" class="button primary" style="min-height:30px; height:30px; padding:0 8px; font-size:11px;">指派</button>
+                                                <button type="submit" class="button primary task-button--small">指派</button>
                                             </form>
                                         }
                                     </td>
@@ -86,11 +80,11 @@
                     </tbody>
                 </table>
             </div>
+            <partial name="_TaskPagination" model="@(new TaskPaginationViewModel { ActionName = "AdminConsole", PageNumber = Model.TaskPageNumber, TotalPages = Model.TaskTotalPages, PageSize = Model.PageSize, PageParameter = "taskPage", OtherPageParameter = "runnerPage", OtherPageValue = Model.RunnerPageNumber })" />
         </article>
 
-        <!-- 空闲跑腿员状态 -->
-        <article style="background:#fff; border:1px solid #c9d9ef; border-radius:8px; padding:20px;">
-            <h2 style="font-size:18px; margin-top:0; margin-bottom:16px; color:#071a3d; border-bottom:1px solid #eef3fb; padding-bottom:8px;">空闲跑腿员 (APPROVED & FREE)</h2>
+        <article class="task-admin-panel">
+            <h2>空闲跑腿员</h2>
             <div class="table-wrap">
                 <table>
                     <thead>
@@ -104,7 +98,7 @@
                         @if (Model.FreeRunners.Count == 0)
                         {
                             <tr>
-                                <td colspan="3" class="empty" style="text-align:center; padding:30px 0; color:#6b7893;">当前没有空闲的跑腿员</td>
+                                <td colspan="3" class="empty task-table__empty">当前没有空闲的跑腿员</td>
                             </tr>
                         }
                         else
@@ -113,7 +107,7 @@
                             {
                                 <tr>
                                     <td>@runner.RunnerId</td>
-                                    <td style="font-weight:600;">@runner.RealName</td>
+                                    <td><strong>@runner.RealName</strong></td>
                                     <td><span class="badge success">@runner.CreditScore 分</span></td>
                                 </tr>
                             }
@@ -121,26 +115,25 @@
                     </tbody>
                 </table>
             </div>
+            <partial name="_TaskPagination" model="@(new TaskPaginationViewModel { ActionName = "AdminConsole", PageNumber = Model.RunnerPageNumber, TotalPages = Model.RunnerTotalPages, PageSize = Model.PageSize, PageParameter = "runnerPage", OtherPageParameter = "taskPage", OtherPageValue = Model.TaskPageNumber })" />
         </article>
     </div>
 
-    <!-- 异常订单紧急调度 (重派) -->
-    <article style="background:#fff; border:1px solid #c9d9ef; border-radius:8px; padding:20px;">
-        <h2 style="font-size:18px; margin-top:0; margin-bottom:16px; color:#071a3d; border-bottom:1px solid #eef3fb; padding-bottom:8px;">异常订单紧急重指派 (调度干预)</h2>
-        <p style="color:#5f6368; font-size:13px; margin-bottom:16px;">当接单人出现配送异常（故障/违规）时，管理员可以在此强制解除原跑腿员的绑定，并将订单重新指派给其他空闲跑腿员。原跑腿员将恢复为空闲状态。</p>
-
-        <form asp-action="AdminReassign" method="post" style="display:grid; grid-template-columns: 1fr 1fr 1.5fr auto; gap:16px; align-items:end;">
+    <article class="task-admin-panel task-reassign-panel">
+        <h2>异常订单重派</h2>
+        <p class="task-page__note">管理员可以保留原接派记录，将配送中的任务改派给其他空闲跑腿员。</p>
+        <form asp-action="AdminReassign" method="post" class="task-reassign-form">
             @Html.AntiForgeryToken()
-            <div>
-                <label style="display:block; font-size:12px; font-weight:700; color:#5f6368; margin-bottom:4px;">任务编号 (Task ID)</label>
-                <input type="number" name="taskId" required style="width:100%; height:36px; border:1px solid #bfd0ea; border-radius:4px; padding:0 8px; font-size:13px;" placeholder="例如: 2" />
-            </div>
-            <div>
-                <label style="display:block; font-size:12px; font-weight:700; color:#5f6368; margin-bottom:4px;">新派跑腿员 (New Runner)</label>
-                <select name="runnerId" required style="width:100%; height:36px; border:1px solid #bfd0ea; border-radius:4px; font-size:13px; padding:0 8px; background:#fff;">
+            <label class="field">
+                <span>任务编号</span>
+                <input type="number" name="taskId" required placeholder="例如: 2" />
+            </label>
+            <label class="field">
+                <span>新跑腿员</span>
+                <select name="runnerId" required>
                     @if (Model.FreeRunners.Count == 0)
                     {
-                        <option value="">暂无空闲跑腿员</option>
+                        <option value="">当前页无空闲跑腿员</option>
                     }
                     else
                     {
@@ -150,12 +143,12 @@
                         }
                     }
                 </select>
-            </div>
-            <div>
-                <label style="display:block; font-size:12px; font-weight:700; color:#5f6368; margin-bottom:4px;">调度重派原因</label>
-                <input type="text" name="reason" required style="width:100%; height:36px; border:1px solid #bfd0ea; border-radius:4px; padding:0 8px; font-size:13px;" placeholder="原跑腿员爆胎/临时有事无法送达" />
-            </div>
-            <button type="submit" class="button primary" style="min-height:36px; height:36px; font-size:13px;">执行紧急重派</button>
+            </label>
+            <label class="field">
+                <span>重派原因</span>
+                <input type="text" name="reason" required placeholder="原跑腿员临时无法继续配送" />
+            </label>
+            <button type="submit" class="button primary">执行重派</button>
         </form>
     </article>
 </section>
