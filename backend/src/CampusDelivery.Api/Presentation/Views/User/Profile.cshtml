@@ -1,52 +1,80 @@
 @model CampusDelivery.Api.Presentation.ViewModels.UserViewModel
 @{
     ViewData["Title"] = "个人中心";
+    var avatarText = string.IsNullOrWhiteSpace(Model.Username) ? "我" : Model.Username[..1].ToUpperInvariant();
 }
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 rounded-lg">
-                <div class="card-header bg-dark text-white text-center py-3">
-                    <h4 class="font-weight-light my-1">我的个人信息</h4>
-                </div>
-                <div class="card-body p-4">
-                    
-                    <div class="mb-3 border-bottom pb-2">
-                        <span class="fw-bold text-muted">用户编号：</span>
-                        <span class="fs-5 float-end">@Model.UserId</span>
-                    </div>
-                    
-                    <div class="mb-3 border-bottom pb-2">
-                        <span class="fw-bold text-muted">账号：</span>
-                        <span class="fs-5 float-end">@Model.Username</span>
-                    </div>
+<section class="profile-page">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="profile-notice" role="status">@TempData["SuccessMessage"]</div>
+    }
 
-                    <div class="mb-3 border-bottom pb-2">
-                        <span class="fw-bold text-muted">手机号：</span>
-                        <span class="fs-5 float-end">@Model.Phone</span>
-                    </div>
+    <section class="profile-overview">
+        <div class="profile-avatar" aria-label="@Model.Username 的头像">@avatarText</div>
+        <div class="profile-identity">
+            <p class="eyebrow">CAMPUS RUNNER PROFILE</p>
+            <h1>@Model.Username</h1>
+            <p>校园跑腿服务账户</p>
+        </div>
+        <div class="profile-role">
+            <span>系统身份</span>
+            <strong>@Model.UserRole</strong>
+            <small>由系统管理员统一分配</small>
+        </div>
+    </section>
 
-                    <div class="mb-4 border-bottom pb-2">
-                        <span class="fw-bold text-muted">系统身份：</span>
-                        <span class="badge bg-primary fs-6 float-end">@Model.UserRole</span>
-                    </div>
+    <section class="profile-section">
+        <div class="profile-section__heading">
+            <div>
+                <p class="eyebrow">ACCOUNT</p>
+                <h2>账户信息</h2>
+            </div>
+            <a class="button primary" asp-controller="User" asp-action="Edit">编辑联系方式</a>
+        </div>
 
-                   <div class="mt-4 pt-3 border-top">
-                        <div class="mb-3">
-                            <a href="/User/Edit" class="text-primary text-decoration-none" style="font-size: 1.1rem;">修改信息</a>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <a href="/Address/Index" class="text-primary text-decoration-none" style="font-size: 1.1rem;">管理我的地址</a>
-                        </div>
-                        
-                        <form asp-controller="Auth" asp-action="Logout" method="post" class="m-0">
-                            <button type="submit" class="btn btn-outline-danger">退出登录</button>
-                        </form>
-                    </div>
-                </div>
+        <dl class="profile-details">
+            <div>
+                <dt>账户编号</dt>
+                <dd>#@Model.UserId</dd>
+            </div>
+            <div>
+                <dt>登录账号</dt>
+                <dd>@Model.Username</dd>
+            </div>
+            <div>
+                <dt>联系电话</dt>
+                <dd>@Model.Phone</dd>
+            </div>
+            <div>
+                <dt>账户状态</dt>
+                <dd><span class="profile-status">正常可用</span></dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="profile-section profile-address">
+        <div class="profile-section__heading">
+            <div>
+                <p class="eyebrow">DELIVERY ADDRESS</p>
+                <h2>常用收货地址</h2>
+            </div>
+            <span class="address-badge">@(Model.HasAddress ? "默认地址" : "待设置")</span>
+        </div>
+        <div class="address-content">
+            <div class="address-icon" aria-hidden="true">址</div>
+            <div>
+                <strong>@Model.AddressSummary</strong>
+                <p>@Model.AddressContact</p>
             </div>
         </div>
+    </section>
+
+    <div class="profile-footer-actions">
+        <a class="button" asp-controller="Home" asp-action="Index">返回首页</a>
+        <form asp-controller="Auth" asp-action="Logout" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="profile-logout">退出登录</button>
+        </form>
     </div>
-</div>
+</section>

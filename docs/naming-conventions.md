@@ -17,9 +17,9 @@
 
 ```text
 Presentation/Views/Xxx/Index.cshtml
-Presentation/Views/Xxx/Create.cshtml
-Presentation/Views/Xxx/Edit.cshtml
 ```
+
+新增和编辑可采用独立 `Create.cshtml`、`Edit.cshtml` 页面，也可像当前 `Node`、`ServiceType` 一样在 `Index.cshtml` 内通过同页输入行完成。无论采用哪种交互，表单 ViewModel 仍使用 `XxxCreateViewModel`、`XxxEditViewModel`，POST Action 仍使用 `Create`、`Edit` 的明确命名。
 
 共享布局：
 

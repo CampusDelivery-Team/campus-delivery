@@ -22,4 +22,36 @@ public static class DisplayNameService
             _ => value
         };
     }
+
+    public static string GetServiceTypeStatusName(string value)
+    {
+        return value switch
+        {
+            "ENABLED" => "启用",
+            "DISABLED" => "停用",
+            _ => value
+        };
+    }
+
+    public static string GetRunnerAuditStatusName(string value)
+    {
+        return value switch
+        {
+            "PENDING" => "待审核",
+            "APPROVED" => "已通过",
+            "REJECTED" => "已拒绝",
+            _ => value
+        };
+    }
+
+    public static string GetRunnerWorkStatusName(string value)
+    {
+        return value switch
+        {
+            "FREE" => "可接单",
+            "BUSY" => "配送中",
+            "OFFLINE" => "离线",
+            _ => value
+        };
+    }
 }

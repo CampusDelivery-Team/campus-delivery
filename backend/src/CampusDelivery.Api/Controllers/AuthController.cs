@@ -26,6 +26,7 @@ namespace CampusDelivery.Api.Controllers
 
         // 2. 用户点击“登录”按钮后，接收表单数据
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModel model)
         {
             // 如果用户没填账号或密码，直接打回重填
@@ -70,6 +71,7 @@ namespace CampusDelivery.Api.Controllers
 
         // 4. 用户填完表单点击“提交注册”时，接收数据 (POST)
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Register(RegisterViewModel model)
         {
             // 如果表单没填对（比如两次密码不一致、手机号格式不对），打回重填
@@ -104,6 +106,7 @@ namespace CampusDelivery.Api.Controllers
         }
         // 5. 退出登录 (POST)
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
             // 清除系统发放的 Cookie 通行证

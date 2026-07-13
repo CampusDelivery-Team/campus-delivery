@@ -96,6 +96,42 @@ namespace CampusDelivery.Api.Repositories
                 }
             }
         }
+
+        public UserAddress? GetPrimaryAddress(int userId)
+        {
+            using (OracleConnection conn = new OracleConnection(_connectionString))
+            {
+                conn.Open();
+
+                const string sql = @"SELECT contact_name, contact_phone, campus, building_room, is_default
+                                     FROM APPUSER.user_addresses
+                                     WHERE user_id = :user_id
+                                     ORDER BY CASE is_default WHEN 'Y' THEN 0 ELSE 1 END, address_no
+                                     FETCH FIRST 1 ROWS ONLY";
+
+                using (OracleCommand cmd = new OracleCommand(sql, conn))
+                {
+                    cmd.Parameters.Add(new OracleParameter("user_id", userId));
+
+                    using (OracleDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (!reader.Read())
+                        {
+                            return null;
+                        }
+
+                        return new UserAddress
+                        {
+                            ContactName = reader["contact_name"].ToString() ?? string.Empty,
+                            ContactPhone = reader["contact_phone"].ToString() ?? string.Empty,
+                            Campus = reader["campus"].ToString() ?? string.Empty,
+                            BuildingRoom = reader["building_room"].ToString() ?? string.Empty,
+                            IsDefault = reader["is_default"].ToString() ?? "N"
+                        };
+                    }
+                }
+            }
+        }
     }
 
 }

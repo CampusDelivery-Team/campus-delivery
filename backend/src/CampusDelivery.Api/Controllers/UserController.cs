@@ -32,16 +32,7 @@ namespace CampusDelivery.Api.Controllers
             var user = _userRepository.GetUserByUsername(username);
             if (user == null) return NotFound();
 
-            // 打包成 ViewModel 传给前端页面
-            var model = new UserViewModel
-            {
-                UserId = user.UserId,
-                Username = user.Username,
-                Phone = user.Phone,
-                UserRole = _userService.GetChineseRoleName(user.UserRole) // 调用之前写的翻译方法，把 USER 变成 "普通用户"
-            };
-
-            return View(model);
+            return View(BuildUserViewModel(user));
         }
         // 2. 跳转到修改信息页面 (GET)
         [HttpGet]
@@ -53,31 +44,32 @@ namespace CampusDelivery.Api.Controllers
             var user = _userRepository.GetUserByUsername(username);
             if (user == null) return NotFound();
 
-            var model = new UserViewModel
-            {
-                UserId = user.UserId,
-                Username = user.Username,
-                Phone = user.Phone,
-                UserRole = _userService.GetChineseRoleName(user.UserRole)
-            };
-
-            return View(model);
+            return View(BuildUserViewModel(user));
         }
 
         // 3. 接收用户提交的新手机号 (POST)
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Edit(UserViewModel model)
         {
             // 剔除不需要验证的字段，因为页面上账号和角色是禁止编辑的
             ModelState.Remove("Username");
             ModelState.Remove("UserRole");
 
+            var username = User.Identity?.Name;
+            if (string.IsNullOrEmpty(username)) return RedirectToAction("Login", "Auth");
+
+            var currentUser = _userRepository.GetUserByUsername(username);
+            if (currentUser == null) return NotFound();
+
             if (!ModelState.IsValid)
             {
-                return View(model);
+                var retryModel = BuildUserViewModel(currentUser);
+                retryModel.Phone = model.Phone;
+                return View(retryModel);
             }
 
-            var (success, errorMessage) = _userService.UpdatePhone(model.UserId, model.Phone);
+            var (success, errorMessage) = _userService.UpdatePhone(currentUser.UserId, model.Phone);
 
             if (success)
             {
@@ -88,6 +80,26 @@ namespace CampusDelivery.Api.Controllers
 
             ModelState.AddModelError(string.Empty, errorMessage);
             return View(model);
+        }
+
+        private UserViewModel BuildUserViewModel(Models.User user)
+        {
+            var address = _userRepository.GetPrimaryAddress(user.UserId);
+
+            return new UserViewModel
+            {
+                UserId = user.UserId,
+                Username = user.Username,
+                Phone = user.Phone,
+                UserRole = _userService.GetChineseRoleName(user.UserRole),
+                HasAddress = address != null,
+                AddressSummary = address == null
+                    ? "暂未设置常用地址"
+                    : $"{address.Campus} · {address.BuildingRoom}",
+                AddressContact = address == null
+                    ? "后续可在地址管理中新增收货地址"
+                    : $"{address.ContactName} · {address.ContactPhone}"
+            };
         }
     }
 }

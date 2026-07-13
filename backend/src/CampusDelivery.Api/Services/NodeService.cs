@@ -12,52 +12,65 @@ public sealed class NodeService(NodeRepository nodeRepository)
 
         return new NodeIndexViewModel
         {
-            Nodes = nodes.Select(ToListItem).ToList(),
-            IsReadOnly = true
+            Nodes = nodes.Select(ToListItem).ToList()
         };
     }
 
-    public async Task<NodeEditViewModel?> GetEditModelAsync(int nodeId, CancellationToken cancellationToken = default)
+    public async Task<bool> CreateAsync(
+        NodeCreateViewModel model,
+        CancellationToken cancellationToken = default)
     {
-        var node = await nodeRepository.GetByIdAsync(nodeId, cancellationToken);
-        if (node is null)
-        {
-            return null;
-        }
-
-        return new NodeEditViewModel
-        {
-            NodeId = node.NodeId,
-            NodeType = node.NodeType,
-            NodeName = node.NodeName,
-            Location = node.Location,
-            OpenTime = node.OpenTime,
-            NodeStatus = node.NodeStatus
-        };
-    }
-
-    public async Task CreateAsync(NodeCreateViewModel model, CancellationToken cancellationToken = default)
-    {
-        await nodeRepository.InsertAsync(ToNode(model), cancellationToken);
-    }
-
-    public async Task<bool> UpdateAsync(NodeEditViewModel model, CancellationToken cancellationToken = default)
-    {
-        var existing = await nodeRepository.GetByIdAsync(model.NodeId, cancellationToken);
-        if (existing is null)
+        var nodeName = model.NodeName.Trim();
+        if (await nodeRepository.ExistsByNameAsync(
+                nodeName,
+                cancellationToken: cancellationToken))
         {
             return false;
         }
 
-        var node = ToNode(model);
-        node.NodeId = model.NodeId;
-        await nodeRepository.UpdateAsync(node, cancellationToken);
+        await nodeRepository.InsertAsync(ToNode(model), cancellationToken);
         return true;
     }
 
-    public Task DeleteAsync(int nodeId, CancellationToken cancellationToken = default)
+    public async Task<NodeUpdateResult> UpdateAsync(
+        NodeEditViewModel model,
+        CancellationToken cancellationToken = default)
     {
-        return nodeRepository.DeleteAsync(nodeId, cancellationToken);
+        var nodeName = model.NodeName.Trim();
+        if (await nodeRepository.ExistsByNameAsync(
+                nodeName,
+                model.NodeId,
+                cancellationToken))
+        {
+            return NodeUpdateResult.DuplicateName;
+        }
+
+        var node = ToNode(model);
+        node.NodeId = model.NodeId;
+        return await nodeRepository.UpdateAsync(node, cancellationToken)
+            ? NodeUpdateResult.Success
+            : NodeUpdateResult.NotFound;
+    }
+
+    public async Task<NodeStatusUpdateResult> UpdateStatusAsync(
+        int nodeId,
+        string nodeStatus,
+        CancellationToken cancellationToken = default)
+    {
+        var node = await nodeRepository.GetByIdAsync(nodeId, cancellationToken);
+        if (node is null)
+        {
+            return NodeStatusUpdateResult.NotFound;
+        }
+
+        if (node.NodeStatus == nodeStatus)
+        {
+            return NodeStatusUpdateResult.NoChange;
+        }
+
+        return await nodeRepository.UpdateStatusAsync(nodeId, nodeStatus, cancellationToken)
+            ? NodeStatusUpdateResult.Success
+            : NodeStatusUpdateResult.NoChange;
     }
 
     private static Node ToNode(NodeCreateViewModel model)
@@ -86,4 +99,18 @@ public sealed class NodeService(NodeRepository nodeRepository)
             NodeStatusDisplayName = DisplayNameService.GetNodeStatusName(node.NodeStatus)
         };
     }
+}
+
+public enum NodeUpdateResult
+{
+    Success,
+    NotFound,
+    DuplicateName
+}
+
+public enum NodeStatusUpdateResult
+{
+    Success,
+    NotFound,
+    NoChange
 }

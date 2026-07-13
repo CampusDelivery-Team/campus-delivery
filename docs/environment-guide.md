@@ -95,7 +95,7 @@ Oracle.ManagedDataAccess.Core
 Oracle 19c
 ```
 
-页面样式当前以自定义 CSS 为主，后续模块如需统一表单或表格样式，可按项目规范引入 Bootstrap 或复用现有样式。
+页面样式使用 `Presentation/wwwroot/css/site.css` 中的自定义样式。新增页面应优先复用现有 `panel`、表格、表单、状态徽章和管理页样式；当前项目没有加载 Bootstrap，不应只写 Bootstrap 类名后假定样式会生效。
 
 ### 4.2 项目入口
 
@@ -358,8 +358,10 @@ Docker 后端容器 campus-delivery-web 正常运行
 /Database/Status 可以访问
 后端可以连接 Oracle
 users 表当前基础数据数量为 3
-/Node 页面可以访问，当前联调环境下新增、编辑、删除入口已关闭
+/Node 页面可以访问（历史快照；不表示当前功能分支的完整能力）
 ```
+
+上面的服务器状态为 2026-07-07 对 `main` 的历史确认。当前功能分支中的 `/Node` 支持管理员新增、修改、关闭和恢复，不提供物理删除；其他页面能力以仓库 `README.md` 和控制器代码为准。服务器是否已部署这些后续提交，需要由部署负责人另行确认。
 
 ------
 
