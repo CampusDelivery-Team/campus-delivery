@@ -100,7 +100,8 @@ public sealed class AssignService(
                 task.PublisherUserId,
                 task.AddressNo,
                 cancellationToken);
-            var logs = await taskRepository.GetStatusLogsByRecordIdAsync(assign.RecordId, cancellationToken);
+            var logs = await taskRepository.GetStatusLogsByTaskIdAsync(task.TaskId, cancellationToken);
+            bool receiptConfirmed = logs.Any(log => IsReceiptConfirmationLog(log, task.PublisherUserId));
 
             viewModel.ActiveTasks.Add(new MyTaskItemViewModel
             {
@@ -110,25 +111,29 @@ public sealed class AssignService(
                 TaskPrice = task.TaskPrice,
                 UrgentFlag = task.UrgentFlag,
                 TaskStatus = task.TaskStatus,
-                TaskStatusDisplayName = DisplayNameService.GetTaskStatusName(task.TaskStatus),
+                TaskStatusDisplayName = task.TaskStatus == "WAIT_CONFIRM" && receiptConfirmed
+                    ? "待支付"
+                    : DisplayNameService.GetTaskStatusName(task.TaskStatus),
                 ServiceTypeName = await taskRepository.GetServiceTypeNameAsync(task.ServiceTypeId, cancellationToken),
                 NodeName = await taskRepository.GetNodeNameAsync(task.NodeId, cancellationToken),
                 AddressDisplay = addressDisplay,
                 ContactName = contactName,
                 ContactPhone = contactPhone,
                 AssignedAt = assign.AssignedAt,
-                ReceiptConfirmed = logs.Any(IsReceiptConfirmationLog),
+                ReceiptConfirmed = receiptConfirmed,
+
                 Logs = logs.Select(log => new TaskStatusLogViewModel
                 {
                     StatusBeforeDisplayName = log.StatusBefore == null
                         ? null
                         : DisplayNameService.GetTaskStatusName(log.StatusBefore),
                     StatusAfterDisplayName = DisplayNameService.GetTaskStatusName(log.StatusAfter),
-                    ActionName = IsReceiptConfirmationLog(log) ? "用户已确认收货" : null,
+                    ActionName = IsReceiptConfirmationLog(log, task.PublisherUserId) ? "用户已确认收货" : null,
                     OperatorName = log.OperatorUserId == userId ? "您自己" : "管理员或任务相关用户",
                     OperatedAt = log.OperatedAt
                 }).ToList()
             });
+
         }
 
         return viewModel;
@@ -533,8 +538,11 @@ public sealed class AssignService(
         return (int)Math.Ceiling((double)totalCount / pageSize);
     }
 
-    private static bool IsReceiptConfirmationLog(TaskStatusLog log)
+    private static bool IsReceiptConfirmationLog(TaskStatusLog log, int publisherUserId)
     {
-        return log.StatusBefore == "WAIT_CONFIRM" && log.StatusAfter == "WAIT_CONFIRM";
+        return log.StatusBefore == "WAIT_CONFIRM"
+            && log.StatusAfter == "WAIT_CONFIRM"
+            && log.OperatorUserId == publisherUserId;
     }
+
 }

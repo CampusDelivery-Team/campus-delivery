@@ -86,17 +86,20 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
             SELECT t.task_id, t.publisher_user_id, t.service_type_id, t.address_no, t.node_id,
                    t.task_title, t.task_price, t.urgent_flag, t.task_status, t.created_at, t.completed_at
             FROM APPUSER.tasks t
-            JOIN APPUSER.assign_records r ON t.task_id = r.task_id
+            JOIN (
+                SELECT record_id, task_id, runner_id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY task_id
+                           ORDER BY assigned_at DESC, record_id DESC
+                       ) AS rn
+                FROM APPUSER.assign_records
+            ) r ON r.task_id = t.task_id AND r.rn = 1
             WHERE r.runner_id = :runnerId
-              AND r.record_id = (
-                  SELECT MAX(r2.record_id)
-                  FROM APPUSER.assign_records r2
-                  WHERE r2.task_id = t.task_id
-              )
               AND t.task_status IN ('ASSIGNED', 'PICKED_UP', 'DELIVERING', 'WAIT_CONFIRM')
             ORDER BY t.created_at DESC
             OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
             """;
+
         command.Parameters.Add(new OracleParameter("runnerId", runnerId));
         command.Parameters.Add(new OracleParameter("offset", offset));
         command.Parameters.Add(new OracleParameter("pageSize", pageSize));
@@ -119,15 +122,18 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
         command.CommandText = """
             SELECT COUNT(*)
             FROM APPUSER.tasks t
-            JOIN APPUSER.assign_records r ON t.task_id = r.task_id
+            JOIN (
+                SELECT record_id, task_id, runner_id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY task_id
+                           ORDER BY assigned_at DESC, record_id DESC
+                       ) AS rn
+                FROM APPUSER.assign_records
+            ) r ON r.task_id = t.task_id AND r.rn = 1
             WHERE r.runner_id = :runnerId
-              AND r.record_id = (
-                  SELECT MAX(r2.record_id)
-                  FROM APPUSER.assign_records r2
-                  WHERE r2.task_id = t.task_id
-              )
               AND t.task_status IN ('ASSIGNED', 'PICKED_UP', 'DELIVERING', 'WAIT_CONFIRM')
             """;
+
         command.Parameters.Add(new OracleParameter("runnerId", runnerId));
 
         var result = await command.ExecuteScalarAsync(cancellationToken);
@@ -151,11 +157,14 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
             SELECT t.task_id, t.publisher_user_id, t.service_type_id, t.address_no, t.node_id,
                    t.task_title, t.task_price, t.urgent_flag, t.task_status, t.created_at, t.completed_at
             FROM APPUSER.tasks t
-            JOIN APPUSER.assign_records ar ON ar.record_id = (
-                SELECT MAX(ar2.record_id)
-                FROM APPUSER.assign_records ar2
-                WHERE ar2.task_id = t.task_id
-            )
+            JOIN (
+                SELECT record_id, task_id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY task_id
+                           ORDER BY assigned_at DESC, record_id DESC
+                       ) AS rn
+                FROM APPUSER.assign_records
+            ) ar ON ar.task_id = t.task_id AND ar.rn = 1
             WHERE t.publisher_user_id = :publisherUserId
               AND t.task_status = 'WAIT_CONFIRM'
               AND NOT EXISTS (
@@ -169,6 +178,7 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
             ORDER BY t.created_at DESC
             OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
             """;
+
         command.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
         command.Parameters.Add(new OracleParameter("offset", offset));
         command.Parameters.Add(new OracleParameter("pageSize", pageSize));
@@ -193,11 +203,14 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
         command.CommandText = """
             SELECT COUNT(*)
             FROM APPUSER.tasks t
-            JOIN APPUSER.assign_records ar ON ar.record_id = (
-                SELECT MAX(ar2.record_id)
-                FROM APPUSER.assign_records ar2
-                WHERE ar2.task_id = t.task_id
-            )
+            JOIN (
+                SELECT record_id, task_id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY task_id
+                           ORDER BY assigned_at DESC, record_id DESC
+                       ) AS rn
+                FROM APPUSER.assign_records
+            ) ar ON ar.task_id = t.task_id AND ar.rn = 1
             WHERE t.publisher_user_id = :publisherUserId
               AND t.task_status = 'WAIT_CONFIRM'
               AND NOT EXISTS (
@@ -209,6 +222,7 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
                     AND l.operator_user_id = :publisherUserId
               )
             """;
+
         command.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
 
         var result = await command.ExecuteScalarAsync(cancellationToken);
@@ -486,7 +500,7 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
 
 
 
-    public async Task<IReadOnlyList<TaskStatusLog>> GetStatusLogsByRecordIdAsync(int recordId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<TaskStatusLog>> GetStatusLogsByTaskIdAsync(int taskId, CancellationToken cancellationToken = default)
     {
         var logs = new List<TaskStatusLog>();
         await using var connection = connectionFactory.CreateConnection();
@@ -495,12 +509,14 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
         await using var command = connection.CreateCommand();
         command.BindByName = true;
         command.CommandText = """
-            SELECT log_id, record_id, status_before, status_after, operator_user_id, operated_at
-            FROM APPUSER.task_status_logs
-            WHERE record_id = :recordId
-            ORDER BY operated_at ASC, log_id ASC
+            SELECT l.log_id, l.record_id, l.status_before, l.status_after,
+                   l.operator_user_id, l.operated_at
+            FROM APPUSER.task_status_logs l
+            JOIN APPUSER.assign_records ar ON ar.record_id = l.record_id
+            WHERE ar.task_id = :taskId
+            ORDER BY l.operated_at ASC, l.log_id ASC
             """;
-        command.Parameters.Add(new OracleParameter("recordId", recordId));
+        command.Parameters.Add(new OracleParameter("taskId", taskId));
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
@@ -517,6 +533,7 @@ public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
         }
         return logs;
     }
+
 
     // 辅助查询：获取服务名称、节点名称、以及地址格式
     public async Task<string> GetServiceTypeNameAsync(int serviceTypeId, CancellationToken cancellationToken = default)
