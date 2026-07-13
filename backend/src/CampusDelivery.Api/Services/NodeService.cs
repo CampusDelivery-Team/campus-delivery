@@ -73,13 +73,6 @@ public sealed class NodeService(NodeRepository nodeRepository)
             : NodeStatusUpdateResult.NoChange;
     }
 
-    public Task<NodeDeleteResult> DeleteAsync(
-        int nodeId,
-        CancellationToken cancellationToken = default)
-    {
-        return nodeRepository.DeleteAsync(nodeId, cancellationToken);
-    }
-
     private static Node ToNode(NodeCreateViewModel model)
     {
         return new Node

@@ -82,7 +82,7 @@ CREATE TABLE users (
     CONSTRAINT uk_users_username UNIQUE (username),
     CONSTRAINT uk_users_phone UNIQUE (phone),
     CONSTRAINT ck_users_role CHECK (user_role IN ('USER', 'RUNNER', 'ADMIN')),
-    CONSTRAINT ck_users_status CHECK (account_status IN ('NORMAL', 'BLOCKED', 'CANCELLED'))
+    CONSTRAINT ck_users_status CHECK (account_status IN ('NORMAL', 'DISABLED'))
 );
 
 COMMENT ON TABLE users IS '系统用户账号、角色和账号状态';
@@ -91,7 +91,7 @@ COMMENT ON COLUMN users.username IS '账号，唯一，非空';
 COMMENT ON COLUMN users.phone IS '手机号，唯一，非空';
 COMMENT ON COLUMN users.password_hash IS '密码散列值，非空';
 COMMENT ON COLUMN users.user_role IS '用户角色：USER/RUNNER/ADMIN';
-COMMENT ON COLUMN users.account_status IS '账号状态：NORMAL/BLOCKED/CANCELLED';
+COMMENT ON COLUMN users.account_status IS '账号状态：NORMAL/DISABLED';
 
 CREATE TABLE user_addresses (
     user_id         NUMBER NOT NULL,

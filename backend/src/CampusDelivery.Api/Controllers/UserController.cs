@@ -1,8 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Oracle.ManagedDataAccess.Client;
 using CampusDelivery.Api.Repositories;
 using CampusDelivery.Api.Services;
 using CampusDelivery.Api.Presentation.ViewModels;
@@ -83,39 +80,6 @@ namespace CampusDelivery.Api.Controllers
 
             ModelState.AddModelError(string.Empty, errorMessage);
             return View(model);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CancelAccount()
-        {
-            var username = User.Identity?.Name;
-            if (string.IsNullOrEmpty(username)) return RedirectToAction("Login", "Auth");
-
-            var currentUser = _userRepository.GetUserByUsername(username);
-            if (currentUser == null) return NotFound();
-
-            (bool success, string errorMessage) result;
-            try
-            {
-                result = _userService.CancelOwnAccount(currentUser.UserId);
-            }
-            catch (OracleException exception) when (exception.Number == 2290)
-            {
-                TempData["SuccessMessage"] = "数据库账号状态尚未升级，请联系管理员执行账号状态迁移。";
-                return RedirectToAction(nameof(Profile));
-            }
-
-            var (success, errorMessage) = result;
-            if (!success)
-            {
-                TempData["SuccessMessage"] = errorMessage;
-                return RedirectToAction(nameof(Profile));
-            }
-
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            TempData["SuccessMessage"] = "账号已注销，历史数据会被保留。";
-            return RedirectToAction("Login", "Auth");
         }
 
         private UserViewModel BuildUserViewModel(Models.User user)

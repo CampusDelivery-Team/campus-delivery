@@ -26,12 +26,6 @@
 
     <form id="service-type-create-form" asp-action="Create" method="post"></form>
     <form id="service-type-edit-form" asp-action="Edit" method="post"></form>
-
-    @if (TempData["ServiceTypeMessage"] is string message)
-    {
-        <div class="inline-notice">@message</div>
-    }
-
     <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
 
     <div class="table-wrap">
@@ -105,9 +99,6 @@
                                         <button type="submit" class="link-button enable-action">启用</button>
                                     </form>
                                 }
-                                <form asp-action="Delete" asp-route-id="@serviceType.ServiceTypeId" method="post" onsubmit="return confirm('删除后将同时解除该服务类型的节点绑定，确定继续吗？');">
-                                    <button type="submit" class="link-button danger-action">删除</button>
-                                </form>
                             </div>
                         </td>
                     </tr>

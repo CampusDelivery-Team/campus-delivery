@@ -1,5 +1,4 @@
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
 using CampusDelivery.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -92,25 +91,6 @@ public sealed class ServiceTypeController(ServiceTypeService serviceTypeService)
         }
 
         await serviceTypeService.UpdateStatusAsync(id, status, cancellationToken);
-        return RedirectToAction(nameof(Index));
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
-    {
-        if (id <= 0)
-        {
-            return BadRequest();
-        }
-
-        var result = await serviceTypeService.DeleteAsync(id, cancellationToken);
-        TempData["ServiceTypeMessage"] = result switch
-        {
-            ServiceTypeDeleteResult.Success => "服务类型已删除",
-            ServiceTypeDeleteResult.Referenced => "该服务类型已有任务记录，不能删除；可先停用服务",
-            _ => "服务类型不存在或已被删除"
-        };
         return RedirectToAction(nameof(Index));
     }
 

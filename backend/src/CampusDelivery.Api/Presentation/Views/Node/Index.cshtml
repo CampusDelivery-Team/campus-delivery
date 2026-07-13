@@ -95,9 +95,6 @@
                                         @(node.NodeStatus == "NORMAL" ? "关闭" : "恢复")
                                     </button>
                                 </form>
-                                <form asp-action="Delete" asp-route-id="@node.NodeId" method="post" onsubmit="return confirm('删除后将同时解除该节点的服务绑定，确定继续吗？');">
-                                    <button type="submit" class="link-button danger-action">删除</button>
-                                </form>
                             </div>
                         </td>
                     </tr>

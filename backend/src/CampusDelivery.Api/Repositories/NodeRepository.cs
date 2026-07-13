@@ -133,49 +133,6 @@ public sealed class NodeRepository(OracleConnectionFactory connectionFactory)
         return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
     }
 
-    public async Task<NodeDeleteResult> DeleteAsync(
-        int nodeId,
-        CancellationToken cancellationToken = default)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            DELETE FROM nodes n
-            WHERE n.node_id = :nodeId
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM tasks t
-                  WHERE t.node_id = n.node_id
-              )
-            """;
-        command.Parameters.Add(new OracleParameter("nodeId", nodeId));
-
-        if (await command.ExecuteNonQueryAsync(cancellationToken) > 0)
-        {
-            return NodeDeleteResult.Success;
-        }
-
-        return await ExistsByIdAsync(nodeId, cancellationToken)
-            ? NodeDeleteResult.Referenced
-            : NodeDeleteResult.NotFound;
-    }
-
-    private async Task<bool> ExistsByIdAsync(
-        int nodeId,
-        CancellationToken cancellationToken)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM nodes WHERE node_id = :nodeId";
-        command.Parameters.Add(new OracleParameter("nodeId", nodeId));
-
-        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
-    }
-
     private static Node MapNode(OracleDataReader reader)
     {
         return new Node
@@ -197,11 +154,4 @@ public sealed class NodeRepository(OracleConnectionFactory connectionFactory)
         command.Parameters.Add(new OracleParameter("openTime", (object?)node.OpenTime ?? DBNull.Value));
         command.Parameters.Add(new OracleParameter("nodeStatus", node.NodeStatus));
     }
-}
-
-public enum NodeDeleteResult
-{
-    Success,
-    NotFound,
-    Referenced
 }

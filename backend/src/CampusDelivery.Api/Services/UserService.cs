@@ -1,5 +1,4 @@
 using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Presentation.ViewModels;
 using CampusDelivery.Api.Repositories;
 
 namespace CampusDelivery.Api.Services
@@ -37,14 +36,9 @@ namespace CampusDelivery.Api.Services
             }
 
             // 4. 判断账号是否被禁用
-            if (user.AccountStatus == "BLOCKED")
+            if (user.AccountStatus == "DISABLED")
             {
-                return (false, "您的账号已被封控，请联系管理员", null);
-            }
-
-            if (user.AccountStatus == "CANCELLED")
-            {
-                return (false, "该账号已注销，不能再登录", null);
+                return (false, "您的账号已被禁用，请联系管理员", null);
             }
 
             // 5. 校验全部通过，允许登录
@@ -98,49 +92,5 @@ namespace CampusDelivery.Api.Services
             }
             return (false, "系统繁忙，更新失败，请稍后再试");
         }
-
-        public (bool Success, string ErrorMessage) CancelOwnAccount(int userId)
-        {
-            return _userRepository.UpdateAccountStatus(userId, "CANCELLED", "NORMAL")
-                ? (true, string.Empty)
-                : (false, "账号状态已变化，注销失败，请刷新后重试");
-        }
-
-        public AccountManagementViewModel GetAccountManagement()
-        {
-            var accounts = _userRepository.GetManagedAccounts();
-            return new AccountManagementViewModel
-            {
-                Accounts = accounts.Select(account => new AccountListItemViewModel
-                {
-                    UserId = account.UserId,
-                    Username = account.Username,
-                    Phone = account.Phone,
-                    UserRole = account.UserRole,
-                    UserRoleDisplayName = GetChineseRoleName(account.UserRole),
-                    AccountStatus = account.AccountStatus,
-                    AccountStatusDisplayName = DisplayNameService.GetAccountStatusName(account.AccountStatus),
-                    RunnerId = account.RunnerId,
-                    RealName = account.RealName,
-                    RunnerAuditStatus = account.RunnerAuditStatus,
-                    RunnerWorkStatus = account.RunnerWorkStatus
-                }).ToList(),
-                NormalCount = accounts.Count(account => account.AccountStatus == "NORMAL"),
-                BlockedCount = accounts.Count(account => account.AccountStatus == "BLOCKED"),
-                CancelledCount = accounts.Count(account => account.AccountStatus == "CANCELLED")
-            };
-        }
-
-        public bool BlockAccount(int userId) =>
-            _userRepository.UpdateAccountStatus(userId, "BLOCKED", "NORMAL");
-
-        public bool UnblockAccount(int userId) =>
-            _userRepository.UpdateAccountStatus(userId, "NORMAL", "BLOCKED");
-
-        public bool CancelAccount(int userId) =>
-            _userRepository.UpdateAccountStatus(userId, "CANCELLED", "NORMAL", "BLOCKED");
-
-        public bool RevokeRunnerQualification(int userId) =>
-            _userRepository.RevokeRunnerQualification(userId);
     }
 }

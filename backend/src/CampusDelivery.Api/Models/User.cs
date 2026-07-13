@@ -17,7 +17,7 @@ namespace CampusDelivery.Api.Models
         // 用户角色：USER/RUNNER/ADMIN
         public string UserRole { get; set; } = "USER";
 
-        // 账号状态：NORMAL/BLOCKED/CANCELLED
+        // 账号状态：NORMAL/DISABLED
         public string AccountStatus { get; set; } = "NORMAL";
     }
 }
