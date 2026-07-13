@@ -1,0 +1,69 @@
+@model IEnumerable<CampusDelivery.Api.Models.UserAddress>
+@{
+    ViewData["Title"] = "收货地址";
+}
+
+<section class="address-page">
+    <div class="address-page__heading">
+        <div>
+            <p class="eyebrow">DELIVERY ADDRESS</p>
+            <h1>收货地址管理</h1>
+            <p>保存校园内常用的收货地点，下单时可直接选择默认地址。</p>
+        </div>
+        <a class="button primary" asp-controller="Address" asp-action="Create">新增地址</a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="profile-notice" role="status">@TempData["SuccessMessage"]</div>
+    }
+
+    @if (Model.Any())
+    {
+        <div class="address-list">
+            @foreach (var item in Model)
+            {
+                <article class="address-card @(item.IsDefault == "Y" ? "address-card--default" : string.Empty)">
+                    <div class="address-card__marker" aria-hidden="true">址</div>
+                    <div class="address-card__content">
+                        <div class="address-card__title">
+                            <strong>@item.Campus · @item.BuildingRoom</strong>
+                            @if (item.IsDefault == "Y")
+                            {
+                                <span class="address-badge">默认地址</span>
+                            }
+                        </div>
+                        <p>@item.ContactName <span>@item.ContactPhone</span></p>
+                    </div>
+                    <div class="address-card__actions">
+                        <a asp-controller="Address" asp-action="Edit" asp-route-id="@item.AddressNo">编辑</a>
+                        @if (item.IsDefault != "Y")
+                        {
+                            <form asp-controller="Address" asp-action="SetDefault" asp-route-id="@item.AddressNo" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit">设为默认</button>
+                            </form>
+                        }
+                        <form asp-controller="Address" asp-action="Delete" asp-route-id="@item.AddressNo" method="post" onsubmit="return confirm('确定要删除这个地址吗？');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="address-delete">删除</button>
+                        </form>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+    else
+    {
+        <section class="address-empty">
+            <div class="address-empty__icon" aria-hidden="true">址</div>
+            <h2>还没有收货地址</h2>
+            <p>添加常用宿舍、教学楼或校园服务点，后续下单会更快。</p>
+            <a class="button primary" asp-controller="Address" asp-action="Create">新增第一个地址</a>
+        </section>
+    }
+
+    <div class="address-back">
+        <a asp-controller="User" asp-action="Profile">返回个人中心</a>
+    </div>
+</section>
