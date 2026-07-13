@@ -59,7 +59,10 @@
                 <p class="eyebrow">DELIVERY ADDRESS</p>
                 <h2>常用收货地址</h2>
             </div>
-            <span class="address-badge">@(Model.HasAddress ? "默认地址" : "待设置")</span>
+            <div class="profile-section__actions">
+                <span class="address-badge">@(Model.HasAddress ? "默认地址" : "待设置")</span>
+                <a class="button" asp-controller="Address" asp-action="Index">管理地址</a>
+            </div>
         </div>
         <div class="address-content">
             <div class="address-icon" aria-hidden="true">址</div>
@@ -72,6 +75,10 @@
 
     <div class="profile-footer-actions">
         <a class="button" asp-controller="Home" asp-action="Index">返回首页</a>
+        <form asp-controller="User" asp-action="CancelAccount" method="post" onsubmit="return confirm('注销后账号将无法登录，确定继续吗？');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="profile-cancel">注销账号</button>
+        </form>
         <form asp-controller="Auth" asp-action="Logout" method="post">
             @Html.AntiForgeryToken()
             <button type="submit" class="profile-logout">退出登录</button>

@@ -1237,6 +1237,13 @@ textarea {
     margin-bottom: 24px;
 }
 
+.profile-section__actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
 .profile-section__heading .eyebrow {
     margin-bottom: 5px;
 }
@@ -1414,6 +1421,256 @@ textarea {
     border-color: #4c6ef5;
     box-shadow: 0 0 0 3px rgba(76, 110, 245, 0.14);
     outline: none;
+}
+
+.profile-cancel {
+    background: #ffffff;
+    border: 1px solid #f0d2df;
+    border-radius: 6px;
+    color: #a92a66;
+}
+
+.address-page,
+.address-form-page {
+    display: grid;
+    gap: 22px;
+    margin: 0 auto;
+    max-width: 960px;
+}
+
+.address-page__heading,
+.address-form-page__heading {
+    align-items: end;
+    display: flex;
+    gap: 24px;
+    justify-content: space-between;
+}
+
+.address-page__heading h1,
+.address-form-page__heading h1 {
+    margin-bottom: 8px;
+}
+
+.address-page__heading p:not(.eyebrow),
+.address-form-page__heading p:not(.eyebrow) {
+    color: #60728f;
+    line-height: 1.7;
+    margin-bottom: 0;
+}
+
+.address-list {
+    display: grid;
+    gap: 14px;
+}
+
+.address-card {
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #c9d9ef;
+    border-radius: 8px;
+    display: grid;
+    gap: 18px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 20px 22px;
+}
+
+.address-card--default {
+    border-color: #df83b5;
+    box-shadow: 0 14px 30px rgba(211, 64, 139, 0.1);
+}
+
+.address-card__marker,
+.address-empty__icon {
+    align-items: center;
+    background: #eaf0ff;
+    border-radius: 6px;
+    color: #315efb;
+    display: flex;
+    font-size: 18px;
+    font-weight: 900;
+    height: 46px;
+    justify-content: center;
+    width: 46px;
+}
+
+.address-card--default .address-card__marker {
+    background: #fff0f7;
+    color: #ce347e;
+}
+
+.address-card__title {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.address-card__title strong {
+    color: #10224a;
+    font-size: 17px;
+}
+
+.address-card__content p {
+    color: #60728f;
+    margin: 7px 0 0;
+}
+
+.address-card__content p span {
+    margin-left: 12px;
+}
+
+.address-card__actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.address-card__actions form {
+    margin: 0;
+}
+
+.address-card__actions a,
+.address-card__actions button {
+    background: transparent;
+    border: 0;
+    color: #315efb;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    min-height: auto;
+    padding: 0;
+}
+
+.address-card__actions .address-delete {
+    color: #c92e75;
+}
+
+.address-empty {
+    align-items: center;
+    background: #ffffff;
+    border: 1px dashed #b8c8e4;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    min-height: 290px;
+    justify-content: center;
+    padding: 34px;
+    text-align: center;
+}
+
+.address-empty__icon {
+    background: #fff0f7;
+    color: #ce347e;
+    margin-bottom: 18px;
+}
+
+.address-empty h2 {
+    font-size: 23px;
+    margin-bottom: 8px;
+}
+
+.address-empty p {
+    color: #60728f;
+    margin-bottom: 22px;
+}
+
+.address-back a {
+    color: #60728f;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.address-form-page {
+    max-width: 720px;
+}
+
+.address-form {
+    background: #ffffff;
+    border: 1px solid #c9d9ef;
+    border-radius: 8px;
+    display: grid;
+    gap: 20px;
+    padding: 30px;
+}
+
+.address-form__grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.address-form__field {
+    display: grid;
+    gap: 8px;
+}
+
+.address-form__field label {
+    color: #385071;
+    font-weight: 800;
+}
+
+.address-form__field input:focus {
+    border-color: #4c6ef5;
+    box-shadow: 0 0 0 3px rgba(76, 110, 245, 0.14);
+    outline: none;
+}
+
+.address-default-choice {
+    align-items: center;
+    color: #385071;
+    display: flex;
+    font-weight: 800;
+    gap: 10px;
+}
+
+.address-default-choice input {
+    accent-color: #d84691;
+    height: 18px;
+    min-height: 0;
+    width: 18px;
+}
+
+.account-summary div:first-child {
+    border-left-color: #4771ff;
+}
+
+.account-role-user {
+    background: #edf3ff;
+    color: #315efb;
+}
+
+.account-role-runner {
+    background: #fff0f7;
+    color: #c92e75;
+}
+
+.account-status-normal {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.account-status-blocked {
+    background: #fff1db;
+    color: #9a5d00;
+}
+
+.account-status-cancelled {
+    background: #eef2f8;
+    color: #60728f;
+}
+
+.account-cancel-action {
+    color: #c92e75;
+}
+
+.danger-action {
+    color: #c92e75;
+}
+
+.danger-action:hover {
+    color: #9f245d;
 }
 
 /* Home, account and state pages use only routes that exist in this application. */
@@ -1717,6 +1974,21 @@ a.quick-entry:focus-visible {
         align-items: flex-start;
         gap: 16px;
     }
+
+    .address-page__heading,
+    .address-form-page__heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .address-card {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .address-card__actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
 }
 
 @media (max-width: 720px) {
@@ -1787,6 +2059,28 @@ a.quick-entry:focus-visible {
     .profile-footer-actions {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .profile-section__actions {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .address-form__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .address-card {
+        align-items: start;
+        grid-template-columns: 1fr;
+    }
+
+    .address-card__actions {
+        grid-column: auto;
+    }
+
+    .address-form {
+        padding: 22px;
     }
 
     .profile-details div:nth-child(even) {

@@ -1,63 +1,48 @@
 @model CampusDelivery.Api.Presentation.ViewModels.AddressViewModel
 @{
-    ViewData["Title"] = "修改地址";
+    ViewData["Title"] = "编辑收货地址";
 }
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-7">
-            <div class="card shadow-sm border-0 rounded-lg">
-                <div class="card-header bg-primary text-white py-3">
-                    <h5 class="mb-0">修改收货地址</h5>
-                </div>
-                <div class="card-body p-4">
-                    
-                    <form asp-controller="Address" asp-action="Edit" method="post" autocomplete="off">
-                        <div asp-validation-summary="ModelOnly" class="text-danger fw-bold mb-3"></div>
+<section class="address-form-page">
+    <div class="address-form-page__heading">
+        <p class="eyebrow">EDIT DELIVERY ADDRESS</p>
+        <h1>编辑收货地址</h1>
+        <p>更新后，后续校园跑腿任务会使用新的收货信息。</p>
+    </div>
 
-                        <input type="hidden" asp-for="UserId" />
-                        <input type="hidden" asp-for="AddressNo" />
-
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label asp-for="ContactName" class="form-label fw-bold text-dark">联系人姓名</label>
-                                <input asp-for="ContactName" class="form-control" placeholder="例如：张三" autocomplete="off" />
-                                <span asp-validation-for="ContactName" class="text-danger small"></span>
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="ContactPhone" class="form-label fw-bold text-dark">联系电话</label>
-                                <input asp-for="ContactPhone" class="form-control" placeholder="11位手机号码" autocomplete="off" />
-                                <span asp-validation-for="ContactPhone" class="text-danger small"></span>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="Campus" class="form-label fw-bold text-dark">校区</label>
-                            <input asp-for="Campus" class="form-control" placeholder="例如：嘉定校区、四平路校区" autocomplete="off" />
-                            <span asp-validation-for="Campus" class="text-danger small"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="BuildingRoom" class="form-label fw-bold text-dark">详细楼栋与房间号</label>
-                            <input asp-for="BuildingRoom" class="form-control" placeholder="例如：学生公寓6号楼 302室" autocomplete="off" />
-                            <span asp-validation-for="BuildingRoom" class="text-danger small"></span>
-                        </div>
-
-                        <div class="d-flex align-items-center mb-4 mt-3">
-                            <label class="form-label mb-0 me-2 text-dark" for="isDefaultCheck" style="font-size: 1.05rem; cursor: pointer;">
-                                每次下单时默认使用该地址
-                            </label>
-                            <input class="form-check-input m-0 shadow-none" type="checkbox" name="IsDefault" value="Y" id="isDefaultCheck" @(Model.IsDefault == "Y" ? "checked" : "") style="width: 18px; height: 18px; cursor: pointer; float: none;">
-                        </div>
-
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="/Address/Index" class="btn btn-secondary px-4">取消返回</a>
-                            <button type="submit" class="btn btn-primary px-4">保存修改</button>
-                        </div>
-                    </form>
-
-                </div>
+    <form class="address-form" asp-controller="Address" asp-action="Edit" method="post" autocomplete="off">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+        <input type="hidden" asp-for="AddressNo" />
+        <div class="address-form__grid">
+            <div class="address-form__field">
+                <label asp-for="ContactName">联系人</label>
+                <input asp-for="ContactName" placeholder="例如：张同学" />
+                <span asp-validation-for="ContactName" class="validation-message"></span>
+            </div>
+            <div class="address-form__field">
+                <label asp-for="ContactPhone">联系电话</label>
+                <input asp-for="ContactPhone" autocomplete="tel" placeholder="11 位手机号" />
+                <span asp-validation-for="ContactPhone" class="validation-message"></span>
             </div>
         </div>
-    </div>
-</div>
+        <div class="address-form__field">
+            <label asp-for="Campus">校区</label>
+            <input asp-for="Campus" placeholder="例如：嘉定校区" />
+            <span asp-validation-for="Campus" class="validation-message"></span>
+        </div>
+        <div class="address-form__field">
+            <label asp-for="BuildingRoom">楼栋与房间</label>
+            <input asp-for="BuildingRoom" placeholder="例如：学生公寓 6 号楼 302 室" />
+            <span asp-validation-for="BuildingRoom" class="validation-message"></span>
+        </div>
+        <label class="address-default-choice">
+            <input type="checkbox" name="IsDefault" value="Y" @(Model.IsDefault == "Y" ? "checked" : null) />
+            <span>设为默认收货地址</span>
+        </label>
+        <div class="profile-footer-actions">
+            <a class="button" asp-controller="Address" asp-action="Index">取消</a>
+            <button type="submit" class="button primary">保存修改</button>
+        </div>
+    </form>
+</section>

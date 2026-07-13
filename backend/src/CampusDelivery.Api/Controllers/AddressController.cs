@@ -48,6 +48,7 @@ namespace CampusDelivery.Api.Controllers
 
         // 3. 提交新增地址 (POST)
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Create(AddressViewModel model)
         {
             if (!ModelState.IsValid) return View(model);
@@ -100,6 +101,7 @@ namespace CampusDelivery.Api.Controllers
 
         // 5. 提交修改地址 (POST)
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Edit(AddressViewModel model)
         {
             if (!ModelState.IsValid) return View(model);
@@ -129,6 +131,7 @@ namespace CampusDelivery.Api.Controllers
 
         // 6. 删除地址 (POST)
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Delete(int id)
         {
             int userId = GetCurrentUserId();
@@ -139,6 +142,7 @@ namespace CampusDelivery.Api.Controllers
 
         // 7. 设置为默认地址 (POST)
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult SetDefault(int id)
         {
             int userId = GetCurrentUserId();

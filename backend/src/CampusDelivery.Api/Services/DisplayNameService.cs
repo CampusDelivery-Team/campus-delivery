@@ -54,4 +54,15 @@ public static class DisplayNameService
             _ => value
         };
     }
+
+    public static string GetAccountStatusName(string value)
+    {
+        return value switch
+        {
+            "NORMAL" => "正常",
+            "BLOCKED" => "已封控",
+            "CANCELLED" => "已注销",
+            _ => value
+        };
+    }
 }

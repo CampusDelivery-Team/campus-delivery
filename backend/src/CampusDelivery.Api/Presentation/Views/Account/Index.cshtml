@@ -1,0 +1,104 @@
+@model CampusDelivery.Api.Presentation.ViewModels.AccountManagementViewModel
+@{
+    ViewData["Title"] = "账号管理";
+}
+
+<section class="panel management-panel">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">ACCOUNT CONTROL</p>
+            <h1>账号管理</h1>
+            <p class="section-description">封控、注销普通用户和跑腿员账号；管理员账号不在此列表中。</p>
+        </div>
+    </div>
+
+    <div class="summary-strip account-summary">
+        <div><strong>@Model.NormalCount</strong><span>正常账号</span></div>
+        <div><strong>@Model.BlockedCount</strong><span>已封控</span></div>
+        <div><strong>@Model.CancelledCount</strong><span>已注销</span></div>
+    </div>
+
+    @if (TempData["AccountMessage"] is string message)
+    {
+        <div class="inline-notice">@message</div>
+    }
+
+    <div class="table-wrap">
+        <table class="management-table account-table">
+            <thead>
+                <tr>
+                    <th>账号</th>
+                    <th>联系方式</th>
+                    <th>身份</th>
+                    <th>账号状态</th>
+                    <th>跑腿员资格</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Accounts.Count == 0)
+            {
+                <tr><td colspan="6" class="empty">暂无可管理账号</td></tr>
+            }
+            else
+            {
+                foreach (var account in Model.Accounts)
+                {
+                    <tr>
+                        <td>
+                            <strong class="table-primary">@account.Username</strong>
+                            <small class="table-secondary">用户编号 #@account.UserId</small>
+                        </td>
+                        <td>@account.Phone</td>
+                        <td><span class="badge account-role-@account.UserRole.ToLowerInvariant()">@account.UserRoleDisplayName</span></td>
+                        <td><span class="badge account-status-@account.AccountStatus.ToLowerInvariant()">@account.AccountStatusDisplayName</span></td>
+                        <td>
+                            @if (account.RunnerId is int runnerId)
+                            {
+                                <span class="table-primary">跑腿员 #@runnerId</span>
+                                <small class="table-secondary">@(account.RealName ?? "未填写姓名") · @(account.RunnerAuditStatus ?? "-")</small>
+                            }
+                            else
+                            {
+                                <span class="table-secondary">普通用户</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="row-action-group">
+                                @if (account.CanBlock)
+                                {
+                                    <form asp-action="Block" asp-route-id="@account.UserId" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="link-button">封控</button>
+                                    </form>
+                                }
+                                @if (account.CanUnblock)
+                                {
+                                    <form asp-action="Unblock" asp-route-id="@account.UserId" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="link-button enable-action">解除封控</button>
+                                    </form>
+                                }
+                                @if (account.CanRevokeRunner)
+                                {
+                                    <form asp-action="RevokeRunner" asp-route-id="@account.UserId" method="post" onsubmit="return confirm('确定撤销该跑腿员资格吗？');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="link-button">撤销资格</button>
+                                    </form>
+                                }
+                                @if (account.CanCancel)
+                                {
+                                    <form asp-action="Cancel" asp-route-id="@account.UserId" method="post" onsubmit="return confirm('注销后账号将无法恢复登录，确定继续吗？');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="link-button account-cancel-action">注销</button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+</section>
