@@ -141,6 +141,49 @@ public sealed class ServiceTypeRepository(OracleConnectionFactory connectionFact
         return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
     }
 
+    public async Task<ServiceTypeDeleteResult> DeleteAsync(
+        int serviceTypeId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            DELETE FROM service_types st
+            WHERE st.service_type_id = :serviceTypeId
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM tasks t
+                  WHERE t.service_type_id = st.service_type_id
+              )
+            """;
+        command.Parameters.Add(new OracleParameter("serviceTypeId", serviceTypeId));
+
+        if (await command.ExecuteNonQueryAsync(cancellationToken) > 0)
+        {
+            return ServiceTypeDeleteResult.Success;
+        }
+
+        return await ExistsByIdAsync(serviceTypeId, cancellationToken)
+            ? ServiceTypeDeleteResult.Referenced
+            : ServiceTypeDeleteResult.NotFound;
+    }
+
+    private async Task<bool> ExistsByIdAsync(
+        int serviceTypeId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM service_types WHERE service_type_id = :serviceTypeId";
+        command.Parameters.Add(new OracleParameter("serviceTypeId", serviceTypeId));
+
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+    }
+
     private static ServiceType MapServiceType(OracleDataReader reader)
     {
         return new ServiceType
@@ -172,4 +215,11 @@ public sealed class ServiceTypeRepository(OracleConnectionFactory connectionFact
             (object?)serviceType.UrgentRule ?? DBNull.Value));
         command.Parameters.Add(new OracleParameter("typeStatus", serviceType.TypeStatus));
     }
+}
+
+public enum ServiceTypeDeleteResult
+{
+    Success,
+    NotFound,
+    Referenced
 }
