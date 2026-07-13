@@ -1,0 +1,82 @@
+@model IEnumerable<CampusDelivery.Api.Models.UserAddress>
+@{
+    ViewData["Title"] = "我的地址簿";
+}
+
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-light">我的地址簿</h3>
+        <a asp-controller="Address" asp-action="Create" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> + 新增地址
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success text-center py-2" role="alert">
+            @TempData["SuccessMessage"]
+        </div>
+    }
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0 text-center align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>联系人</th>
+                        <th>电话</th>
+                        <th>校区</th>
+                        <th>详细地址</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>@item.ContactName</td>
+                                <td>@item.ContactPhone</td>
+                                <td>@item.Campus</td>
+                                <td>@item.BuildingRoom</td>
+                                <td>
+                                    @if (item.IsDefault == "Y")
+                                    {
+                                        <span class="badge bg-primary">默认地址</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">普通地址</span>
+                                    }
+                                <td>
+                                    <div class="d-flex flex-column align-items-center gap-1">
+                                        <a href="/Address/Edit/@item.AddressNo" class="text-primary text-decoration-none my-1">编辑</a>
+                                        
+                                        @if (item.IsDefault != "Y")
+                                        {
+                                            <form asp-controller="Address" asp-action="SetDefault" asp-route-id="@item.AddressNo" method="post" class="m-0">
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary">设为默认</button>
+                                            </form>
+                                        }
+
+                                        <form asp-controller="Address" asp-action="Delete" asp-route-id="@item.AddressNo" method="post" onsubmit="return confirm('确定要删除这个地址吗？');" class="m-0">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">删除</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="text-muted py-4">您还没有添加任何地址，赶快点击右上角新增一个吧！</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
