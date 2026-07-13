@@ -36,9 +36,7 @@ builder.Services.AddScoped<RunnerService>();
 // ---> 新增 1：注册账户模块服务
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<UserService>();
-// 注册地址管理模块服务
-builder.Services.AddScoped<CampusDelivery.Api.Repositories.AddressRepository>();
-builder.Services.AddScoped<CampusDelivery.Api.Services.AddressService>();
+
 // ---> 新增 2：配置 Cookie 认证服务
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

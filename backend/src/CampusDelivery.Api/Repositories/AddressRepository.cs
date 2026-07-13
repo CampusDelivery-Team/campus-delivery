@@ -13,7 +13,8 @@ namespace CampusDelivery.Api.Repositories
 
         public AddressRepository(IConfiguration configuration)
         {
-            _connectionString = configuration.GetConnectionString("OracleDb");
+            _connectionString = configuration.GetConnectionString("OracleDb")
+                ?? throw new InvalidOperationException("Connection string 'OracleDb' is missing.");
         }
 
         // 1. 查询某个用户的所有地址
@@ -40,11 +41,11 @@ namespace CampusDelivery.Api.Repositories
                             {
                                 UserId = Convert.ToInt32(reader["user_id"]),
                                 AddressNo = Convert.ToInt32(reader["address_no"]),
-                                ContactName = reader["contact_name"].ToString(),
-                                ContactPhone = reader["contact_phone"].ToString(),
-                                Campus = reader["campus"].ToString(),
-                                BuildingRoom = reader["building_room"].ToString(),
-                                IsDefault = reader["is_default"].ToString()
+                                ContactName = GetString(reader, "contact_name"),
+                                ContactPhone = GetString(reader, "contact_phone"),
+                                Campus = GetString(reader, "campus"),
+                                BuildingRoom = GetString(reader, "building_room"),
+                                IsDefault = GetString(reader, "is_default", "N")
                             });
                         }
                     }
@@ -134,11 +135,11 @@ namespace CampusDelivery.Api.Repositories
                             {
                                 UserId = Convert.ToInt32(reader["user_id"]),
                                 AddressNo = Convert.ToInt32(reader["address_no"]),
-                                ContactName = reader["contact_name"].ToString(),
-                                ContactPhone = reader["contact_phone"].ToString(),
-                                Campus = reader["campus"].ToString(),
-                                BuildingRoom = reader["building_room"].ToString(),
-                                IsDefault = reader["is_default"].ToString()
+                                ContactName = GetString(reader, "contact_name"),
+                                ContactPhone = GetString(reader, "contact_phone"),
+                                Campus = GetString(reader, "campus"),
+                                BuildingRoom = GetString(reader, "building_room"),
+                                IsDefault = GetString(reader, "is_default", "N")
                             };
                         }
                     }
@@ -184,6 +185,13 @@ namespace CampusDelivery.Api.Repositories
                     return cmd.ExecuteNonQuery() > 0;
                 }
             }
+        }
+
+        private static string GetString(OracleDataReader reader, string columnName, string fallback = "")
+        {
+            return reader[columnName] == DBNull.Value
+                ? fallback
+                : reader[columnName].ToString() ?? fallback;
         }
     }
 }
