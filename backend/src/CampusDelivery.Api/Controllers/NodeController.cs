@@ -1,4 +1,5 @@
 using CampusDelivery.Api.Presentation.ViewModels;
+using CampusDelivery.Api.Repositories;
 using CampusDelivery.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -98,6 +99,25 @@ public sealed class NodeController(NodeService nodeService) : Controller
             NodeStatusUpdateResult.Success => "节点已关闭",
             NodeStatusUpdateResult.NotFound => "节点不存在",
             _ => "节点状态没有变化"
+        };
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        if (id <= 0)
+        {
+            return BadRequest();
+        }
+
+        var result = await nodeService.DeleteAsync(id, cancellationToken);
+        TempData["NodeMessage"] = result switch
+        {
+            NodeDeleteResult.Success => "节点已删除",
+            NodeDeleteResult.Referenced => "该节点已有任务记录，不能删除；可先关闭节点",
+            _ => "节点不存在或已被删除"
         };
         return RedirectToAction(nameof(Index));
     }

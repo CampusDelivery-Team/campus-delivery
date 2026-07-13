@@ -82,6 +82,13 @@ public sealed class ServiceTypeService(ServiceTypeRepository serviceTypeReposito
             cancellationToken);
     }
 
+    public Task<ServiceTypeDeleteResult> DeleteAsync(
+        int serviceTypeId,
+        CancellationToken cancellationToken = default)
+    {
+        return serviceTypeRepository.DeleteAsync(serviceTypeId, cancellationToken);
+    }
+
     private static ServiceTypeListItemViewModel ToListItem(ServiceType serviceType)
     {
         return new ServiceTypeListItemViewModel
