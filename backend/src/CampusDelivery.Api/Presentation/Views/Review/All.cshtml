@@ -15,6 +15,7 @@
                 <h1>所有评价</h1>
                 <p class="section-description">查看系统中全部评价，支持分页。</p>
             </div>
+
             <div>
                 <span>共 @total 条</span>
             </div>
@@ -37,7 +38,9 @@
             <div class="pagination">
                 <a asp-action="All" asp-route-page="@(page - 1)" asp-route-size="@size"
                    class="@(page <= 1 ? "disabled" : "")">上一页</a>
-                <span>第 @page / @totalPages 页</span>
+
+                <span>第 @(page) / @totalPages 页</span>
+
                 <a asp-action="All" asp-route-page="@(page + 1)" asp-route-size="@size"
                    class="@(page >= totalPages ? "disabled" : "")">下一页</a>
             </div>

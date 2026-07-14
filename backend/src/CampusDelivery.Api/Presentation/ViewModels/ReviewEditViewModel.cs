@@ -1,3 +1,4 @@
+using CampusDelivery.Api.Models;
 using System.ComponentModel.DataAnnotations;
 
 namespace CampusDelivery.Api.Presentation.ViewModels;
