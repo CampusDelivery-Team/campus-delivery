@@ -65,8 +65,6 @@ public static class DisplayNameService
             _ => value
         };
     }
-<<<<<<< HEAD
-=======
 
     public static string GetTaskStatusName(string value)
     {
@@ -96,5 +94,4 @@ public static class DisplayNameService
             _ => value
         };
     }
->>>>>>> 04d69785da5b5263f868b722615079167137c30c
 }
