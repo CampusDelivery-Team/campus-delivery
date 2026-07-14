@@ -65,4 +65,36 @@ public static class DisplayNameService
             _ => value
         };
     }
+<<<<<<< HEAD
+=======
+
+    public static string GetTaskStatusName(string value)
+    {
+        return value switch
+        {
+            "CREATED" => "草稿创建",
+            "PAID" => "已付款",
+            "WAITING" => "待接单",
+            "ASSIGNED" => "已分配",
+            "PICKED_UP" => "已取件",
+            "DELIVERING" => "配送中",
+            "WAIT_CONFIRM" => "待确认收货",
+            "FINISHED" => "已完成",
+            "CANCELLED" => "已取消",
+            "REFUNDING" => "退款中",
+            _ => value
+        };
+    }
+
+    public static string GetAssignOperationTypeName(string value)
+    {
+        return value switch
+        {
+            "SELF" => "跑腿员抢单",
+            "ADMIN" => "管理员指派",
+            "REASSIGN" => "异常重派",
+            _ => value
+        };
+    }
+>>>>>>> 04d69785da5b5263f868b722615079167137c30c
 }

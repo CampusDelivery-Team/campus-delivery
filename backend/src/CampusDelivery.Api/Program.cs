@@ -1,7 +1,7 @@
 using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Repositories;
 using CampusDelivery.Api.Services;
-using Microsoft.AspNetCore.Authentication.Cookies; // ---> 新增：引入 Cookie 认证命名空间
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -23,28 +23,41 @@ builder.Services.AddControllersWithViews()
         options.ViewLocationFormats.Add("/Presentation/Views/Shared/{0}.cshtml");
     });
 
+// ===== Repository & Service 注册 =====
 builder.Services.AddSingleton<OracleConnectionFactory>();
+
 builder.Services.AddScoped<NodeRepository>();
 builder.Services.AddScoped<NodeService>();
+
 builder.Services.AddScoped<ServiceTypeRepository>();
 builder.Services.AddScoped<ServiceTypeService>();
+
 builder.Services.AddScoped<ServiceNodeRuleRepository>();
 builder.Services.AddScoped<ServiceNodeRuleService>();
+
 builder.Services.AddScoped<RunnerRepository>();
 builder.Services.AddScoped<RunnerService>();
 
-// ---> 新增 1：注册账户模块服务
+// 账户模块
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<AddressRepository>();
 builder.Services.AddScoped<AddressService>();
 
-// ---> 新增 2：配置 Cookie 认证服务
+// 接单派单流转模块
+builder.Services.AddScoped<TaskRepository>();
+builder.Services.AddScoped<AssignService>();
+
+// 评价模块
+builder.Services.AddScoped<ReviewsRepository>();
+builder.Services.AddScoped<ReviewService>();
+
+// ===== Cookie 认证配置 =====
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
         options.AccessDeniedPath = "/Home/AccessDenied";
-        options.LoginPath = "/Auth/Login"; // 告诉系统，没登录的人强制踢回这个页面
+        options.LoginPath = "/Auth/Login";
     });
 
 var app = builder.Build();
@@ -57,7 +70,7 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseRouting();
 
-// ---> 新增 3：启用认证和授权中间件 (必须放在 UseRouting 和 MapControllerRoute 之间)
+// 认证 & 授权中间件
 app.UseAuthentication();
 app.UseAuthorization();
 
