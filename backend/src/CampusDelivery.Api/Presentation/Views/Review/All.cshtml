@@ -1,0 +1,46 @@
+@model List<ReviewListItemViewModel>
+
+    @{
+    ViewData["Title"] = "所有评价";
+    var page = ViewBag.Page ?? 1;
+    var size = ViewBag.Size ?? 20;
+    var total = ViewBag.Total ?? 0;
+    var totalPages = (int)Math.Ceiling((double)total / size);
+    }
+
+    <section class="panel management-panel">
+        <div class="section-header management-heading">
+            <div>
+                <p class="eyebrow">管理后台</p>
+                <h1>所有评价</h1>
+                <p class="section-description">查看系统中全部评价，支持分页。</p>
+            </div>
+            <div>
+                <span>共 @total 条</span>
+            </div>
+        </div>
+
+        @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="inline-notice success">@success</div>
+    }
+        @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="inline-notice error">@error</div>
+    }
+
+        <partial name="_ReviewTable" model="Model" />
+
+        <div class="pagination-wrap">
+            @if (totalPages > 1)
+        {
+            <div class="pagination">
+                <a asp-action="All" asp-route-page="@(page - 1)" asp-route-size="@size"
+                   class="@(page <= 1 ? "disabled" : "")">上一页</a>
+                <span>第 @page / @totalPages 页</span>
+                <a asp-action="All" asp-route-page="@(page + 1)" asp-route-size="@size"
+                   class="@(page >= totalPages ? "disabled" : "")">下一页</a>
+            </div>
+        }
+        </div>
+    </section>
