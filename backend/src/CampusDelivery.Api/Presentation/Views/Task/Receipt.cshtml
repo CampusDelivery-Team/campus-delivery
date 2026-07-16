@@ -1,0 +1,67 @@
+@model ReceiptTasksViewModel
+
+@{
+    ViewData["Title"] = "确认收货";
+}
+
+<section class="panel task-page">
+    <div class="section-header task-page__header">
+        <div>
+            <p class="eyebrow">我的任务</p>
+            <h1>待确认收货</h1>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="task-alert task-alert--success">@TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="task-alert task-alert--error">@TempData["ErrorMessage"]</div>
+    }
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>任务编号</th>
+                    <th>服务类型</th>
+                    <th>任务标题</th>
+                    <th>任务金额</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Tasks.Count == 0)
+                {
+                    <tr>
+                        <td colspan="5" class="empty task-table__empty">暂无待确认收货的任务</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var task in Model.Tasks)
+                    {
+                        <tr>
+                            <td>#@task.TaskId</td>
+                            <td>@task.ServiceTypeName</td>
+                            <td>@task.TaskTitle</td>
+                            <td class="task-price">¥@task.TaskPrice.ToString("F2")</td>
+                            <td>
+                                <form asp-action="ConfirmReceipt" method="post" class="task-inline-form">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="taskId" value="@task.TaskId" />
+                                    <button type="submit" class="button primary task-button--small">确认收货</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <partial name="_TaskPagination" model="@(new TaskPaginationViewModel { ActionName = "Receipt", PageNumber = Model.PageNumber, TotalPages = Model.TotalPages, PageSize = Model.PageSize })" />
+    <p class="task-page__note">确认收货后，任务进入收货后支付环节；跑腿员在支付成功、任务完成后恢复为空闲。</p>
+</section>

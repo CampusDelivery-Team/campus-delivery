@@ -1,0 +1,33 @@
+@model TaskPaginationViewModel
+
+@if (Model.TotalPages > 1)
+{
+    var previousRoute = new Dictionary<string, string?>
+    {
+        [Model.PageParameter] = (Model.PageNumber - 1).ToString(),
+        ["size"] = Model.PageSize.ToString()
+    };
+    var nextRoute = new Dictionary<string, string?>
+    {
+        [Model.PageParameter] = (Model.PageNumber + 1).ToString(),
+        ["size"] = Model.PageSize.ToString()
+    };
+
+    if (Model.OtherPageParameter != null && Model.OtherPageValue.HasValue)
+    {
+        previousRoute[Model.OtherPageParameter] = Model.OtherPageValue.Value.ToString();
+        nextRoute[Model.OtherPageParameter] = Model.OtherPageValue.Value.ToString();
+    }
+
+    <nav class="task-pagination" aria-label="分页导航">
+        @if (Model.PageNumber > 1)
+        {
+            <a class="button task-pagination__button" asp-action="@Model.ActionName" asp-all-route-data="previousRoute">上一页</a>
+        }
+        <span>第 @Model.PageNumber 页 / 共 @Model.TotalPages 页</span>
+        @if (Model.PageNumber < Model.TotalPages)
+        {
+            <a class="button task-pagination__button" asp-action="@Model.ActionName" asp-all-route-data="nextRoute">下一页</a>
+        }
+    </nav>
+}

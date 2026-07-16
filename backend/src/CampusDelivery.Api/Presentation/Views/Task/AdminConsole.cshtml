@@ -1,0 +1,154 @@
+@model AdminAssignViewModel
+
+@{
+    ViewData["Title"] = "管理员指派与重派控制台";
+}
+
+<section class="panel task-page">
+    <div class="section-header task-page__header">
+        <div>
+            <p class="eyebrow">管理调度</p>
+            <h1>管理员指派与重派控制台</h1>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="task-alert task-alert--success">@TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="task-alert task-alert--error">@TempData["ErrorMessage"]</div>
+    }
+
+    <div class="task-admin-grid">
+        <article class="task-admin-panel">
+            <h2>待指派任务</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>标题</th>
+                            <th>服务</th>
+                            <th>价格</th>
+                            <th>指派操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.WaitingTasks.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="5" class="empty task-table__empty">暂无等待指派的订单</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var task in Model.WaitingTasks)
+                            {
+                                <tr>
+                                    <td>@task.TaskId</td>
+                                    <td>
+                                        <strong>@task.TaskTitle</strong><br />
+                                        <small class="muted-text">送达: @task.CreatedAddress</small>
+                                    </td>
+                                    <td><span class="badge task-badge--service">@task.ServiceTypeName</span></td>
+                                    <td class="task-price">¥@task.TaskPrice.ToString("F2")</td>
+                                    <td>
+                                        @if (Model.FreeRunners.Count == 0)
+                                        {
+                                            <span class="task-status-text task-status-text--error">当前页无空闲跑腿员</span>
+                                        }
+                                        else
+                                        {
+                                            <form asp-action="AdminAssign" method="post" class="task-assign-form">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="taskId" value="@task.TaskId" />
+                                                <select name="runnerId">
+                                                    @foreach (var runner in Model.FreeRunners)
+                                                    {
+                                                        <option value="@runner.RunnerId">@runner.RealName (信誉:@runner.CreditScore)</option>
+                                                    }
+                                                </select>
+                                                <button type="submit" class="button primary task-button--small">指派</button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <partial name="_TaskPagination" model="@(new TaskPaginationViewModel { ActionName = "AdminConsole", PageNumber = Model.TaskPageNumber, TotalPages = Model.TaskTotalPages, PageSize = Model.PageSize, PageParameter = "taskPage", OtherPageParameter = "runnerPage", OtherPageValue = Model.RunnerPageNumber })" />
+        </article>
+
+        <article class="task-admin-panel">
+            <h2>空闲跑腿员</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>姓名</th>
+                            <th>信誉分</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.FreeRunners.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="3" class="empty task-table__empty">当前没有空闲的跑腿员</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var runner in Model.FreeRunners)
+                            {
+                                <tr>
+                                    <td>@runner.RunnerId</td>
+                                    <td><strong>@runner.RealName</strong></td>
+                                    <td><span class="badge success">@runner.CreditScore 分</span></td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <partial name="_TaskPagination" model="@(new TaskPaginationViewModel { ActionName = "AdminConsole", PageNumber = Model.RunnerPageNumber, TotalPages = Model.RunnerTotalPages, PageSize = Model.PageSize, PageParameter = "runnerPage", OtherPageParameter = "taskPage", OtherPageValue = Model.TaskPageNumber })" />
+        </article>
+    </div>
+
+    <article class="task-admin-panel task-reassign-panel">
+        <h2>异常订单重派</h2>
+        <p class="task-page__note">管理员可以保留原接派记录，将配送中的任务改派给其他空闲跑腿员。</p>
+        <form asp-action="AdminReassign" method="post" class="task-reassign-form">
+            @Html.AntiForgeryToken()
+            <label class="field">
+                <span>任务编号</span>
+                <input type="number" name="taskId" required placeholder="例如: 2" />
+            </label>
+            <label class="field">
+                <span>新跑腿员</span>
+                <select name="runnerId" required>
+                    @if (Model.FreeRunners.Count == 0)
+                    {
+                        <option value="">当前页无空闲跑腿员</option>
+                    }
+                    else
+                    {
+                        @foreach (var runner in Model.FreeRunners)
+                        {
+                            <option value="@runner.RunnerId">@runner.RealName (ID:@runner.RunnerId)</option>
+                        }
+                    }
+                </select>
+            </label>
+            <label class="field">
+                <span>重派原因</span>
+                <input type="text" name="reason" required placeholder="原跑腿员临时无法继续配送" />
+            </label>
+            <button type="submit" class="button primary">执行重派</button>
+        </form>
+    </article>
+</section>
