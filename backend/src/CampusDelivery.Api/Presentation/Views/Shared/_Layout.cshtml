@@ -18,13 +18,14 @@
             <a asp-controller="Home" asp-action="Index" asp-fragment="workflow">服务流程</a>
             @if (User.Identity?.IsAuthenticated == true)
             {
-                <a asp-controller="Task" asp-action="Index">任务大厅</a>
-                <a asp-controller="Task" asp-action="Receipt">确认收货</a>
-
-                @if (User.IsInRole("RUNNER"))
+                @if (!User.IsInRole("ADMIN"))
                 {
-
-                    <a asp-controller="Task" asp-action="MyTasks">配送工作台</a>
+                    <a asp-controller="Task" asp-action="Create">发布任务</a>
+                    <a asp-controller="Task" asp-action="Index">我的任务</a>
+                }
+                else
+                {
+                    <a asp-controller="Task" asp-action="Index">任务列表</a>
                 }
 
                 <a asp-controller="User" asp-action="Profile">个人中心</a>

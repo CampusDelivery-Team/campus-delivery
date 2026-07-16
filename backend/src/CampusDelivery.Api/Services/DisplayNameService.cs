@@ -70,27 +70,37 @@ public static class DisplayNameService
     {
         return value switch
         {
-            "CREATED" => "草稿创建",
-            "PAID" => "已付款",
+            "CREATED" => "已创建",
             "WAITING" => "待接单",
-            "ASSIGNED" => "已分配",
+            "ASSIGNED" => "已接单",
             "PICKED_UP" => "已取件",
             "DELIVERING" => "配送中",
-            "WAIT_CONFIRM" => "待确认收货",
+            "WAIT_CONFIRM" => "待确认",
             "FINISHED" => "已完成",
             "CANCELLED" => "已取消",
             "REFUNDING" => "退款中",
+            "PAID" => "已支付",
             _ => value
         };
     }
 
-    public static string GetAssignOperationTypeName(string value)
+    public static string GetUrgentFlagName(string value)
     {
         return value switch
         {
-            "SELF" => "跑腿员抢单",
-            "ADMIN" => "管理员指派",
-            "REASSIGN" => "异常重派",
+            "Y" => "加急",
+            "N" => "普通",
+            _ => value
+        };
+    }
+
+    public static string GetTaskKindName(string value)
+    {
+        return value switch
+        {
+            "FOOD" => "外卖分发",
+            "EXPRESS" => "快递代取",
+            "PRIVATE" => "私人跑腿",
             _ => value
         };
     }

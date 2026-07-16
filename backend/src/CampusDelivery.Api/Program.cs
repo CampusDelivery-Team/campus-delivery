@@ -43,6 +43,8 @@ builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<AddressRepository>();
 builder.Services.AddScoped<AddressService>();
+builder.Services.AddScoped<TaskRepository>();
+builder.Services.AddScoped<TaskService>();
 
 // 接单派单流转模块
 builder.Services.AddScoped<TaskRepository>();

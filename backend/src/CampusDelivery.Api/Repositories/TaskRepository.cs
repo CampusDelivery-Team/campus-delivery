@@ -1,649 +1,498 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
 using Oracle.ManagedDataAccess.Client;
-using System.Data;
+using Oracle.ManagedDataAccess.Types;
 
-
-namespace CampusDelivery.Api.Repositories;
-
-public sealed class TaskRepository(OracleConnectionFactory connectionFactory)
+namespace CampusDelivery.Api.Repositories
 {
-    public async Task<IReadOnlyList<CampusTask>> GetGrabableTasksAsync(int offset, int pageSize, CancellationToken cancellationToken = default)
+    public sealed class TaskRepository
     {
-        var tasks = new List<CampusTask>();
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
+        private readonly OracleConnectionFactory _connectionFactory;
 
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT task_id, publisher_user_id, service_type_id, address_no, node_id, 
-                   task_title, task_price, urgent_flag, task_status, created_at, completed_at
-            FROM APPUSER.tasks
-            WHERE task_status = 'WAITING'
-            ORDER BY urgent_flag DESC, created_at DESC
-            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
-            """;
-        command.Parameters.Add(new OracleParameter("offset", offset));
-        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        public TaskRepository(OracleConnectionFactory connectionFactory)
         {
-            tasks.Add(MapTask(reader));
+            _connectionFactory = connectionFactory;
         }
-        return tasks;
-    }
 
-    public async Task<int> GetGrabableCountAsync(CancellationToken cancellationToken = default)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = "SELECT COUNT(*) FROM APPUSER.tasks WHERE task_status = 'WAITING'";
-
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return Convert.ToInt32(result);
-    }
-
-    public async Task<Runner?> GetRunnerByUserIdAsync(int userId, CancellationToken cancellationToken = default)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT runner_id, user_id, real_name, identity_info, audit_status, work_status, credit_score
-            FROM APPUSER.runners
-            WHERE user_id = :userId
-            """;
-        command.Parameters.Add(new OracleParameter("userId", userId));
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (await reader.ReadAsync(cancellationToken))
+        public async Task<TaskCreateWriteResult> CreateAsync(
+            TaskPublishRequest request,
+            CancellationToken cancellationToken = default)
         {
-            return MapRunner(reader);
-        }
-        return null;
-    }
+            await using OracleConnection connection = _connectionFactory.CreateConnection();
+            await connection.OpenAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<CampusTask>> GetActiveTasksByRunnerIdAsync(
-        int runnerId,
-        int offset,
-        int pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        var tasks = new List<CampusTask>();
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
+            using OracleTransaction transaction = connection.BeginTransaction();
 
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT t.task_id, t.publisher_user_id, t.service_type_id, t.address_no, t.node_id,
-                   t.task_title, t.task_price, t.urgent_flag, t.task_status, t.created_at, t.completed_at
-            FROM APPUSER.tasks t
-            JOIN (
-                SELECT record_id, task_id, runner_id,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY task_id
-                           ORDER BY assigned_at DESC, record_id DESC
-                       ) AS rn
-                FROM APPUSER.assign_records
-            ) r ON r.task_id = t.task_id AND r.rn = 1
-            WHERE r.runner_id = :runnerId
-              AND t.task_status IN ('ASSIGNED', 'PICKED_UP', 'DELIVERING', 'WAIT_CONFIRM')
-            ORDER BY t.created_at DESC
-            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
-            """;
-
-        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
-        command.Parameters.Add(new OracleParameter("offset", offset));
-        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            tasks.Add(MapTask(reader));
-        }
-        return tasks;
-    }
-
-    public async Task<int> GetActiveTaskCountByRunnerIdAsync(int runnerId, CancellationToken cancellationToken = default)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT COUNT(*)
-            FROM APPUSER.tasks t
-            JOIN (
-                SELECT record_id, task_id, runner_id,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY task_id
-                           ORDER BY assigned_at DESC, record_id DESC
-                       ) AS rn
-                FROM APPUSER.assign_records
-            ) r ON r.task_id = t.task_id AND r.rn = 1
-            WHERE r.runner_id = :runnerId
-              AND t.task_status IN ('ASSIGNED', 'PICKED_UP', 'DELIVERING', 'WAIT_CONFIRM')
-            """;
-
-        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
-
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return Convert.ToInt32(result);
-    }
-
-
-    public async Task<IReadOnlyList<CampusTask>> GetTasksWaitingForReceiptAsync(
-        int publisherUserId,
-        int offset,
-        int pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        var tasks = new List<CampusTask>();
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT t.task_id, t.publisher_user_id, t.service_type_id, t.address_no, t.node_id,
-                   t.task_title, t.task_price, t.urgent_flag, t.task_status, t.created_at, t.completed_at
-            FROM APPUSER.tasks t
-            JOIN (
-                SELECT record_id, task_id,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY task_id
-                           ORDER BY assigned_at DESC, record_id DESC
-                       ) AS rn
-                FROM APPUSER.assign_records
-            ) ar ON ar.task_id = t.task_id AND ar.rn = 1
-            WHERE t.publisher_user_id = :publisherUserId
-              AND t.task_status = 'WAIT_CONFIRM'
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM APPUSER.task_status_logs l
-                  WHERE l.record_id = ar.record_id
-                    AND l.status_before = 'WAIT_CONFIRM'
-                    AND l.status_after = 'WAIT_CONFIRM'
-                    AND l.operator_user_id = :publisherUserId
-              )
-            ORDER BY t.created_at DESC
-            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
-            """;
-
-        command.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
-        command.Parameters.Add(new OracleParameter("offset", offset));
-        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            tasks.Add(MapTask(reader));
-        }
-        return tasks;
-    }
-
-    public async Task<int> GetTasksWaitingForReceiptCountAsync(
-        int publisherUserId,
-        CancellationToken cancellationToken = default)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT COUNT(*)
-            FROM APPUSER.tasks t
-            JOIN (
-                SELECT record_id, task_id,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY task_id
-                           ORDER BY assigned_at DESC, record_id DESC
-                       ) AS rn
-                FROM APPUSER.assign_records
-            ) ar ON ar.task_id = t.task_id AND ar.rn = 1
-            WHERE t.publisher_user_id = :publisherUserId
-              AND t.task_status = 'WAIT_CONFIRM'
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM APPUSER.task_status_logs l
-                  WHERE l.record_id = ar.record_id
-                    AND l.status_before = 'WAIT_CONFIRM'
-                    AND l.status_after = 'WAIT_CONFIRM'
-                    AND l.operator_user_id = :publisherUserId
-              )
-            """;
-
-        command.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
-
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return Convert.ToInt32(result);
-    }
-
-
-    public async Task<string?> GetTaskStatusWithLockAsync(int taskId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
-
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.BindByName = true;
-        command.CommandText = "SELECT task_status FROM APPUSER.tasks WHERE task_id = :taskId FOR UPDATE";
-        command.Parameters.Add(new OracleParameter("taskId", taskId));
-
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return result == DBNull.Value ? null : Convert.ToString(result);
-    }
-
-    public async Task<Runner?> GetRunnerWithLockAsync(int runnerId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT runner_id, user_id, real_name, identity_info, audit_status, work_status, credit_score
-            FROM APPUSER.runners
-            WHERE runner_id = :runnerId
-            FOR UPDATE
-            """;
-        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (await reader.ReadAsync(cancellationToken))
-        {
-            return MapRunner(reader);
-        }
-        return null;
-    }
-
-    public async Task<int?> GetTaskPublisherUserIdAsync(int taskId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.BindByName = true;
-        command.CommandText = "SELECT publisher_user_id FROM APPUSER.tasks WHERE task_id = :taskId";
-        command.Parameters.Add(new OracleParameter("taskId", taskId));
-
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return result == null || result == DBNull.Value ? null : Convert.ToInt32(result);
-    }
-
-    public async Task<bool> IsReceiptConfirmedAsync(int recordId, int publisherUserId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT COUNT(*)
-            FROM APPUSER.task_status_logs
-            WHERE record_id = :recordId
-              AND status_before = 'WAIT_CONFIRM'
-              AND status_after = 'WAIT_CONFIRM'
-              AND operator_user_id = :publisherUserId
-            """;
-        command.Parameters.Add(new OracleParameter("recordId", recordId));
-        command.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
-
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return Convert.ToInt32(result) > 0;
-    }
-
-    public async Task UpdateTaskStatusAsync(int taskId, string status, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
-
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.BindByName = true;
-        command.CommandText = """
-            UPDATE APPUSER.tasks
-            SET task_status = :status,
-                completed_at = CASE WHEN :status = 'FINISHED' THEN SYSDATE ELSE completed_at END
-            WHERE task_id = :taskId
-            """;
-        command.Parameters.Add(new OracleParameter("status", status));
-        command.Parameters.Add(new OracleParameter("taskId", taskId));
-
-        await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    public async Task UpdateRunnerWorkStatusAsync(int runnerId, string workStatus, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.BindByName = true;
-        command.CommandText = "UPDATE APPUSER.runners SET work_status = :workStatus WHERE runner_id = :runnerId";
-        command.Parameters.Add(new OracleParameter("workStatus", workStatus));
-        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
-
-        await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    public async Task<int> InsertAssignRecordAsync(AssignRecord record, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.BindByName = true;
-        command.CommandText = """
-            INSERT INTO APPUSER.assign_records (task_id, runner_id, operation_type, assigned_at, reassign_reason)
-            VALUES (:taskId, :runnerId, :operationType, SYSDATE, :reassignReason)
-            RETURNING record_id INTO :recordId
-            """;
-        command.Parameters.Add(new OracleParameter("taskId", record.TaskId));
-        command.Parameters.Add(new OracleParameter("runnerId", record.RunnerId));
-        command.Parameters.Add(new OracleParameter("operationType", record.OperationType));
-        command.Parameters.Add(new OracleParameter("reassignReason", (object?)record.ReassignReason ?? DBNull.Value));
-
-        var recordIdParam = new OracleParameter("recordId", OracleDbType.Decimal, ParameterDirection.Output);
-        command.Parameters.Add(recordIdParam);
-
-        await command.ExecuteNonQueryAsync(cancellationToken);
-        return int.Parse(recordIdParam.Value.ToString()!);
-    }
-
-    public async Task InsertTaskStatusLogAsync(TaskStatusLog log, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.BindByName = true;
-        command.CommandText = """
-            INSERT INTO APPUSER.task_status_logs (record_id, status_before, status_after, operator_user_id, operated_at)
-            VALUES (:recordId, :statusBefore, :statusAfter, :operatorUserId, SYSDATE)
-            """;
-        command.Parameters.Add(new OracleParameter("recordId", log.RecordId));
-        command.Parameters.Add(new OracleParameter("statusBefore", (object?)log.StatusBefore ?? DBNull.Value));
-        command.Parameters.Add(new OracleParameter("statusAfter", log.StatusAfter));
-        command.Parameters.Add(new OracleParameter("operatorUserId", log.OperatorUserId));
-
-        await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    public async Task<AssignRecord?> GetLatestAssignRecordAsync(int taskId, CancellationToken cancellationToken = default)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT record_id, task_id, runner_id, operation_type, assigned_at, reassign_reason
-            FROM APPUSER.assign_records
-            WHERE task_id = :taskId
-            ORDER BY assigned_at DESC, record_id DESC
-            OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY
-            """;
-        command.Parameters.Add(new OracleParameter("taskId", taskId));
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (await reader.ReadAsync(cancellationToken))
-        {
-            return MapAssignRecord(reader);
-        }
-        return null;
-    }
-
-    public async Task<AssignRecord?> GetLatestAssignRecordWithConnectionAsync(int taskId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT record_id, task_id, runner_id, operation_type, assigned_at, reassign_reason
-            FROM APPUSER.assign_records
-            WHERE task_id = :taskId
-            ORDER BY assigned_at DESC, record_id DESC
-            OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY
-            """;
-        command.Parameters.Add(new OracleParameter("taskId", taskId));
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (await reader.ReadAsync(cancellationToken))
-        {
-            return MapAssignRecord(reader);
-        }
-        return null;
-    }
-
-    public async Task<IReadOnlyList<CampusTask>> GetWaitingTasksForAdminAsync(
-        int offset,
-        int pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        var tasks = new List<CampusTask>();
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT task_id, publisher_user_id, service_type_id, address_no, node_id,
-                   task_title, task_price, urgent_flag, task_status, created_at, completed_at
-            FROM APPUSER.tasks
-            WHERE task_status = 'WAITING'
-            ORDER BY created_at DESC
-            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
-            """;
-        command.Parameters.Add(new OracleParameter("offset", offset));
-        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            tasks.Add(MapTask(reader));
-        }
-        return tasks;
-    }
-
-    public async Task<int> GetWaitingTasksForAdminCountAsync(CancellationToken cancellationToken = default)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM APPUSER.tasks WHERE task_status = 'WAITING'";
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return Convert.ToInt32(result);
-    }
-
-
-    public async Task<IReadOnlyList<Runner>> GetFreeRunnersForAdminAsync(
-        int offset,
-        int pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        var runners = new List<Runner>();
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT runner_id, user_id, real_name, identity_info, audit_status, work_status, credit_score
-            FROM APPUSER.runners
-            WHERE audit_status = 'APPROVED' AND work_status = 'FREE'
-            ORDER BY runner_id
-            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
-            """;
-        command.Parameters.Add(new OracleParameter("offset", offset));
-        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            runners.Add(MapRunner(reader));
-        }
-        return runners;
-    }
-
-    public async Task<int> GetFreeRunnersForAdminCountAsync(CancellationToken cancellationToken = default)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT COUNT(*)
-            FROM APPUSER.runners
-            WHERE audit_status = 'APPROVED' AND work_status = 'FREE'
-            """;
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return Convert.ToInt32(result);
-    }
-
-
-
-
-    public async Task<IReadOnlyList<TaskStatusLog>> GetStatusLogsByTaskIdAsync(int taskId, CancellationToken cancellationToken = default)
-    {
-        var logs = new List<TaskStatusLog>();
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT l.log_id, l.record_id, l.status_before, l.status_after,
-                   l.operator_user_id, l.operated_at
-            FROM APPUSER.task_status_logs l
-            JOIN APPUSER.assign_records ar ON ar.record_id = l.record_id
-            WHERE ar.task_id = :taskId
-            ORDER BY l.operated_at ASC, l.log_id ASC
-            """;
-        command.Parameters.Add(new OracleParameter("taskId", taskId));
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            logs.Add(new TaskStatusLog
+            if (!await AddressExistsAsync(connection, transaction, request, cancellationToken))
             {
-                LogId = Convert.ToInt32(reader["log_id"]),
-                RecordId = Convert.ToInt32(reader["record_id"]),
-                StatusBefore = reader["status_before"] == DBNull.Value ? null : Convert.ToString(reader["status_before"]),
-                StatusAfter = Convert.ToString(reader["status_after"]) ?? string.Empty,
-                OperatorUserId = Convert.ToInt32(reader["operator_user_id"]),
-                OperatedAt = Convert.ToDateTime(reader["operated_at"])
-            });
+                transaction.Rollback();
+                return new TaskCreateWriteResult(TaskCreateResult.AddressNotFound);
+            }
+
+            if (!await ServiceTypeAvailableAsync(connection, transaction, request.ServiceTypeId, cancellationToken))
+            {
+                transaction.Rollback();
+                return new TaskCreateWriteResult(TaskCreateResult.ServiceTypeUnavailable);
+            }
+
+            if (!await NodeAvailableAsync(connection, transaction, request.NodeId, cancellationToken))
+            {
+                transaction.Rollback();
+                return new TaskCreateWriteResult(TaskCreateResult.NodeUnavailable);
+            }
+
+            if (!await ServiceNodeRuleExistsAsync(connection, transaction, request, cancellationToken))
+            {
+                transaction.Rollback();
+                return new TaskCreateWriteResult(TaskCreateResult.RuleNotMatched);
+            }
+
+            int taskId = await InsertTaskAsync(connection, transaction, request, cancellationToken);
+            await InsertTaskDetailAsync(connection, transaction, taskId, request, cancellationToken);
+
+            transaction.Commit();
+            return new TaskCreateWriteResult(TaskCreateResult.Success, taskId);
         }
-        return logs;
-    }
 
-
-    // 辅助查询：获取服务名称、节点名称、以及地址格式
-    public async Task<string> GetServiceTypeNameAsync(int serviceTypeId, CancellationToken cancellationToken = default)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = "SELECT service_name FROM APPUSER.service_types WHERE service_type_id = :id";
-        command.Parameters.Add(new OracleParameter("id", serviceTypeId));
-        var res = await command.ExecuteScalarAsync(cancellationToken);
-        return res == DBNull.Value ? string.Empty : Convert.ToString(res) ?? string.Empty;
-    }
-
-    public async Task<string> GetNodeNameAsync(int nodeId, CancellationToken cancellationToken = default)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = "SELECT node_name FROM APPUSER.nodes WHERE node_id = :id";
-        command.Parameters.Add(new OracleParameter("id", nodeId));
-        var res = await command.ExecuteScalarAsync(cancellationToken);
-        return res == DBNull.Value ? string.Empty : Convert.ToString(res) ?? string.Empty;
-    }
-
-    public async Task<(string ContactName, string ContactPhone, string AddressDisplay)> GetAddressDetailsAsync(int userId, int addressNo, CancellationToken cancellationToken = default)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT contact_name, contact_phone, campus, building_room
-            FROM APPUSER.user_addresses
-            WHERE user_id = :userId AND address_no = :addressNo
-            """;
-        command.Parameters.Add(new OracleParameter("userId", userId));
-        command.Parameters.Add(new OracleParameter("addressNo", addressNo));
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (await reader.ReadAsync(cancellationToken))
+        public async Task<IReadOnlyList<TaskRecord>> GetListAsync(
+            int currentUserId,
+            CancellationToken cancellationToken = default)
         {
-            string campus = Convert.ToString(reader["campus"]) ?? string.Empty;
-            string room = Convert.ToString(reader["building_room"]) ?? string.Empty;
-            return (
-                Convert.ToString(reader["contact_name"]) ?? string.Empty,
-                Convert.ToString(reader["contact_phone"]) ?? string.Empty,
-                $"{campus} {room}".Trim()
-            );
+            List<TaskRecord> tasks = new List<TaskRecord>();
+
+            await using OracleConnection connection = _connectionFactory.CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.CommandText = $"""
+                SELECT t.task_id,
+                       st.service_name,
+                       ua.contact_name,
+                       ua.contact_phone,
+                       ua.campus,
+                       ua.building_room,
+                       n.node_name,
+                       t.task_title,
+                       t.task_price,
+                       t.urgent_flag,
+                       t.task_status,
+                       t.created_at,
+                       CASE
+                           WHEN f.task_id IS NOT NULL THEN 'FOOD'
+                           WHEN e.task_id IS NOT NULL THEN 'EXPRESS'
+                           WHEN p.task_id IS NOT NULL THEN 'PRIVATE'
+                           ELSE 'UNKNOWN'
+                       END AS task_kind
+                FROM tasks t
+                JOIN users u
+                  ON u.user_id = t.publisher_user_id
+                JOIN service_types st
+                  ON st.service_type_id = t.service_type_id
+                JOIN user_addresses ua
+                  ON ua.user_id = t.publisher_user_id
+                 AND ua.address_no = t.address_no
+                JOIN nodes n
+                  ON n.node_id = t.node_id
+                LEFT JOIN food_delivery_details f
+                  ON f.task_id = t.task_id
+                 AND f.detail_no = 1
+                LEFT JOIN express_pickup_details e
+                  ON e.task_id = t.task_id
+                 AND e.detail_no = 1
+                LEFT JOIN private_task_details p
+                  ON p.task_id = t.task_id
+                 AND p.detail_no = 1
+                WHERE t.publisher_user_id = :currentUserId
+                ORDER BY t.created_at DESC, t.task_id DESC
+                """;
+            command.Parameters.Add(new OracleParameter("currentUserId", currentUserId));
+
+            await using OracleDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                tasks.Add(new TaskRecord
+                {
+                    TaskId = Convert.ToInt32(reader["task_id"]),
+                    ServiceName = Convert.ToString(reader["service_name"]) ?? string.Empty,
+                    ContactName = Convert.ToString(reader["contact_name"]) ?? string.Empty,
+                    ContactPhone = Convert.ToString(reader["contact_phone"]) ?? string.Empty,
+                    Campus = Convert.ToString(reader["campus"]) ?? string.Empty,
+                    BuildingRoom = Convert.ToString(reader["building_room"]) ?? string.Empty,
+                    NodeName = Convert.ToString(reader["node_name"]) ?? string.Empty,
+                    TaskTitle = Convert.ToString(reader["task_title"]) ?? string.Empty,
+                    TaskPrice = Convert.ToDecimal(reader["task_price"]),
+                    UrgentFlag = Convert.ToString(reader["urgent_flag"]) ?? "N",
+                    TaskStatus = Convert.ToString(reader["task_status"]) ?? "WAITING",
+                    CreatedAt = Convert.ToDateTime(reader["created_at"]),
+                    TaskKind = Convert.ToString(reader["task_kind"]) ?? "UNKNOWN"
+                });
+            }
+
+            return tasks;
         }
-        return (string.Empty, string.Empty, string.Empty);
-    }
 
-    public async Task<string> GetUsernameByIdAsync(int userId, CancellationToken cancellationToken = default)
-    {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = "SELECT username FROM APPUSER.users WHERE user_id = :id";
-        command.Parameters.Add(new OracleParameter("id", userId));
-        var res = await command.ExecuteScalarAsync(cancellationToken);
-        return res == DBNull.Value ? string.Empty : Convert.ToString(res) ?? string.Empty;
-    }
-
-
-
-    private static CampusTask MapTask(OracleDataReader reader)
-    {
-        return new CampusTask
+        public async Task<TaskCancelResult> CancelAsync(
+            int taskId,
+            int currentUserId,
+            CancellationToken cancellationToken = default)
         {
-            TaskId = Convert.ToInt32(reader["task_id"]),
-            PublisherUserId = Convert.ToInt32(reader["publisher_user_id"]),
-            ServiceTypeId = Convert.ToInt32(reader["service_type_id"]),
-            AddressNo = Convert.ToInt32(reader["address_no"]),
-            NodeId = Convert.ToInt32(reader["node_id"]),
-            TaskTitle = Convert.ToString(reader["task_title"]) ?? string.Empty,
-            TaskPrice = Convert.ToDecimal(reader["task_price"]),
-            UrgentFlag = Convert.ToString(reader["urgent_flag"]) ?? "N",
-            TaskStatus = Convert.ToString(reader["task_status"]) ?? "CREATED",
-            CreatedAt = Convert.ToDateTime(reader["created_at"]),
-            CompletedAt = reader["completed_at"] == DBNull.Value ? null : Convert.ToDateTime(reader["completed_at"])
-        };
+            await using OracleConnection connection = _connectionFactory.CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.CommandText = $"""
+                UPDATE tasks
+                SET task_status = 'CANCELLED'
+                WHERE task_id = :taskId
+                  AND task_status = 'WAITING'
+                  AND publisher_user_id = :currentUserId
+                """;
+            command.Parameters.Add(new OracleParameter("taskId", taskId));
+            command.Parameters.Add(new OracleParameter("currentUserId", currentUserId));
+
+            if (await command.ExecuteNonQueryAsync(cancellationToken) > 0)
+            {
+                return TaskCancelResult.Success;
+            }
+
+            if (await ExistsAsync(taskId, currentUserId, cancellationToken))
+            {
+                return TaskCancelResult.InvalidState;
+            }
+
+            return TaskCancelResult.NotFound;
+        }
+
+        private async Task<bool> ExistsAsync(
+            int taskId,
+            int currentUserId,
+            CancellationToken cancellationToken)
+        {
+            await using OracleConnection connection = _connectionFactory.CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.CommandText = $"""
+                SELECT COUNT(*)
+                FROM tasks
+                WHERE task_id = :taskId
+                  AND publisher_user_id = :currentUserId
+                """;
+            command.Parameters.Add(new OracleParameter("taskId", taskId));
+            command.Parameters.Add(new OracleParameter("currentUserId", currentUserId));
+
+            return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+        }
+
+        private static async Task<bool> AddressExistsAsync(
+            OracleConnection connection,
+            OracleTransaction transaction,
+            TaskPublishRequest request,
+            CancellationToken cancellationToken)
+        {
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.Transaction = transaction;
+            command.CommandText = """
+                SELECT COUNT(*)
+                FROM user_addresses
+                WHERE user_id = :publisherUserId
+                  AND address_no = :addressNo
+                """;
+            command.Parameters.Add(new OracleParameter("publisherUserId", request.PublisherUserId));
+            command.Parameters.Add(new OracleParameter("addressNo", request.AddressNo));
+
+            return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+        }
+
+        private static async Task<bool> ServiceTypeAvailableAsync(
+            OracleConnection connection,
+            OracleTransaction transaction,
+            int serviceTypeId,
+            CancellationToken cancellationToken)
+        {
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.Transaction = transaction;
+            command.CommandText = """
+                SELECT COUNT(*)
+                FROM service_types
+                WHERE service_type_id = :serviceTypeId
+                  AND type_status = 'ENABLED'
+                """;
+            command.Parameters.Add(new OracleParameter("serviceTypeId", serviceTypeId));
+
+            return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+        }
+
+        private static async Task<bool> NodeAvailableAsync(
+            OracleConnection connection,
+            OracleTransaction transaction,
+            int nodeId,
+            CancellationToken cancellationToken)
+        {
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.Transaction = transaction;
+            command.CommandText = """
+                SELECT COUNT(*)
+                FROM nodes
+                WHERE node_id = :nodeId
+                  AND node_status = 'NORMAL'
+                """;
+            command.Parameters.Add(new OracleParameter("nodeId", nodeId));
+
+            return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+        }
+
+        private static async Task<bool> ServiceNodeRuleExistsAsync(
+            OracleConnection connection,
+            OracleTransaction transaction,
+            TaskPublishRequest request,
+            CancellationToken cancellationToken)
+        {
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.Transaction = transaction;
+            command.CommandText = """
+                SELECT COUNT(*)
+                FROM service_node_rules
+                WHERE service_type_id = :serviceTypeId
+                  AND node_id = :nodeId
+                """;
+            command.Parameters.Add(new OracleParameter("serviceTypeId", request.ServiceTypeId));
+            command.Parameters.Add(new OracleParameter("nodeId", request.NodeId));
+
+            return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+        }
+
+        private static async Task<int> InsertTaskAsync(
+            OracleConnection connection,
+            OracleTransaction transaction,
+            TaskPublishRequest request,
+            CancellationToken cancellationToken)
+        {
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO tasks (
+                    publisher_user_id,
+                    service_type_id,
+                    address_no,
+                    node_id,
+                    task_title,
+                    task_price,
+                    urgent_flag,
+                    task_status
+                )
+                VALUES (
+                    :publisherUserId,
+                    :serviceTypeId,
+                    :addressNo,
+                    :nodeId,
+                    :taskTitle,
+                    :taskPrice,
+                    :urgentFlag,
+                    'WAITING'
+                )
+                RETURNING task_id INTO :taskId
+                """;
+            command.Parameters.Add(new OracleParameter("publisherUserId", request.PublisherUserId));
+            command.Parameters.Add(new OracleParameter("serviceTypeId", request.ServiceTypeId));
+            command.Parameters.Add(new OracleParameter("addressNo", request.AddressNo));
+            command.Parameters.Add(new OracleParameter("nodeId", request.NodeId));
+            command.Parameters.Add(new OracleParameter("taskTitle", request.TaskTitle));
+            command.Parameters.Add(new OracleParameter("taskPrice", request.TaskPrice));
+            command.Parameters.Add(new OracleParameter("urgentFlag", request.UrgentFlag));
+
+            OracleParameter taskIdParameter = new OracleParameter("taskId", OracleDbType.Int32);
+            taskIdParameter.Direction = System.Data.ParameterDirection.Output;
+            command.Parameters.Add(taskIdParameter);
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+
+            if (taskIdParameter.Value is OracleDecimal oracleDecimal)
+            {
+                return oracleDecimal.ToInt32();
+            }
+
+            return Convert.ToInt32(taskIdParameter.Value);
+        }
+
+        private static async Task InsertTaskDetailAsync(
+            OracleConnection connection,
+            OracleTransaction transaction,
+            int taskId,
+            TaskPublishRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request.TaskKind == "FOOD")
+            {
+                await InsertFoodDetailAsync(connection, transaction, taskId, request, cancellationToken);
+                return;
+            }
+
+            if (request.TaskKind == "EXPRESS")
+            {
+                await InsertExpressDetailAsync(connection, transaction, taskId, request, cancellationToken);
+                return;
+            }
+
+            await InsertPrivateDetailAsync(connection, transaction, taskId, request, cancellationToken);
+        }
+
+        private static async Task InsertFoodDetailAsync(
+            OracleConnection connection,
+            OracleTransaction transaction,
+            int taskId,
+            TaskPublishRequest request,
+            CancellationToken cancellationToken)
+        {
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO food_delivery_details (
+                    task_id,
+                    detail_no,
+                    merchant_name,
+                    platform_order_no,
+                    pickup_note
+                )
+                VALUES (
+                    :taskId,
+                    1,
+                    :merchantName,
+                    :platformOrderNo,
+                    :pickupNote
+                )
+                """;
+            command.Parameters.Add(new OracleParameter("taskId", taskId));
+            command.Parameters.Add(new OracleParameter("merchantName", request.MerchantName));
+            command.Parameters.Add(new OracleParameter(
+                "platformOrderNo",
+                (object?)request.PlatformOrderNo ?? DBNull.Value));
+            command.Parameters.Add(new OracleParameter(
+                "pickupNote",
+                (object?)request.FoodPickupNote ?? DBNull.Value));
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        private static async Task InsertExpressDetailAsync(
+            OracleConnection connection,
+            OracleTransaction transaction,
+            int taskId,
+            TaskPublishRequest request,
+            CancellationToken cancellationToken)
+        {
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO express_pickup_details (
+                    task_id,
+                    detail_no,
+                    express_company,
+                    waybill_no,
+                    pickup_code,
+                    pickup_note
+                )
+                VALUES (
+                    :taskId,
+                    1,
+                    :expressCompany,
+                    :waybillNo,
+                    :pickupCode,
+                    :pickupNote
+                )
+                """;
+            command.Parameters.Add(new OracleParameter("taskId", taskId));
+            command.Parameters.Add(new OracleParameter("expressCompany", request.ExpressCompany));
+            command.Parameters.Add(new OracleParameter("waybillNo", request.WaybillNo));
+            command.Parameters.Add(new OracleParameter("pickupCode", request.PickupCode));
+            command.Parameters.Add(new OracleParameter(
+                "pickupNote",
+                (object?)request.ExpressPickupNote ?? DBNull.Value));
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        private static async Task InsertPrivateDetailAsync(
+            OracleConnection connection,
+            OracleTransaction transaction,
+            int taskId,
+            TaskPublishRequest request,
+            CancellationToken cancellationToken)
+        {
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO private_task_details (
+                    task_id,
+                    detail_no,
+                    item_category,
+                    pickup_location,
+                    delivery_location,
+                    expected_finish_at,
+                    description
+                )
+                VALUES (
+                    :taskId,
+                    1,
+                    :itemCategory,
+                    :pickupLocation,
+                    :deliveryLocation,
+                    :expectedFinishAt,
+                    :description
+                )
+                """;
+            command.Parameters.Add(new OracleParameter("taskId", taskId));
+            command.Parameters.Add(new OracleParameter("itemCategory", request.ItemCategory));
+            command.Parameters.Add(new OracleParameter("pickupLocation", request.PickupLocation));
+            command.Parameters.Add(new OracleParameter("deliveryLocation", request.DeliveryLocation));
+            command.Parameters.Add(new OracleParameter(
+                "expectedFinishAt",
+                (object?)request.ExpectedFinishAt ?? DBNull.Value));
+            command.Parameters.Add(new OracleParameter(
+                "description",
+                (object?)request.PrivateDescription ?? DBNull.Value));
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+}
+
+public sealed class TaskCreateWriteResult
+{
+    public TaskCreateWriteResult(TaskCreateResult result, int taskId = 0)
+    {
+        Result = result;
+        TaskId = taskId;
     }
 
-    private static Runner MapRunner(OracleDataReader reader)
-    {
-        return new Runner
-        {
-            RunnerId = Convert.ToInt32(reader["runner_id"]),
-            UserId = Convert.ToInt32(reader["user_id"]),
-            RealName = Convert.ToString(reader["real_name"]) ?? string.Empty,
-            IdentityInfo = Convert.ToString(reader["identity_info"]) ?? string.Empty,
-            AuditStatus = Convert.ToString(reader["audit_status"]) ?? "PENDING",
-            WorkStatus = Convert.ToString(reader["work_status"]) ?? "OFFLINE",
-            CreditScore = Convert.ToInt32(reader["credit_score"])
-        };
-    }
+    public TaskCreateResult Result { get; }
 
-    private static AssignRecord MapAssignRecord(OracleDataReader reader)
-    {
-        return new AssignRecord
-        {
-            RecordId = Convert.ToInt32(reader["record_id"]),
-            TaskId = Convert.ToInt32(reader["task_id"]),
-            RunnerId = Convert.ToInt32(reader["runner_id"]),
-            OperationType = Convert.ToString(reader["operation_type"]) ?? "SELF",
-            AssignedAt = Convert.ToDateTime(reader["assigned_at"]),
-            ReassignReason = reader["reassign_reason"] == DBNull.Value ? null : Convert.ToString(reader["reassign_reason"])
-        };
-    }
+    public int TaskId { get; }
+}
+
+public enum TaskCreateResult
+{
+    Success,
+    AddressNotFound,
+    ServiceTypeUnavailable,
+    NodeUnavailable,
+    RuleNotMatched
+}
+
+public enum TaskCancelResult
+{
+    Success,
+    NotFound,
+    InvalidState
 }
