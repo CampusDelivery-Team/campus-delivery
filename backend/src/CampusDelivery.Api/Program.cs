@@ -38,6 +38,8 @@ builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<AddressRepository>();
 builder.Services.AddScoped<AddressService>();
+builder.Services.AddScoped<TaskRepository>();
+builder.Services.AddScoped<TaskService>();
 
 // ---> 新增 2：配置 Cookie 认证服务
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
