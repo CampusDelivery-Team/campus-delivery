@@ -1,30 +1,27 @@
-@model List<ReviewListItemViewModel>
+@model ReviewListItemViewModel?
 
-    @{
-    ViewData["Title"] = "评价详情";
-    var reportId = Model.FirstOrDefault()?.ReportId ?? 0;
-    }
+@{
+    ViewData["Title"] = "任务评价";
+    int recordId = ViewBag.RecordId ?? 0;
+    IReadOnlyList<ReviewListItemViewModel> rows = Model == null
+        ? Array.Empty<ReviewListItemViewModel>()
+        : new[] { Model };
+}
 
-    <section class="panel management-panel">
-        <div class="section-header management-heading">
-            <div>
-                <p class="eyebrow">用户反馈</p>
-                <h1>报告 #@reportId 的评价</h1>
-                <p class="section-description">查看该报告收到的所有用户评价。</p>
-            </div>
-            <a class="button primary" asp-action="Create" asp-route-reportId="@reportId">
-                + 添加评价
-            </a>
+<section class="panel management-panel">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">服务评价</p>
+            <h1>接派记录 #@recordId</h1>
         </div>
-
-        @if (TempData["SuccessMessage"] is string success)
+        @if (Model == null)
+        {
+            <a class="button primary" asp-action="Create" asp-route-recordId="@recordId">提交评价</a>
+        }
+    </div>
+    @if (TempData["SuccessMessage"] is string success)
     {
         <div class="inline-notice success">@success</div>
     }
-        @if (TempData["ErrorMessage"] is string error)
-    {
-        <div class="inline-notice error">@error</div>
-    }
-
-        <partial name="_ReviewTable" model="Model" />
-    </section>
+    <partial name="_ReviewTable" model="rows" />
+</section>

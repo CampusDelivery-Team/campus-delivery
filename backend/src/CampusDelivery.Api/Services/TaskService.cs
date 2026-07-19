@@ -155,10 +155,12 @@ namespace CampusDelivery.Api.Services
 
         public async Task<TaskIndexViewModel> GetIndexAsync(
             int currentUserId,
+            bool includeAll,
             CancellationToken cancellationToken = default)
         {
             IReadOnlyList<TaskRecord> tasks = await _taskRepository.GetListAsync(
                 currentUserId,
+                includeAll,
                 cancellationToken);
 
             List<TaskListItemViewModel> items = new List<TaskListItemViewModel>();
@@ -167,6 +169,7 @@ namespace CampusDelivery.Api.Services
                 items.Add(new TaskListItemViewModel
                 {
                     TaskId = task.TaskId,
+                    PublisherUsername = task.PublisherUsername,
                     TaskKindDisplayName = DisplayNameService.GetTaskKindName(task.TaskKind),
                     ServiceName = task.ServiceName,
                     TaskTitle = task.TaskTitle,
@@ -182,6 +185,7 @@ namespace CampusDelivery.Api.Services
 
             return new TaskIndexViewModel
             {
+                IsAdminView = includeAll,
                 Tasks = items
             };
         }
@@ -207,6 +211,75 @@ namespace CampusDelivery.Api.Services
             }
 
             return "任务不存在或你没有权限取消该任务";
+        }
+
+        public async Task<TaskDetailsViewModel?> GetDetailsAsync(
+            int taskId,
+            int currentUserId,
+            bool includeAll,
+            CancellationToken cancellationToken = default)
+        {
+            TaskDetailsRecord? record = await _taskRepository.GetDetailsAsync(
+                taskId,
+                currentUserId,
+                includeAll,
+                cancellationToken);
+            if (record == null)
+            {
+                return null;
+            }
+
+            TaskRecord task = record.Task;
+            TaskDetailsViewModel model = new TaskDetailsViewModel
+            {
+                TaskId = task.TaskId,
+                RecordId = record.RecordId,
+                CanReview = !includeAll && record.RecordId.HasValue && task.TaskStatus == "FINISHED",
+                PublisherUsername = task.PublisherUsername,
+                TaskKindDisplayName = DisplayNameService.GetTaskKindName(task.TaskKind),
+                ServiceName = task.ServiceName,
+                TaskTitle = task.TaskTitle,
+                TaskPrice = task.TaskPrice,
+                UrgentFlagDisplayName = DisplayNameService.GetUrgentFlagName(task.UrgentFlag),
+                TaskStatusDisplayName = DisplayNameService.GetTaskStatusName(task.TaskStatus),
+                ContactName = task.ContactName,
+                ContactPhone = task.ContactPhone,
+                AddressSummary = $"{task.Campus} {task.BuildingRoom}".Trim(),
+                NodeName = task.NodeName,
+                CreatedAt = task.CreatedAt
+            };
+
+            void AddField(string label, string? value)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    model.DetailFields.Add(new TaskDetailFieldViewModel { Label = label, Value = value });
+                }
+            }
+
+            if (task.TaskKind == "FOOD")
+            {
+                AddField("商家名称", record.MerchantName);
+                AddField("平台订单号", record.PlatformOrderNo);
+                AddField("取餐说明", record.FoodPickupNote);
+            }
+            else if (task.TaskKind == "EXPRESS")
+            {
+                AddField("快递公司", record.ExpressCompany);
+                AddField("运单号", record.WaybillNo);
+                AddField("取件码", record.PickupCode);
+                AddField("取件说明", record.ExpressPickupNote);
+            }
+            else if (task.TaskKind == "PRIVATE")
+            {
+                AddField("物品类别", record.ItemCategory);
+                AddField("取件地点", record.PickupLocation);
+                AddField("送达地点", record.DeliveryLocation);
+                AddField("期望完成时间", record.ExpectedFinishAt?.ToString("yyyy-MM-dd HH:mm"));
+                AddField("任务说明", record.PrivateDescription);
+            }
+
+            return model;
         }
 
         private static string? NormalizeText(string? value)

@@ -4,6 +4,8 @@ public sealed class TaskRecord
 {
     public int TaskId { get; set; }
 
+    public string PublisherUsername { get; set; } = string.Empty;
+
     public string ServiceName { get; set; } = string.Empty;
 
     public string ContactName { get; set; } = string.Empty;

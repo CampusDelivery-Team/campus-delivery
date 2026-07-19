@@ -1,131 +1,114 @@
-using CampusDelivery.Api.Models;
+using System.Security.Claims;
+using CampusDelivery.Api.Presentation.ViewModels;
 using CampusDelivery.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System;
 
 namespace CampusDelivery.Api.Controllers;
 
-[Authorize]  
-public class ReviewController : Controller
+[Authorize]
+public sealed class ReviewController(ReviewService reviewService) : Controller
 {
-    private readonly ReviewService _reviewService;
-
-    public ReviewController(ReviewService reviewService)
-    {
-        _reviewService = reviewService;
-    }
-
-    //普通用户操作
-
-    // 查看某个报告的所有评价
     [HttpGet]
-    public IActionResult Index(int reportId)
+    public IActionResult Index(int recordId)
     {
-        var reviews = _reviewService.GetReviewsByReportId(reportId);
-        return View(reviews);
-    }
-
-    //显示添加评价页面
-    [HttpGet]
-    public IActionResult Create(int reportId)
-    {
-        var model = new Review
-        {
-            ReportID = reportId,
-            Reviewed_at = DateTime.Now
-        };
-        return View(model);
-    }
-
-    // 提交添加评价
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public IActionResult Create(Review review)
-    {
-        if (!ModelState.IsValid)
-        {
-            return View(review);
-        }
-
-        var (success, error) = _reviewService.AddReview(review);
-        if (success)
-        {
-            TempData["SuccessMessage"] = "评价提交成功";
-            return RedirectToAction(nameof(Index), new { reportId = review.ReportID });
-        }
-
-        ModelState.AddModelError(string.Empty, error);
+        ReviewListItemViewModel? review = reviewService.GetByRecordId(recordId);
+        ViewBag.RecordId = recordId;
         return View(review);
     }
 
-    //管理员专用操作
-
-    // 管理员查看所有评价（分页）
-    [Authorize(Roles = "ADMIN")]
     [HttpGet]
-    public IActionResult All(int page = 1, int size = 20)
+    public IActionResult Create(int recordId)
     {
-        var reviews = _reviewService.GetAllReviews(page, size);
-        var total = _reviewService.GetTotalCount();
-
-        ViewBag.Total = total;
-        ViewBag.Page = page;
-        ViewBag.Size = size;
-        return View(reviews);
+        int? currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue || !reviewService.CanReview(recordId, currentUserId.Value))
+        {
+            return Forbid();
+        }
+        return View(new ReviewCreateViewModel { RecordId = recordId });
     }
 
-    // 管理员删除评价
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult Create(ReviewCreateViewModel model)
+    {
+        int? currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var result = reviewService.Add(model, currentUserId.Value);
+        if (!result.Success)
+        {
+            ModelState.AddModelError(string.Empty, result.ErrorMessage);
+            return View(model);
+        }
+
+        TempData["SuccessMessage"] = "评价提交成功。";
+        return RedirectToAction(nameof(Index), new { recordId = model.RecordId });
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpGet]
+    public IActionResult All(int page = 1, int pageSize = 20)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 5, 50);
+        ViewBag.Page = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.Total = reviewService.GetTotalCount();
+        return View(reviewService.GetAll(page, pageSize));
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpGet]
+    public IActionResult Edit(int id)
+    {
+        ReviewEditViewModel? model = reviewService.GetEditModel(id);
+        return model == null ? NotFound() : View(model);
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult Edit(ReviewEditViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var result = reviewService.Update(model);
+        if (!result.Success)
+        {
+            ModelState.AddModelError(string.Empty, result.ErrorMessage);
+            return View(model);
+        }
+
+        TempData["SuccessMessage"] = "评价已更新，跑腿员信誉分已同步调整。";
+        return RedirectToAction(nameof(All));
+    }
+
     [Authorize(Roles = "ADMIN")]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public IActionResult Delete(int id)
     {
-        var (success, error) = _reviewService.DeleteReview(id);
-        if (success)
-        {
-            TempData["SuccessMessage"] = "评价已删除";
-        }
-        else
-        {
-            TempData["ErrorMessage"] = error;
-        }
+        var result = reviewService.Delete(id);
+        TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] = result.Success
+            ? "评价已删除，跑腿员信誉分已恢复。"
+            : result.ErrorMessage;
         return RedirectToAction(nameof(All));
     }
 
-    // 管理员编辑评价页面
-    [Authorize(Roles = "ADMIN")]
-    [HttpGet]
-    public IActionResult Edit(int id)
+    private int? GetCurrentUserId()
     {
-        var review = _reviewService.GetReviewById(id);
-        if (review == null)
-        {
-            return NotFound();
-        }
-        return View(review);
-    }
-
-    // 提交编辑评价
-
-    [Authorize(Roles = "ADMIN")]
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public IActionResult Edit(Review review)
-    {
-        if (!ModelState.IsValid)
-        {
-            return View(review);
-        }
-
-        var (success, error) = _reviewService.UpdateReview(review);
-        if (success)
-        {
-            TempData["SuccessMessage"] = "评价已更新";
-            return RedirectToAction(nameof(All));
-        }
-
-        ModelState.AddModelError(string.Empty, error);
-        return View(review);
+        string? value = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(value, out int userId) ? userId : null;
     }
 }

@@ -1,185 +1,298 @@
 using CampusDelivery.Api.Models;
+using CampusDelivery.Api.Persistence.Oracle;
 using Oracle.ManagedDataAccess.Client;
-using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Data;
 
 namespace CampusDelivery.Api.Repositories;
 
-public class ReviewsRepository
+public sealed class ReviewsRepository(OracleConnectionFactory connectionFactory)
 {
-    private readonly string _connectionString;
-
-    public ReviewsRepository(IConfiguration configuration)
-    {
-        _connectionString = configuration.GetConnectionString("OracleDb")
-            ?? throw new InvalidOperationException("Connection string 'OracleDb' is missing.");
-    }
-
-    // 根据评价ID获取单条评价
-
     public Review? GetReviewById(int reviewId)
     {
-        using var conn = new OracleConnection(_connectionString);
-        conn.Open();
-
-        const string sql = @"
-            SELECT review_id, report_id, rating, anonymous_flag, comment_text, reviewed_at, credit_delta
+        using OracleConnection connection = connectionFactory.CreateConnection();
+        connection.Open();
+        using OracleCommand command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT review_id, record_id, rating, anonymous_flag, comment_text, reviewed_at, credit_delta
             FROM APPUSER.reviews
-            WHERE review_id = :reviewId";
-
-        using var cmd = new OracleCommand(sql, conn);
-        cmd.Parameters.Add(new OracleParameter("reviewId", reviewId));
-
-        using var reader = cmd.ExecuteReader();
+            WHERE review_id = :reviewId
+            """;
+        command.Parameters.Add(new OracleParameter("reviewId", reviewId));
+        using OracleDataReader reader = command.ExecuteReader();
         return reader.Read() ? MapReview(reader) : null;
     }
 
-    
-    // 根据报告ID获取所有评价（可用于查看某次报告的所有评价）
-    
-    public List<Review> GetReviewsByReportId(int reportId)
+    public Review? GetReviewByRecordId(int recordId)
     {
-        var list = new List<Review>();
-        using var conn = new OracleConnection(_connectionString);
-        conn.Open();
-
-        const string sql = @"
-            SELECT review_id, report_id, rating, anonymous_flag, comment_text, reviewed_at, credit_delta
+        using OracleConnection connection = connectionFactory.CreateConnection();
+        connection.Open();
+        using OracleCommand command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT review_id, record_id, rating, anonymous_flag, comment_text, reviewed_at, credit_delta
             FROM APPUSER.reviews
-            WHERE report_id = :reportId
-            ORDER BY reviewed_at DESC";
+            WHERE record_id = :recordId
+            """;
+        command.Parameters.Add(new OracleParameter("recordId", recordId));
+        using OracleDataReader reader = command.ExecuteReader();
+        return reader.Read() ? MapReview(reader) : null;
+    }
 
-        using var cmd = new OracleCommand(sql, conn);
-        cmd.Parameters.Add(new OracleParameter("reportId", reportId));
-
-        using var reader = cmd.ExecuteReader();
+    public IReadOnlyList<Review> GetAllReviews(int pageNumber, int pageSize)
+    {
+        List<Review> reviews = new();
+        using OracleConnection connection = connectionFactory.CreateConnection();
+        connection.Open();
+        using OracleCommand command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT review_id, record_id, rating, anonymous_flag, comment_text, reviewed_at, credit_delta
+            FROM APPUSER.reviews
+            ORDER BY reviewed_at DESC, review_id DESC
+            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
+            """;
+        command.Parameters.Add(new OracleParameter("offset", (pageNumber - 1) * pageSize));
+        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
+        using OracleDataReader reader = command.ExecuteReader();
         while (reader.Read())
         {
-            list.Add(MapReview(reader));
+            reviews.Add(MapReview(reader));
         }
-        return list;
+        return reviews;
     }
 
-   
-    // 获取所有评价
-
-    public List<Review> GetAllReviews(int pageNumber = 1, int pageSize = 20)
+    public int GetTotalCount()
     {
-        var list = new List<Review>();
-        var offset = (pageNumber - 1) * pageSize;
+        using OracleConnection connection = connectionFactory.CreateConnection();
+        connection.Open();
+        using OracleCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM APPUSER.reviews";
+        return Convert.ToInt32(command.ExecuteScalar());
+    }
 
-        using var conn = new OracleConnection(_connectionString);
-        conn.Open();
+    public bool CanReview(int recordId, int publisherUserId)
+    {
+        using OracleConnection connection = connectionFactory.CreateConnection();
+        connection.Open();
+        using OracleCommand command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM APPUSER.assign_records ar
+            JOIN APPUSER.tasks t ON t.task_id = ar.task_id
+            WHERE ar.record_id = :recordId
+              AND t.publisher_user_id = :publisherUserId
+              AND t.task_status = 'FINISHED'
+              AND NOT EXISTS (
+                  SELECT 1 FROM APPUSER.reviews r WHERE r.record_id = ar.record_id
+              )
+            """;
+        command.Parameters.Add(new OracleParameter("recordId", recordId));
+        command.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
+        return Convert.ToInt32(command.ExecuteScalar()) > 0;
+    }
 
-        string sql = @"
-            SELECT review_id, report_id, rating, anonymous_flag, comment_text, reviewed_at, credit_delta
-            FROM APPUSER.reviews
-            ORDER BY reviewed_at DESC
-            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY";
+    public bool InsertReview(Review review, int publisherUserId)
+    {
+        using OracleConnection connection = connectionFactory.CreateConnection();
+        connection.Open();
+        using OracleTransaction transaction = connection.BeginTransaction();
 
-        using var cmd = new OracleCommand(sql, conn);
-        cmd.Parameters.Add(new OracleParameter("offset", offset));
-        cmd.Parameters.Add(new OracleParameter("pageSize", pageSize));
-
-        using var reader = cmd.ExecuteReader();
-        while (reader.Read())
+        try
         {
-            list.Add(MapReview(reader));
+            using OracleCommand verify = connection.CreateCommand();
+            verify.Transaction = transaction;
+            verify.BindByName = true;
+            verify.CommandText = """
+                SELECT ar.runner_id
+                FROM APPUSER.assign_records ar
+                JOIN APPUSER.tasks t ON t.task_id = ar.task_id
+                WHERE ar.record_id = :recordId
+                  AND t.publisher_user_id = :publisherUserId
+                  AND t.task_status = 'FINISHED'
+                  AND NOT EXISTS (SELECT 1 FROM APPUSER.reviews r WHERE r.record_id = ar.record_id)
+                FOR UPDATE
+                """;
+            verify.Parameters.Add(new OracleParameter("recordId", review.RecordId));
+            verify.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
+            object? runnerId = verify.ExecuteScalar();
+            if (runnerId == null || runnerId == DBNull.Value)
+            {
+                transaction.Rollback();
+                return false;
+            }
+
+            review.CreditDelta = GetCreditDelta(review.Rating);
+            using OracleCommand insert = connection.CreateCommand();
+            insert.Transaction = transaction;
+            insert.BindByName = true;
+            insert.CommandText = """
+                INSERT INTO APPUSER.reviews
+                    (record_id, rating, anonymous_flag, comment_text, reviewed_at, credit_delta)
+                VALUES
+                    (:recordId, :rating, :anonymousFlag, :commentText, SYSDATE, :creditDelta)
+                """;
+            insert.Parameters.Add(new OracleParameter("recordId", review.RecordId));
+            insert.Parameters.Add(new OracleParameter("rating", review.Rating));
+            insert.Parameters.Add(new OracleParameter("anonymousFlag", review.AnonymousFlag));
+            insert.Parameters.Add(new OracleParameter("commentText", (object?)review.CommentText ?? DBNull.Value));
+            insert.Parameters.Add(new OracleParameter("creditDelta", review.CreditDelta));
+            insert.ExecuteNonQuery();
+
+            UpdateRunnerCredit(connection, transaction, Convert.ToInt32(runnerId), review.CreditDelta);
+            transaction.Commit();
+            return true;
         }
-        return list;
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
-
-    // 插入一条新评价
-
-    public bool InsertReview(Review review)
-    {
-        using var conn = new OracleConnection(_connectionString);
-        conn.Open();
-
-        const string sql = @"
-            INSERT INTO APPUSER.reviews 
-                (report_id, rating, anonymous_flag, comment_text, reviewed_at, credit_delta)
-            VALUES 
-                (:reportId, :rating, :anonymousFlag, :commentText, :reviewedAt, :creditDelta)";
-
-        using var cmd = new OracleCommand(sql, conn);
-        cmd.Parameters.Add(new OracleParameter("reportId", review.ReportID));
-        cmd.Parameters.Add(new OracleParameter("rating", review.Rating));
-        cmd.Parameters.Add(new OracleParameter("anonymousFlag", review.Anonymous_flag));
-        cmd.Parameters.Add(new OracleParameter("commentText", review.Comment_text ?? (object)DBNull.Value));
-        cmd.Parameters.Add(new OracleParameter("reviewedAt", review.Reviewed_at));
-        cmd.Parameters.Add(new OracleParameter("creditDelta", review.Credit_delta));
-
-        return cmd.ExecuteNonQuery() > 0;
-    }
-
-
-    // 更新评价内容（例如修改评价文字或评分，但不修改创建时间）
 
     public bool UpdateReview(Review review)
     {
-        using var conn = new OracleConnection(_connectionString);
-        conn.Open();
+        using OracleConnection connection = connectionFactory.CreateConnection();
+        connection.Open();
+        using OracleTransaction transaction = connection.BeginTransaction();
 
-        const string sql = @"
-            UPDATE APPUSER.reviews
-            SET rating = :rating,
-                anonymous_flag = :anonymousFlag,
-                comment_text = :commentText,
-                credit_delta = :creditDelta
-            WHERE review_id = :reviewId";
+        try
+        {
+            using OracleCommand current = connection.CreateCommand();
+            current.Transaction = transaction;
+            current.BindByName = true;
+            current.CommandText = """
+                SELECT r.credit_delta, ar.runner_id
+                FROM APPUSER.reviews r
+                JOIN APPUSER.assign_records ar ON ar.record_id = r.record_id
+                WHERE r.review_id = :reviewId
+                FOR UPDATE
+                """;
+            current.Parameters.Add(new OracleParameter("reviewId", review.ReviewId));
+            using OracleDataReader reader = current.ExecuteReader();
+            if (!reader.Read())
+            {
+                transaction.Rollback();
+                return false;
+            }
+            int oldDelta = Convert.ToInt32(reader["credit_delta"]);
+            int runnerId = Convert.ToInt32(reader["runner_id"]);
+            reader.Close();
 
-        using var cmd = new OracleCommand(sql, conn);
-        cmd.Parameters.Add(new OracleParameter("rating", review.Rating));
-        cmd.Parameters.Add(new OracleParameter("anonymousFlag", review.Anonymous_flag));
-        cmd.Parameters.Add(new OracleParameter("commentText", review.Comment_text ?? (object)DBNull.Value));
-        cmd.Parameters.Add(new OracleParameter("creditDelta", review.Credit_delta));
-        cmd.Parameters.Add(new OracleParameter("reviewId", review.ReviewID));
+            review.CreditDelta = GetCreditDelta(review.Rating);
+            using OracleCommand update = connection.CreateCommand();
+            update.Transaction = transaction;
+            update.BindByName = true;
+            update.CommandText = """
+                UPDATE APPUSER.reviews
+                SET rating = :rating,
+                    anonymous_flag = :anonymousFlag,
+                    comment_text = :commentText,
+                    credit_delta = :creditDelta
+                WHERE review_id = :reviewId
+                """;
+            update.Parameters.Add(new OracleParameter("rating", review.Rating));
+            update.Parameters.Add(new OracleParameter("anonymousFlag", review.AnonymousFlag));
+            update.Parameters.Add(new OracleParameter("commentText", (object?)review.CommentText ?? DBNull.Value));
+            update.Parameters.Add(new OracleParameter("creditDelta", review.CreditDelta));
+            update.Parameters.Add(new OracleParameter("reviewId", review.ReviewId));
+            update.ExecuteNonQuery();
 
-        return cmd.ExecuteNonQuery() > 0;
+            UpdateRunnerCredit(connection, transaction, runnerId, review.CreditDelta - oldDelta);
+            transaction.Commit();
+            return true;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
-
-    // 删除评价
 
     public bool DeleteReview(int reviewId)
     {
-        using var conn = new OracleConnection(_connectionString);
-        conn.Open();
+        using OracleConnection connection = connectionFactory.CreateConnection();
+        connection.Open();
+        using OracleTransaction transaction = connection.BeginTransaction();
 
-        const string sql = "DELETE FROM APPUSER.reviews WHERE review_id = :reviewId";
-
-        using var cmd = new OracleCommand(sql, conn);
-        cmd.Parameters.Add(new OracleParameter("reviewId", reviewId));
-
-        return cmd.ExecuteNonQuery() > 0;
-    }
-
-    // 获取评价总数
-    public int GetTotalCount()
-    {
-        using var conn = new OracleConnection(_connectionString);
-        conn.Open();
-
-        const string sql = "SELECT COUNT(*) FROM APPUSER.reviews";
-
-        using var cmd = new OracleCommand(sql, conn);
-        return Convert.ToInt32(cmd.ExecuteScalar());
-    }
-
-    // 私有映射方法 
-    private static Review MapReview(OracleDataReader reader)
-    {
-        return new Review
+        try
         {
-            ReviewID = Convert.ToInt32(reader["review_id"]),
-            ReportID = reader["report_id"] == DBNull.Value ? null : Convert.ToInt32(reader["report_id"]),
-            Rating = reader["rating"] == DBNull.Value ? null : Convert.ToInt32(reader["rating"]),
-            Anonymous_flag = Convert.ToChar(reader["anonymous_flag"]),
-            Comment_text = reader["comment_text"]?.ToString(),
-            Reviewed_at = Convert.ToDateTime(reader["reviewed_at"]),
-            Credit_delta = Convert.ToInt32(reader["credit_delta"])
-        };
+            using OracleCommand current = connection.CreateCommand();
+            current.Transaction = transaction;
+            current.BindByName = true;
+            current.CommandText = """
+                SELECT r.credit_delta, ar.runner_id
+                FROM APPUSER.reviews r
+                JOIN APPUSER.assign_records ar ON ar.record_id = r.record_id
+                WHERE r.review_id = :reviewId
+                FOR UPDATE
+                """;
+            current.Parameters.Add(new OracleParameter("reviewId", reviewId));
+            using OracleDataReader reader = current.ExecuteReader();
+            if (!reader.Read())
+            {
+                transaction.Rollback();
+                return false;
+            }
+            int creditDelta = Convert.ToInt32(reader["credit_delta"]);
+            int runnerId = Convert.ToInt32(reader["runner_id"]);
+            reader.Close();
+
+            using OracleCommand delete = connection.CreateCommand();
+            delete.Transaction = transaction;
+            delete.BindByName = true;
+            delete.CommandText = "DELETE FROM APPUSER.reviews WHERE review_id = :reviewId";
+            delete.Parameters.Add(new OracleParameter("reviewId", reviewId));
+            delete.ExecuteNonQuery();
+
+            UpdateRunnerCredit(connection, transaction, runnerId, -creditDelta);
+            transaction.Commit();
+            return true;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
+
+    private static void UpdateRunnerCredit(
+        OracleConnection connection,
+        OracleTransaction transaction,
+        int runnerId,
+        int delta)
+    {
+        using OracleCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.BindByName = true;
+        command.CommandText = """
+            UPDATE APPUSER.runners
+            SET credit_score = GREATEST(0, credit_score + :delta)
+            WHERE runner_id = :runnerId
+            """;
+        command.Parameters.Add(new OracleParameter("delta", delta));
+        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
+        command.ExecuteNonQuery();
+    }
+
+    private static int GetCreditDelta(int rating) => rating switch
+    {
+        1 => -10,
+        2 => -5,
+        3 => 0,
+        4 => 3,
+        5 => 5,
+        _ => 0
+    };
+
+    private static Review MapReview(OracleDataReader reader) => new()
+    {
+        ReviewId = Convert.ToInt32(reader["review_id"]),
+        RecordId = Convert.ToInt32(reader["record_id"]),
+        Rating = Convert.ToInt32(reader["rating"]),
+        AnonymousFlag = Convert.ToString(reader["anonymous_flag"]) ?? "N",
+        CommentText = reader["comment_text"] == DBNull.Value ? null : Convert.ToString(reader["comment_text"]),
+        ReviewedAt = Convert.ToDateTime(reader["reviewed_at"]),
+        CreditDelta = Convert.ToInt32(reader["credit_delta"])
+    };
 }

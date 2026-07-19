@@ -22,6 +22,12 @@
                 {
                     <a asp-controller="Task" asp-action="Create">发布任务</a>
                     <a asp-controller="Task" asp-action="Index">我的任务</a>
+                    <a asp-controller="Task" asp-action="Receipt">确认收货</a>
+                    @if (User.IsInRole("RUNNER"))
+                    {
+                        <a asp-controller="Task" asp-action="Hall">任务大厅</a>
+                        <a asp-controller="Task" asp-action="MyTasks">配送工作台</a>
+                    }
                 }
                 else
                 {
@@ -50,6 +56,7 @@
                             <a asp-controller="Account" asp-action="Index">账号管理</a>
                             <a asp-controller="Runner" asp-action="Index">跑腿员资料</a>
                             <a asp-controller="Runner" asp-action="Pending">跑腿员审核</a>
+                            <a asp-controller="Review" asp-action="All">评价管理</a>
                             <span class="nav-menu-label">系统</span>
                             <a asp-controller="Database" asp-action="Status">系统检测</a>
                         </div>

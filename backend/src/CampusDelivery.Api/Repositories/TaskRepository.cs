@@ -5,7 +5,7 @@ using Oracle.ManagedDataAccess.Types;
 
 namespace CampusDelivery.Api.Repositories
 {
-    public sealed class TaskRepository
+    public sealed partial class TaskRepository
     {
         private readonly OracleConnectionFactory _connectionFactory;
 
@@ -56,6 +56,7 @@ namespace CampusDelivery.Api.Repositories
 
         public async Task<IReadOnlyList<TaskRecord>> GetListAsync(
             int currentUserId,
+            bool includeAll,
             CancellationToken cancellationToken = default)
         {
             List<TaskRecord> tasks = new List<TaskRecord>();
@@ -67,6 +68,7 @@ namespace CampusDelivery.Api.Repositories
             command.BindByName = true;
             command.CommandText = $"""
                 SELECT t.task_id,
+                       u.username,
                        st.service_name,
                        ua.contact_name,
                        ua.contact_phone,
@@ -103,10 +105,11 @@ namespace CampusDelivery.Api.Repositories
                 LEFT JOIN private_task_details p
                   ON p.task_id = t.task_id
                  AND p.detail_no = 1
-                WHERE t.publisher_user_id = :currentUserId
+                WHERE (:includeAll = 1 OR t.publisher_user_id = :currentUserId)
                 ORDER BY t.created_at DESC, t.task_id DESC
                 """;
             command.Parameters.Add(new OracleParameter("currentUserId", currentUserId));
+            command.Parameters.Add(new OracleParameter("includeAll", includeAll ? 1 : 0));
 
             await using OracleDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
@@ -114,6 +117,7 @@ namespace CampusDelivery.Api.Repositories
                 tasks.Add(new TaskRecord
                 {
                     TaskId = Convert.ToInt32(reader["task_id"]),
+                    PublisherUsername = Convert.ToString(reader["username"]) ?? string.Empty,
                     ServiceName = Convert.ToString(reader["service_name"]) ?? string.Empty,
                     ContactName = Convert.ToString(reader["contact_name"]) ?? string.Empty,
                     ContactPhone = Convert.ToString(reader["contact_phone"]) ?? string.Empty,
@@ -163,6 +167,94 @@ namespace CampusDelivery.Api.Repositories
             }
 
             return TaskCancelResult.NotFound;
+        }
+
+        public async Task<TaskDetailsRecord?> GetDetailsAsync(
+            int taskId,
+            int currentUserId,
+            bool includeAll,
+            CancellationToken cancellationToken = default)
+        {
+            await using OracleConnection connection = _connectionFactory.CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.CommandText = """
+                SELECT t.task_id, u.username, st.service_name, ua.contact_name, ua.contact_phone,
+                       ua.campus, ua.building_room, n.node_name, t.task_title, t.task_price,
+                       t.urgent_flag, t.task_status, t.created_at,
+                       CASE WHEN f.task_id IS NOT NULL THEN 'FOOD'
+                            WHEN e.task_id IS NOT NULL THEN 'EXPRESS'
+                            WHEN p.task_id IS NOT NULL THEN 'PRIVATE'
+                            ELSE 'UNKNOWN' END AS task_kind,
+                       f.merchant_name, f.platform_order_no, f.pickup_note AS food_pickup_note,
+                       e.express_company, e.waybill_no, e.pickup_code, e.pickup_note AS express_pickup_note,
+                       p.item_category, p.pickup_location, p.delivery_location,
+                       p.expected_finish_at, p.description AS private_description,
+                       ar.record_id
+                FROM tasks t
+                JOIN users u ON u.user_id = t.publisher_user_id
+                JOIN service_types st ON st.service_type_id = t.service_type_id
+                JOIN user_addresses ua ON ua.user_id = t.publisher_user_id AND ua.address_no = t.address_no
+                JOIN nodes n ON n.node_id = t.node_id
+                LEFT JOIN food_delivery_details f ON f.task_id = t.task_id AND f.detail_no = 1
+                LEFT JOIN express_pickup_details e ON e.task_id = t.task_id AND e.detail_no = 1
+                LEFT JOIN private_task_details p ON p.task_id = t.task_id AND p.detail_no = 1
+                LEFT JOIN (
+                    SELECT record_id, task_id,
+                           ROW_NUMBER() OVER (PARTITION BY task_id ORDER BY assigned_at DESC, record_id DESC) AS rn
+                    FROM assign_records
+                ) ar ON ar.task_id = t.task_id AND ar.rn = 1
+                WHERE t.task_id = :taskId
+                  AND (:includeAll = 1 OR t.publisher_user_id = :currentUserId)
+                """;
+            command.Parameters.Add(new OracleParameter("taskId", taskId));
+            command.Parameters.Add(new OracleParameter("includeAll", includeAll ? 1 : 0));
+            command.Parameters.Add(new OracleParameter("currentUserId", currentUserId));
+
+            await using OracleDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                return null;
+            }
+
+            string? Optional(string name) => reader[name] == DBNull.Value ? null : Convert.ToString(reader[name]);
+            return new TaskDetailsRecord
+            {
+                RecordId = reader["record_id"] == DBNull.Value ? null : Convert.ToInt32(reader["record_id"]),
+                Task = new TaskRecord
+                {
+                    TaskId = Convert.ToInt32(reader["task_id"]),
+                    PublisherUsername = Convert.ToString(reader["username"]) ?? string.Empty,
+                    ServiceName = Convert.ToString(reader["service_name"]) ?? string.Empty,
+                    ContactName = Convert.ToString(reader["contact_name"]) ?? string.Empty,
+                    ContactPhone = Convert.ToString(reader["contact_phone"]) ?? string.Empty,
+                    Campus = Convert.ToString(reader["campus"]) ?? string.Empty,
+                    BuildingRoom = Convert.ToString(reader["building_room"]) ?? string.Empty,
+                    NodeName = Convert.ToString(reader["node_name"]) ?? string.Empty,
+                    TaskTitle = Convert.ToString(reader["task_title"]) ?? string.Empty,
+                    TaskPrice = Convert.ToDecimal(reader["task_price"]),
+                    UrgentFlag = Convert.ToString(reader["urgent_flag"]) ?? "N",
+                    TaskStatus = Convert.ToString(reader["task_status"]) ?? "WAITING",
+                    CreatedAt = Convert.ToDateTime(reader["created_at"]),
+                    TaskKind = Convert.ToString(reader["task_kind"]) ?? "UNKNOWN"
+                },
+                MerchantName = Optional("merchant_name"),
+                PlatformOrderNo = Optional("platform_order_no"),
+                FoodPickupNote = Optional("food_pickup_note"),
+                ExpressCompany = Optional("express_company"),
+                WaybillNo = Optional("waybill_no"),
+                PickupCode = Optional("pickup_code"),
+                ExpressPickupNote = Optional("express_pickup_note"),
+                ItemCategory = Optional("item_category"),
+                PickupLocation = Optional("pickup_location"),
+                DeliveryLocation = Optional("delivery_location"),
+                ExpectedFinishAt = reader["expected_finish_at"] == DBNull.Value
+                    ? null
+                    : Convert.ToDateTime(reader["expected_finish_at"]),
+                PrivateDescription = Optional("private_description")
+            };
         }
 
         private async Task<bool> ExistsAsync(

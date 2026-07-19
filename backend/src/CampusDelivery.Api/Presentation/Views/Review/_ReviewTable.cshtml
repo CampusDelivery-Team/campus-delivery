@@ -1,0 +1,54 @@
+@model IReadOnlyList<ReviewListItemViewModel>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>评价编号</th>
+                <th>接派记录</th>
+                <th>评分</th>
+                <th>发布方式</th>
+                <th>评价内容</th>
+                <th>信誉变化</th>
+                <th>评价时间</th>
+                @if (User.IsInRole("ADMIN"))
+                {
+                    <th>操作</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="@(User.IsInRole("ADMIN") ? 8 : 7)" class="empty">暂无评价记录</td></tr>
+            }
+            else
+            {
+                @foreach (var review in Model)
+                {
+                    <tr>
+                        <td>#@review.ReviewId</td>
+                        <td>#@review.RecordId</td>
+                        <td>@review.RatingDisplayName</td>
+                        <td>@review.AnonymousDisplayName</td>
+                        <td>@(string.IsNullOrWhiteSpace(review.CommentText) ? "未填写文字评价" : review.CommentText)</td>
+                        <td>@(review.CreditDelta >= 0 ? $"+{review.CreditDelta}" : review.CreditDelta.ToString())</td>
+                        <td>@review.ReviewedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        @if (User.IsInRole("ADMIN"))
+                        {
+                            <td>
+                                <div class="service-type-row-actions">
+                                    <a asp-action="Edit" asp-route-id="@review.ReviewId">编辑</a>
+                                    <form asp-action="Delete" asp-route-id="@review.ReviewId" method="post" onsubmit="return confirm('确定删除这条评价吗？信誉分变化会同步撤销。');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="link-button danger-action">删除</button>
+                                    </form>
+                                </div>
+                            </td>
+                        }
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
