@@ -219,9 +219,13 @@ namespace CampusDelivery.Api.Controllers
                 currentUserId.Value,
                 cancellationToken);
 
-            TempData[success ? "SuccessMessage" : "ErrorMessage"] = success
-                ? "已确认收货，任务将等待后续支付处理。"
-                : "确认收货失败，请确认任务状态和发布人身份。";
+            if (success)
+            {
+                TempData["SuccessMessage"] = "已确认收货，请立即完成收货后支付。";
+                return RedirectToAction("Confirm", "Payment", new { taskId });
+            }
+
+            TempData["ErrorMessage"] = "确认收货失败，请确认任务状态和发布人身份。";
             return RedirectToAction(nameof(Receipt));
         }
 

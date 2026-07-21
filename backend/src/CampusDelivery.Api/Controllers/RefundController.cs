@@ -1,0 +1,131 @@
+using System.Security.Claims;
+using CampusDelivery.Api.Presentation.ViewModels;
+using CampusDelivery.Api.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace CampusDelivery.Api.Controllers;
+
+[Authorize]
+public sealed class RefundController : Controller
+{
+    private readonly RefundService _refundService;
+
+    public RefundController(RefundService refundService)
+    {
+        _refundService = refundService;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Create(int taskId, CancellationToken cancellationToken)
+    {
+        int? currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        RefundCreateViewModel? model = await _refundService.BuildCreateModelAsync(taskId, currentUserId.Value, cancellationToken);
+        return model == null ? NotFound() : View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(RefundCreateViewModel model, CancellationToken cancellationToken)
+    {
+        int? currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            RefundCreateViewModel? rebuild = await _refundService.BuildCreateModelAsync(model.TaskId, currentUserId.Value, cancellationToken);
+            if (rebuild != null)
+            {
+                model.TaskTitle = rebuild.TaskTitle;
+                model.RefundAmount = rebuild.RefundAmount;
+                model.PayStatusDisplayName = rebuild.PayStatusDisplayName;
+                model.RecordId = rebuild.RecordId;
+                model.PaymentId = rebuild.PaymentId;
+            }
+
+            return View(model);
+        }
+
+        RefundOperationResult result = await _refundService.SubmitAsync(model, currentUserId.Value, cancellationToken);
+        if (!result.Success)
+        {
+            ModelState.AddModelError(string.Empty, result.ErrorMessage);
+            RefundCreateViewModel? rebuild = await _refundService.BuildCreateModelAsync(model.TaskId, currentUserId.Value, cancellationToken);
+            if (rebuild != null)
+            {
+                model.TaskTitle = rebuild.TaskTitle;
+                model.RefundAmount = rebuild.RefundAmount;
+                model.PayStatusDisplayName = rebuild.PayStatusDisplayName;
+                model.RecordId = rebuild.RecordId;
+                model.PaymentId = rebuild.PaymentId;
+            }
+
+            return View(model);
+        }
+
+        TempData["SuccessMessage"] = "退款申请已提交，请等待管理员审核。";
+        return RedirectToAction("Status", "Payment", new { taskId = model.TaskId });
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpGet]
+    public async Task<IActionResult> AdminIndex(int page = 1, int pageSize = 10, CancellationToken cancellationToken = default)
+    {
+        RefundAdminListViewModel model = await _refundService.GetAdminListAsync(page, pageSize, cancellationToken);
+        return View(model);
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpGet]
+    public async Task<IActionResult> Review(int refundId, CancellationToken cancellationToken)
+    {
+        RefundReviewViewModel? model = await _refundService.GetReviewModelAsync(refundId, cancellationToken);
+        return model == null ? NotFound() : View(model);
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Review(RefundReviewViewModel model, CancellationToken cancellationToken)
+    {
+        int? currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        RefundOperationResult result = await _refundService.ReviewAsync(
+            model.RefundId,
+            model.Decision,
+            model.ReviewReason,
+            currentUserId.Value,
+            cancellationToken);
+        if (!result.Success)
+        {
+            ModelState.AddModelError(string.Empty, result.ErrorMessage);
+            return View(model);
+        }
+
+        TempData["SuccessMessage"] = model.Decision == "APPROVED" ? "退款已通过，支付状态已更新为已退款。" : "退款已拒绝。";
+        return RedirectToAction(nameof(AdminIndex));
+    }
+
+    private int? GetCurrentUserId()
+    {
+        string? value = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(value, out int userId) ? userId : null;
+    }
+}

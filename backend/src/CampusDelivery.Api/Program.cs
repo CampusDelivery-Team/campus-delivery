@@ -49,6 +49,12 @@ builder.Services.AddScoped<TaskService>();
 builder.Services.AddScoped<TaskRepository>();
 builder.Services.AddScoped<AssignService>();
 
+// 支付与退款模块
+builder.Services.AddScoped<PaymentRepository>();
+builder.Services.AddScoped<RefundRepository>();
+builder.Services.AddScoped<PaymentService>();
+builder.Services.AddScoped<RefundService>();
+
 // 评价模块
 builder.Services.AddScoped<ReviewsRepository>();
 builder.Services.AddScoped<ReviewService>();

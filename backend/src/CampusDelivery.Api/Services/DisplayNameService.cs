@@ -84,6 +84,40 @@ public static class DisplayNameService
         };
     }
 
+    public static string GetPayMethodName(string value)
+    {
+        return value switch
+        {
+            "WECHAT" => "微信",
+            "ALIPAY" => "支付宝",
+            "CASH" => "现金",
+            _ => value
+        };
+    }
+
+    public static string GetPayStatusName(string value)
+    {
+        return value switch
+        {
+            "UNPAID" => "待付款",
+            "PAID" => "已支付",
+            "FAILED" => "支付异常",
+            "REFUNDED" => "已退款",
+            _ => value
+        };
+    }
+
+    public static string GetRefundStatusName(string value)
+    {
+        return value switch
+        {
+            "PENDING" => "待审核",
+            "APPROVED" => "已通过",
+            "REJECTED" => "已拒绝",
+            _ => value
+        };
+    }
+
     public static string GetUrgentFlagName(string value)
     {
         return value switch

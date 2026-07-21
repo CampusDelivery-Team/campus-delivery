@@ -23,11 +23,13 @@
                     <a asp-controller="Task" asp-action="Create">发布任务</a>
                     <a asp-controller="Task" asp-action="Index">我的任务</a>
                     <a asp-controller="Task" asp-action="Receipt">确认收货</a>
+                    <a asp-controller="Payment" asp-action="Status">支付状态</a>
                     @if (User.IsInRole("RUNNER"))
                     {
                         <a asp-controller="Task" asp-action="Hall">任务大厅</a>
                         <a asp-controller="Task" asp-action="MyTasks">配送工作台</a>
                     }
+                    <a asp-controller="Runner" asp-action="Apply">跑腿员资格</a>
                 }
                 else
                 {
@@ -36,11 +38,6 @@
 
                 <a asp-controller="User" asp-action="Profile">个人中心</a>
 
-                @if (!User.IsInRole("ADMIN"))
-                {
-                    <a asp-controller="Runner" asp-action="Apply">跑腿员资格</a>
-                }
-
                 @if (User.IsInRole("ADMIN"))
                 {
                     <details class="nav-menu">
@@ -48,6 +45,8 @@
                         <div class="nav-menu-panel">
                             <span class="nav-menu-label">任务调度</span>
                             <a asp-controller="Task" asp-action="AdminConsole">指派控制台</a>
+                            <span class="nav-menu-label">售后资金</span>
+                            <a asp-controller="Refund" asp-action="AdminIndex">退款管理</a>
                             <span class="nav-menu-label">基础资料</span>
                             <a asp-controller="Node" asp-action="Index">节点管理</a>
                             <a asp-controller="ServiceType" asp-action="Index">服务类型</a>

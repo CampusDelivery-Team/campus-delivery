@@ -1,0 +1,54 @@
+@model PaymentConfirmViewModel
+
+@{
+    ViewData["Title"] = "收货后支付确认";
+}
+
+<section class="application-shell">
+    <header class="application-heading">
+        <p class="eyebrow">收货后支付</p>
+        <h1>确认支付任务 #@Model.TaskId</h1>
+        <p>@Model.TaskTitle · @Model.TaskStatusDisplayName</p>
+    </header>
+
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="inline-notice success">@success</div>
+    }
+    <form asp-action="Confirm" method="post" class="application-form">
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+        <input type="hidden" asp-for="TaskId" />
+        <input type="hidden" asp-for="RecordId" />
+        <div class="profile-info-grid">
+            <div><span>任务金额</span><strong>¥@Model.TaskAmount.ToString("F2")</strong></div>
+            <div><span>接派记录</span><strong>#@Model.RecordId</strong></div>
+            <div><span>收货确认</span><strong>@(Model.ReceiptConfirmed ? "已确认" : "未确认")</strong></div>
+        </div>
+
+        <div class="application-field">
+            <label asp-for="PayMethod"></label>
+            <select asp-for="PayMethod">
+                <option value="WECHAT">微信</option>
+                <option value="ALIPAY">支付宝</option>
+                <option value="CASH">现金</option>
+            </select>
+            <span asp-validation-for="PayMethod" class="validation-message"></span>
+        </div>
+
+        <div class="application-field">
+            <label asp-for="ThirdTradeNo"></label>
+            <input asp-for="ThirdTradeNo" placeholder="线上支付可填写第三方流水号，现金可留空" />
+            <span asp-validation-for="ThirdTradeNo" class="validation-message"></span>
+        </div>
+
+        <div class="application-actions">
+            <button type="submit" class="button primary" disabled="@(Model.CanSubmitPayment ? null : "disabled")">确认支付</button>
+            <a class="button" asp-action="Status" asp-route-taskId="@Model.TaskId">返回支付状态</a>
+        </div>
+    </form>
+
+    @if (!Model.CanSubmitPayment)
+    {
+        <div class="inline-notice error" style="margin-top: 1rem;">当前任务暂不满足收货后支付条件，请先确认收货或检查任务状态。</div>
+    }
+</section>
