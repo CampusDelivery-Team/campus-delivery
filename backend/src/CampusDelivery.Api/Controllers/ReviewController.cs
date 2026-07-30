@@ -1,131 +1,93 @@
-using CampusDelivery.Api.Models;
+﻿using CampusDelivery.Api.Presentation.ViewModels;
 using CampusDelivery.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System;
+using System.Security.Claims;
 
 namespace CampusDelivery.Api.Controllers;
 
-[Authorize]  
-public class ReviewController : Controller
+[Authorize]
+public sealed class ReviewController(ReviewService reviewService) : Controller
 {
-    private readonly ReviewService _reviewService;
+    private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
-    public ReviewController(ReviewService reviewService)
-    {
-        _reviewService = reviewService;
-    }
-
-    //普通用户操作
-
-    // 查看某个报告的所有评价
     [HttpGet]
-    public IActionResult Index(int reportId)
+    public async Task<IActionResult> Index(int taskId, CancellationToken cancellationToken)
     {
-        var reviews = _reviewService.GetReviewsByReportId(reportId);
-        return View(reviews);
+        var reviews = await reviewService.GetByTaskIdAsync(taskId, cancellationToken);
+        var items = reviews.Select(ReviewListItemViewModel.FromModel).ToList();
+        ViewBag.TaskId = taskId;
+        return View(items);
     }
 
-    //显示添加评价页面
     [HttpGet]
-    public IActionResult Create(int reportId)
+    public IActionResult Create(int recordId)
     {
-        var model = new Review
-        {
-            ReportID = reportId,
-            Reviewed_at = DateTime.Now
-        };
-        return View(model);
+        return View(new ReviewCreateViewModel { RecordId = recordId });
     }
 
-    // 提交添加评价
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Create(Review review)
+    public async Task<IActionResult> Create(ReviewCreateViewModel model, CancellationToken cancellationToken)
     {
-        if (!ModelState.IsValid)
-        {
-            return View(review);
-        }
-
-        var (success, error) = _reviewService.AddReview(review);
-        if (success)
-        {
-            TempData["SuccessMessage"] = "评价提交成功";
-            return RedirectToAction(nameof(Index), new { reportId = review.ReportID });
-        }
-
-        ModelState.AddModelError(string.Empty, error);
-        return View(review);
+        if (!ModelState.IsValid) return View(model);
+        var (success, message) = await reviewService.CreateReviewAsync(
+            model.RecordId, model.Rating ?? 5, model.AnonymousFlag,
+            model.CommentText, model.CreditDelta, cancellationToken);
+        TempData[success ? "SuccessMessage" : "ErrorMessage"] = message;
+        return success ? RedirectToAction(nameof(MyReviews)) : View(model);
     }
 
-    //管理员专用操作
+    [HttpGet]
+    public async Task<IActionResult> MyReviews(int page = 1, int size = 10, CancellationToken cancellationToken = default)
+    {
+        var (items, total) = await reviewService.GetAllPagedAsync(page, size, cancellationToken);
+        var viewItems = items.Select(ReviewListItemViewModel.FromModel).ToList();
+        ViewBag.Total = total; ViewBag.Page = page; ViewBag.Size = size;
+        ViewBag.TotalPages = (int)Math.Ceiling((double)total / size);
+        return View(viewItems);
+    }
 
-    // 管理员查看所有评价（分页）
     [Authorize(Roles = "ADMIN")]
     [HttpGet]
-    public IActionResult All(int page = 1, int size = 20)
+    public async Task<IActionResult> All(int page = 1, int size = 20, CancellationToken cancellationToken = default)
     {
-        var reviews = _reviewService.GetAllReviews(page, size);
-        var total = _reviewService.GetTotalCount();
-
-        ViewBag.Total = total;
-        ViewBag.Page = page;
-        ViewBag.Size = size;
-        return View(reviews);
+        var (items, total) = await reviewService.GetAllPagedAsync(page, size, cancellationToken);
+        var viewItems = items.Select(ReviewListItemViewModel.FromModel).ToList();
+        ViewBag.Total = total; ViewBag.Page = page; ViewBag.Size = size;
+        ViewBag.TotalPages = (int)Math.Ceiling((double)total / size);
+        return View(viewItems);
     }
 
-    // 管理员删除评价
+    [Authorize(Roles = "ADMIN")]
+    [HttpGet]
+    public async Task<IActionResult> Edit(int id, CancellationToken cancellationToken)
+    {
+        var review = await reviewService.GetByIdAsync(id, cancellationToken);
+        if (review == null) return NotFound();
+        return View(ReviewEditViewModel.FromModel(review));
+    }
+
     [Authorize(Roles = "ADMIN")]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Delete(int id)
+    public async Task<IActionResult> Edit(ReviewEditViewModel model, CancellationToken cancellationToken)
     {
-        var (success, error) = _reviewService.DeleteReview(id);
-        if (success)
-        {
-            TempData["SuccessMessage"] = "评价已删除";
-        }
-        else
-        {
-            TempData["ErrorMessage"] = error;
-        }
+        if (!ModelState.IsValid) return View(model);
+        var (success, message) = await reviewService.UpdateReviewAsync(
+            model.ReviewId, model.Rating ?? 5, model.AnonymousFlag,
+            model.CommentText, model.CreditDelta, cancellationToken);
+        TempData[success ? "SuccessMessage" : "ErrorMessage"] = message;
+        return success ? RedirectToAction(nameof(All)) : View(model);
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var (success, message) = await reviewService.DeleteReviewAsync(id, cancellationToken);
+        TempData[success ? "SuccessMessage" : "ErrorMessage"] = message;
         return RedirectToAction(nameof(All));
-    }
-
-    // 管理员编辑评价页面
-    [Authorize(Roles = "ADMIN")]
-    [HttpGet]
-    public IActionResult Edit(int id)
-    {
-        var review = _reviewService.GetReviewById(id);
-        if (review == null)
-        {
-            return NotFound();
-        }
-        return View(review);
-    }
-
-    // 提交编辑评价
-
-    [Authorize(Roles = "ADMIN")]
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public IActionResult Edit(Review review)
-    {
-        if (!ModelState.IsValid)
-        {
-            return View(review);
-        }
-
-        var (success, error) = _reviewService.UpdateReview(review);
-        if (success)
-        {
-            TempData["SuccessMessage"] = "评价已更新";
-            return RedirectToAction(nameof(All));
-        }
-
-        ModelState.AddModelError(string.Empty, error);
-        return View(review);
     }
 }

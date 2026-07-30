@@ -94,4 +94,15 @@ public static class DisplayNameService
             _ => value
         };
     }
+
+    public static string GetComplaintStatusName(string value)
+    {
+        return value switch
+        {
+            "SUBMITTED" => "待处理",
+            "PROCESSING" => "处理中",
+            "DONE" => "已处理",
+            _ => value
+        };
+    }
 }

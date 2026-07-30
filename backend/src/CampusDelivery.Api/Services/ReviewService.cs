@@ -1,95 +1,125 @@
-using CampusDelivery.Api.Models;
+﻿using CampusDelivery.Api.Models;
+using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Repositories;
-using System;
-using System.Collections.Generic;
+using Oracle.ManagedDataAccess.Client;
 
 namespace CampusDelivery.Api.Services;
 
-public sealed class ReviewService
+public sealed class ReviewService(
+    ReviewsRepository reviewsRepository,
+    OracleConnectionFactory connectionFactory)
 {
-    private readonly ReviewsRepository _reviewsRepository;
+    public async Task<Review?> GetByIdAsync(int reviewId, CancellationToken cancellationToken = default)
+        => await reviewsRepository.GetByIdAsync(reviewId, cancellationToken);
 
-    public ReviewService(ReviewsRepository reviewsRepository)
+    public async Task<IReadOnlyList<Review>> GetByTaskIdAsync(int taskId, CancellationToken cancellationToken = default)
+        => await reviewsRepository.GetByTaskIdAsync(taskId, cancellationToken);
+
+    public async Task<(IReadOnlyList<Review> Items, int TotalCount)> GetAllPagedAsync(
+        int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        _reviewsRepository = reviewsRepository;
+        page = Math.Max(1, page);
+        pageSize = pageSize is >= 1 and <= 50 ? pageSize : 20;
+        int total = await reviewsRepository.GetTotalCountAsync(cancellationToken);
+        int offset = (page - 1) * pageSize;
+        var items = await reviewsRepository.GetAllPagedAsync(offset, pageSize, cancellationToken);
+        return (items, total);
     }
 
-    // 根据评价ID获取单条评价
-    public Review? GetReviewById(int reviewId)
+    public async Task<(bool Success, string Message)> CreateReviewAsync(
+        int recordId, int rating, char anonymousFlag, string? commentText, int creditDelta,
+        CancellationToken cancellationToken = default)
     {
-        return _reviewsRepository.GetReviewById(reviewId);
-    }
-
-    // 根据报告ID获取该报告的所有评价（按时间倒序）
-    public List<Review> GetReviewsByReportId(int reportId)
-    {
-        return _reviewsRepository.GetReviewsByReportId(reportId);
-    }
-
-    // 分页获取所有评价（管理员用）
-    public List<Review> GetAllReviews(int pageNumber = 1, int pageSize = 20)
-    {
-        return _reviewsRepository.GetAllReviews(pageNumber, pageSize);
-    }
-
-    // 添加一条新评价（
-    public (bool Success, string ErrorMessage) AddReview(Review review)
-    {
-        // 业务规则：若未指定评价时间，则设为当前时间
-        if (review.Reviewed_at == default)
+        if (rating < 1 || rating > 5) return (false, "评分必须在1到5之间");
+        await using var conn = connectionFactory.CreateConnection();
+        await conn.OpenAsync(cancellationToken);
+        await using var tx = (OracleTransaction)(await conn.BeginTransactionAsync(cancellationToken));
+        try
         {
-            review.Reviewed_at = DateTime.Now;
+            var existing = await reviewsRepository.GetByRecordIdAsync(recordId, cancellationToken);
+            if (existing != null) { await tx.RollbackAsync(cancellationToken); return (false, "该接派记录已有评价"); }
+            var rv = new Review { RecordId = recordId, Rating = rating, AnonymousFlag = anonymousFlag, CommentText = commentText, ReviewedAt = DateTime.Now, CreditDelta = creditDelta };
+            if (!await reviewsRepository.InsertAsync(rv, conn, tx, cancellationToken))
+            { await tx.RollbackAsync(cancellationToken); return (false, "保存评价失败"); }
+            int? rid = await GetRunnerIdByRecordAsync(recordId, conn, tx, cancellationToken);
+            if (rid.HasValue && creditDelta != 0)
+                await UpdateRunnerCreditAsync(rid.Value, creditDelta, conn, tx, cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+            return (true, "评价提交成功");
         }
-
-        // 可添加其他业务校验，例如 Rating 必须在 1~5 之间等（根据实际需求）
-        if (review.Rating.HasValue && (review.Rating < 1 || review.Rating > 5))
-        {
-            return (false, "评分必须在 1 到 5 之间");
-        }
-
-        // 信用增量必须为整数，这里不做额外限制，由前端约束
-
-        bool inserted = _reviewsRepository.InsertReview(review);
-        return inserted ? (true, string.Empty) : (false, "保存评价失败，请稍后重试");
+        catch { await tx.RollbackAsync(cancellationToken); throw; }
     }
 
-    // 更新评价内容（仅允许修改评分、匿名标志、评论文本和信用增量）
-    public (bool Success, string ErrorMessage) UpdateReview(Review review)
+    public async Task<(bool Success, string Message)> UpdateReviewAsync(
+        int reviewId, int rating, char anonymousFlag, string? commentText, int creditDelta,
+        CancellationToken cancellationToken = default)
     {
-        // 检查评价是否存在
-        var existing = _reviewsRepository.GetReviewById(review.ReviewID);
-        if (existing == null)
+        if (rating < 1 || rating > 5) return (false, "评分必须在1到5之间");
+        await using var conn = connectionFactory.CreateConnection();
+        await conn.OpenAsync(cancellationToken);
+        await using var tx = (OracleTransaction)(await conn.BeginTransactionAsync(cancellationToken));
+        try
         {
-            return (false, "要修改的评价不存在");
+            var existing = await reviewsRepository.GetByIdAsync(reviewId, cancellationToken);
+            if (existing == null) { await tx.RollbackAsync(cancellationToken); return (false, "评价不存在"); }
+            int oldDelta = existing.CreditDelta;
+            existing.Rating = rating; existing.AnonymousFlag = anonymousFlag;
+            existing.CommentText = commentText; existing.CreditDelta = creditDelta;
+            if (!await reviewsRepository.UpdateAsync(existing, conn, tx, cancellationToken))
+            { await tx.RollbackAsync(cancellationToken); return (false, "更新评价失败"); }
+            int deltaChange = creditDelta - oldDelta;
+            if (deltaChange != 0)
+            {
+                int? rid = await GetRunnerIdByRecordAsync(existing.RecordId, conn, tx, cancellationToken);
+                if (rid.HasValue) await UpdateRunnerCreditAsync(rid.Value, deltaChange, conn, tx, cancellationToken);
+            }
+            await tx.CommitAsync(cancellationToken);
+            return (true, "评价更新成功");
         }
-
-        // 业务校验：评分范围
-        if (review.Rating.HasValue && (review.Rating < 1 || review.Rating > 5))
-        {
-            return (false, "评分必须在 1 到 5 之间");
-        }
-
-        bool updated = _reviewsRepository.UpdateReview(review);
-        return updated ? (true, string.Empty) : (false, "更新评价失败，请稍后重试");
+        catch { await tx.RollbackAsync(cancellationToken); throw; }
     }
 
-    //删除评论
-    public (bool Success, string ErrorMessage) DeleteReview(int reviewId)
+    public async Task<(bool Success, string Message)> DeleteReviewAsync(
+        int reviewId, CancellationToken cancellationToken = default)
     {
-        // 可选：先检查是否存在
-        var existing = _reviewsRepository.GetReviewById(reviewId);
-        if (existing == null)
+        await using var conn = connectionFactory.CreateConnection();
+        await conn.OpenAsync(cancellationToken);
+        await using var tx = (OracleTransaction)(await conn.BeginTransactionAsync(cancellationToken));
+        try
         {
-            return (false, "要删除的评价不存在");
+            var existing = await reviewsRepository.GetByIdAsync(reviewId, cancellationToken);
+            if (existing == null) { await tx.RollbackAsync(cancellationToken); return (false, "评价不存在"); }
+            if (existing.CreditDelta != 0)
+            {
+                int? rid = await GetRunnerIdByRecordAsync(existing.RecordId, conn, tx, cancellationToken);
+                if (rid.HasValue) await UpdateRunnerCreditAsync(rid.Value, -existing.CreditDelta, conn, tx, cancellationToken);
+            }
+            await reviewsRepository.DeleteAsync(reviewId, conn, tx, cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+            return (true, "评价已删除");
         }
-
-        bool deleted = _reviewsRepository.DeleteReview(reviewId);
-        return deleted ? (true, string.Empty) : (false, "删除评价失败，请稍后重试");
+        catch { await tx.RollbackAsync(cancellationToken); throw; }
     }
 
-    // 获取评价总数
-    public int GetTotalCount()
+    private static async Task<int?> GetRunnerIdByRecordAsync(
+        int recordId, OracleConnection conn, OracleTransaction tx, CancellationToken ct)
     {
-        return _reviewsRepository.GetTotalCount();
+        await using var cmd = conn.CreateCommand();
+        cmd.BindByName = true;
+        cmd.CommandText = "SELECT runner_id FROM APPUSER.assign_records WHERE record_id = :rid";
+        cmd.Parameters.Add(new OracleParameter("rid", recordId));
+        var obj = await cmd.ExecuteScalarAsync(ct);
+        return obj == null || obj == DBNull.Value ? null : Convert.ToInt32(obj);
+    }
+
+    private static async Task UpdateRunnerCreditAsync(
+        int runnerId, int delta, OracleConnection conn, OracleTransaction tx, CancellationToken ct)
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.BindByName = true;
+        cmd.CommandText = "UPDATE APPUSER.runners SET credit_score = GREATEST(0, credit_score + :delta) WHERE runner_id = :runnerId";
+        cmd.Parameters.Add(new OracleParameter("delta", delta));
+        cmd.Parameters.Add(new OracleParameter("runnerId", runnerId));
+        await cmd.ExecuteNonQueryAsync(ct);
     }
 }

@@ -48,9 +48,11 @@ builder.Services.AddScoped<AddressService>();
 builder.Services.AddScoped<TaskRepository>();
 builder.Services.AddScoped<AssignService>();
 
-// 评价模块
+// 评价投诉模块
 builder.Services.AddScoped<ReviewsRepository>();
 builder.Services.AddScoped<ReviewService>();
+builder.Services.AddScoped<ComplaintRepository>();
+builder.Services.AddScoped<ComplaintService>();
 
 // ===== Cookie 认证配置 =====
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

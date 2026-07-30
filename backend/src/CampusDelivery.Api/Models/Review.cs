@@ -1,16 +1,12 @@
-using System;
+﻿namespace CampusDelivery.Api.Models;
 
-namespace CampusDelivery.Api.Models;
-
-public class Review
+public sealed class Review
 {
-    public int ReviewID { get; set; }
-    public int? ReportID { get; set; }
-    public int? Rating { get; set; }
-    public char Anonymous_flag {  get; set; }
-
-    public string? Comment_text { get; set; }
-    public DateTime Reviewed_at { get; set; }
-    public int Credit_delta { get; set; }
+    public int ReviewId { get; set; }
+    public int RecordId { get; set; }
+    public int Rating { get; set; }
+    public char AnonymousFlag { get; set; } = 'N';
+    public string? CommentText { get; set; }
+    public DateTime ReviewedAt { get; set; }
+    public int CreditDelta { get; set; }
 }
-

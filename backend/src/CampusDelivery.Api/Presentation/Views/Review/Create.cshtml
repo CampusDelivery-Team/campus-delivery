@@ -14,7 +14,7 @@
     <form asp-action="Create" method="post" class="application-form">
         <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
 
-        <input type="hidden" asp-for="ReportId" />
+        <input type="hidden" asp-for="RecordId" />
 
         <div class="application-field">
             <label asp-for="Rating"></label>
@@ -53,7 +53,7 @@
 
         <div class="application-actions">
             <button type="submit" class="button primary">提交评价</button>
-            <a class="button" asp-action="Index" asp-route-reportId="@Model.ReportId">返回</a>
+            <a class="button" asp-action="Index" asp-route-recordId="@Model.RecordId">返回</a>
         </div>
     </form>
 </section>

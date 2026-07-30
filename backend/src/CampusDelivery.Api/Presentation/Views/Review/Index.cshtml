@@ -2,17 +2,17 @@
 
     @{
     ViewData["Title"] = "评价详情";
-    var reportId = Model.FirstOrDefault()?.ReportId ?? 0;
+    var recordId = Model.FirstOrDefault()?.RecordId ?? 0;
     }
 
     <section class="panel management-panel">
         <div class="section-header management-heading">
             <div>
                 <p class="eyebrow">用户反馈</p>
-                <h1>报告 #@reportId 的评价</h1>
+                <h1>报告 #@recordId 的评价</h1>
                 <p class="section-description">查看该报告收到的所有用户评价。</p>
             </div>
-            <a class="button primary" asp-action="Create" asp-route-reportId="@reportId">
+            <a class="button primary" asp-action="Create" asp-route-recordId="@recordId">
                 + 添加评价
             </a>
         </div>
