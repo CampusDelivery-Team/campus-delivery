@@ -1,0 +1,37 @@
+@model RefundCreateViewModel
+
+@{
+    ViewData["Title"] = "退款登记";
+}
+
+<section class="application-shell">
+    <header class="application-heading">
+        <p class="eyebrow">退款登记</p>
+        <h1>为任务 #@Model.TaskId 提交退款申请</h1>
+        <p>@Model.TaskTitle</p>
+    </header>
+
+    <form asp-action="Create" method="post" class="application-form">
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+        <input type="hidden" asp-for="PaymentId" />
+        <input type="hidden" asp-for="TaskId" />
+        <input type="hidden" asp-for="RecordId" />
+
+        <div class="profile-info-grid">
+            <div><span>支付编号</span><strong>#@Model.PaymentId</strong></div>
+            <div><span>退款金额</span><strong>¥@Model.RefundAmount.ToString("F2")</strong></div>
+            <div><span>支付状态</span><strong>@Model.PayStatusDisplayName</strong></div>
+        </div>
+
+        <div class="application-field">
+            <label asp-for="RefundReason"></label>
+            <textarea asp-for="RefundReason" rows="5" maxlength="300" placeholder="请说明退款原因"></textarea>
+            <span asp-validation-for="RefundReason" class="validation-message"></span>
+        </div>
+
+        <div class="application-actions">
+            <button type="submit" class="button primary">提交退款申请</button>
+            <a class="button" asp-controller="Payment" asp-action="Status" asp-route-taskId="@Model.TaskId">返回支付状态</a>
+        </div>
+    </form>
+</section>

@@ -1,49 +1,27 @@
-@model List<ReviewListItemViewModel>
+@model IReadOnlyList<ReviewListItemViewModel>
 
-    @{
-    ViewData["Title"] = "所有评价";
-    var page = ViewBag.Page ?? 1;
-    var size = ViewBag.Size ?? 20;
-    var total = ViewBag.Total ?? 0;
-    var totalPages = (int)Math.Ceiling((double)total / size);
-    }
+@{
+    ViewData["Title"] = "评价管理";
+    int page = ViewBag.Page ?? 1;
+    int pageSize = ViewBag.PageSize ?? 20;
+    int total = ViewBag.Total ?? 0;
+    int totalPages = Math.Max(1, (int)Math.Ceiling((double)total / pageSize));
+}
 
-    <section class="panel management-panel">
-        <div class="section-header management-heading">
-            <div>
-                <p class="eyebrow">管理后台</p>
-                <h1>所有评价</h1>
-                <p class="section-description">查看系统中全部评价，支持分页。</p>
-            </div>
-
-            <div>
-                <span>共 @total 条</span>
-            </div>
-        </div>
-
-        @if (TempData["SuccessMessage"] is string success)
+<section class="panel management-panel">
+    <div class="section-header management-heading">
+        <div><p class="eyebrow">评价管理</p><h1>全部评价</h1></div>
+        <span class="badge">共 @total 条</span>
+    </div>
+    @if (TempData["SuccessMessage"] is string success) { <div class="inline-notice success">@success</div> }
+    @if (TempData["ErrorMessage"] is string error) { <div class="inline-notice error">@error</div> }
+    <partial name="_ReviewTable" model="Model" />
+    @if (totalPages > 1)
     {
-        <div class="inline-notice success">@success</div>
+        <nav class="pagination">
+            <a asp-action="All" asp-route-page="@(page - 1)" asp-route-pageSize="@pageSize" class="@(page <= 1 ? "disabled" : "")">上一页</a>
+            <span>第 @(page) / @totalPages 页</span>
+            <a asp-action="All" asp-route-page="@(page + 1)" asp-route-pageSize="@pageSize" class="@(page >= totalPages ? "disabled" : "")">下一页</a>
+        </nav>
     }
-        @if (TempData["ErrorMessage"] is string error)
-    {
-        <div class="inline-notice error">@error</div>
-    }
-
-        <partial name="_ReviewTable" model="Model" />
-
-        <div class="pagination-wrap">
-            @if (totalPages > 1)
-        {
-            <div class="pagination">
-                <a asp-action="All" asp-route-page="@(page - 1)" asp-route-size="@size"
-                   class="@(page <= 1 ? "disabled" : "")">上一页</a>
-
-                <span>第 @(page) / @totalPages 页</span>
-
-                <a asp-action="All" asp-route-page="@(page + 1)" asp-route-size="@size"
-                   class="@(page >= totalPages ? "disabled" : "")">下一页</a>
-            </div>
-        }
-        </div>
-    </section>
+</section>

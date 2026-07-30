@@ -101,14 +101,14 @@
                 <span class="quick-entry__mark">01</span>
                 <span><strong>个人中心</strong><small>查看账户信息和常用收货地址</small></span>
             </a>
-            <a class="quick-entry" asp-controller="Runner" asp-action="Apply">
+            <a class="quick-entry" asp-controller="Task" asp-action="Create">
                 <span class="quick-entry__mark">02</span>
-                <span><strong>跑腿员资格</strong><small>提交申请或查看当前审核状态</small></span>
+                <span><strong>发布任务</strong><small>创建外卖分发、快递代取或私人跑腿任务</small></span>
             </a>
-            <div class="quick-entry quick-entry--muted" aria-disabled="true">
+            <a class="quick-entry" asp-controller="Task" asp-action="Index">
                 <span class="quick-entry__mark">03</span>
-                <span><strong>任务与订单</strong><small>等待任务模块接入后开放</small></span>
-            </div>
+                <span><strong>我的任务</strong><small>查看自己发布的任务及当前状态</small></span>
+            </a>
         }
     </aside>
 </section>
@@ -224,10 +224,18 @@ else
             </article>
             <article class="portal-card">
                 <span>任务服务</span>
-                <h3>任务模块待接入</h3>
-                <p>发布任务、订单查询、接单和配送流程尚未在当前版本提供路由入口。</p>
+                <h3>任务发布已接入</h3>
+                <p>当前已提供任务发布、我的任务和任务详情入口，后续会继续补接单、状态流转与支付流程。</p>
                 <div class="tag-row">
-                    <span class="tag-row__disabled" aria-disabled="true">暂不可用</span>
+                    @if (isAuthenticated)
+                    {
+                        <a asp-controller="Task" asp-action="Create">发布任务</a>
+                        <a asp-controller="Task" asp-action="Index">我的任务</a>
+                    }
+                    else
+                    {
+                        <a asp-controller="Auth" asp-action="Login">登录后使用</a>
+                    }
                 </div>
             </article>
         </div>

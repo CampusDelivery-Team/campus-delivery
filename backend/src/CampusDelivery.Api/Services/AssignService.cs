@@ -501,7 +501,10 @@ public sealed class AssignService(
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
-
+            // 1. 将任务标记为完成，自动写入completed_at
+            await taskRepository.UpdateTaskStatusAsync(taskId, "FINISHED", connection, transaction, cancellationToken);
+            // 2. 释放跑腿员，从BUSY改为FREE
+            await taskRepository.UpdateRunnerWorkStatusAsync(assignRecord.RunnerId, "FREE", connection, transaction, cancellationToken);
             await taskRepository.InsertTaskStatusLogAsync(new TaskStatusLog
             {
                 RecordId = assignRecord.RecordId,

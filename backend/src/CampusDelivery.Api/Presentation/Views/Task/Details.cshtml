@@ -1,0 +1,48 @@
+@model TaskDetailsViewModel
+
+@{
+    ViewData["Title"] = $"任务 #{Model.TaskId}";
+}
+
+<section class="panel task-page">
+    <div class="section-header task-page__header">
+        <div>
+            <p class="eyebrow">任务详情</p>
+            <h1>@Model.TaskTitle</h1>
+            <p class="section-description">任务编号 #@Model.TaskId · @Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")</p>
+        </div>
+        <div class="actions">
+            @if (Model.CanReview && Model.RecordId.HasValue)
+            {
+                <a class="button primary" asp-controller="Review" asp-action="Create" asp-route-recordId="@Model.RecordId">评价服务</a>
+            }
+            <a class="button" asp-action="Index">返回任务列表</a>
+        </div>
+    </div>
+
+    <div class="profile-info-grid">
+        <div><span>发布用户</span><strong>@Model.PublisherUsername</strong></div>
+        <div><span>任务类型</span><strong>@Model.TaskKindDisplayName</strong></div>
+        <div><span>服务类型</span><strong>@Model.ServiceName</strong></div>
+        <div><span>任务状态</span><strong>@Model.TaskStatusDisplayName</strong></div>
+        <div><span>任务金额</span><strong>¥@Model.TaskPrice.ToString("F2")</strong></div>
+        <div><span>紧急程度</span><strong>@Model.UrgentFlagDisplayName</strong></div>
+        <div><span>联系人</span><strong>@Model.ContactName</strong></div>
+        <div><span>联系电话</span><strong>@Model.ContactPhone</strong></div>
+        <div><span>送达地址</span><strong>@Model.AddressSummary</strong></div>
+        <div><span>交接节点</span><strong>@Model.NodeName</strong></div>
+    </div>
+
+    @if (Model.DetailFields.Count > 0)
+    {
+        <div class="task-admin-panel">
+            <h2>@Model.TaskKindDisplayName 信息</h2>
+            <div class="profile-info-grid">
+                @foreach (var field in Model.DetailFields)
+                {
+                    <div><span>@field.Label</span><strong>@field.Value</strong></div>
+                }
+            </div>
+        </div>
+    }
+</section>
