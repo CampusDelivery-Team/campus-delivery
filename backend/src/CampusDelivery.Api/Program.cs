@@ -9,6 +9,12 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     WebRootPath = "Presentation/wwwroot"
 });
 
+builder.Host.UseDefaultServiceProvider(options =>
+{
+    options.ValidateOnBuild = true;
+    options.ValidateScopes = true;
+});
+
 if (builder.Environment.IsDevelopment())
 {
     builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
@@ -21,7 +27,8 @@ builder.Services.AddControllersWithViews()
     {
         options.ViewLocationFormats.Add("/Presentation/Views/{1}/{0}.cshtml");
         options.ViewLocationFormats.Add("/Presentation/Views/Shared/{0}.cshtml");
-    });
+    })
+    .AddControllersAsServices();
 
 // ===== Repository & Service 注册 =====
 builder.Services.AddSingleton<OracleConnectionFactory>();
@@ -44,9 +51,16 @@ builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<AddressRepository>();
 builder.Services.AddScoped<AddressService>();
 
-// 接单派单流转模块
+// 任务与接单派单流转模块
 builder.Services.AddScoped<TaskRepository>();
+builder.Services.AddScoped<TaskService>();
 builder.Services.AddScoped<AssignService>();
+
+// 支付与退款模块
+builder.Services.AddScoped<PaymentRepository>();
+builder.Services.AddScoped<PaymentService>();
+builder.Services.AddScoped<RefundRepository>();
+builder.Services.AddScoped<RefundService>();
 
 // 评价投诉模块
 builder.Services.AddScoped<ReviewsRepository>();
