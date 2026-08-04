@@ -1,0 +1,270 @@
+using CampusDelivery.Api.Models;
+using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Presentation.ViewModels;
+using CampusDelivery.Api.Repositories;
+using Oracle.ManagedDataAccess.Client;
+
+namespace CampusDelivery.Api.Services;
+
+public sealed class RefundService
+{
+    private readonly TaskRepository _taskRepository;
+    private readonly PaymentRepository _paymentRepository;
+    private readonly RefundRepository _refundRepository;
+    private readonly OracleConnectionFactory _connectionFactory;
+
+    public RefundService(
+        TaskRepository taskRepository,
+        PaymentRepository paymentRepository,
+        RefundRepository refundRepository,
+        OracleConnectionFactory connectionFactory)
+    {
+        _taskRepository = taskRepository;
+        _paymentRepository = paymentRepository;
+        _refundRepository = refundRepository;
+        _connectionFactory = connectionFactory;
+    }
+
+    public async Task<RefundCreateViewModel?> BuildCreateModelAsync(
+        int taskId,
+        int currentUserId,
+        CancellationToken cancellationToken = default)
+    {
+        TaskDetailsRecord? details = await _taskRepository.GetDetailsAsync(taskId, currentUserId, false, cancellationToken);
+        if (details == null)
+        {
+            return null;
+        }
+
+        PaymentListRecord? payment = await _paymentRepository.GetByTaskIdAsync(taskId, cancellationToken);
+        if (payment == null || payment.PayStatus != "已支付")
+        {
+            return null;
+        }
+
+        RefundListRecord? refund = await _refundRepository.GetByPaymentIdAsync(payment.PaymentId, cancellationToken);
+        if (refund != null)
+        {
+            return null;
+        }
+
+        return new RefundCreateViewModel
+        {
+            PaymentId = payment.PaymentId,
+            TaskId = taskId,
+            RecordId = details.RecordId ?? payment.RecordId,
+            TaskTitle = details.Task.TaskTitle,
+            RefundAmount = payment.PayAmount,
+            PayStatusDisplayName = DisplayNameService.GetPayStatusName(payment.PayStatus)
+        };
+    }
+
+    public async Task<RefundOperationResult> SubmitAsync(
+        RefundCreateViewModel model,
+        int currentUserId,
+        CancellationToken cancellationToken = default)
+    {
+        TaskDetailsRecord? details = await _taskRepository.GetDetailsAsync(model.TaskId, currentUserId, false, cancellationToken);
+        if (details == null)
+        {
+            return new RefundOperationResult(false, "任务不存在或无权申请退款。", 0);
+        }
+
+        PaymentListRecord? payment = await _paymentRepository.GetByTaskIdAsync(model.TaskId, cancellationToken);
+        if (payment == null || payment.PayStatus != "已支付")
+        {
+            return new RefundOperationResult(false, "退款登记必须关联已支付记录。", 0);
+        }
+
+        if (payment.RecordId != model.RecordId || payment.PaymentId != model.PaymentId)
+        {
+            return new RefundOperationResult(false, "退款记录与支付记录不匹配。", 0);
+        }
+
+        RefundListRecord? existingRefund = await _refundRepository.GetByPaymentIdAsync(payment.PaymentId, cancellationToken);
+        if (existingRefund != null)
+        {
+            return new RefundOperationResult(false, "该支付记录已存在退款申请。", existingRefund.RefundId);
+        }
+
+        await using OracleConnection connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using OracleTransaction transaction = (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            AssignRecord? assignRecord = await _taskRepository.GetLatestAssignRecordWithConnectionAsync(model.TaskId, connection, transaction, cancellationToken);
+            if (assignRecord == null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return new RefundOperationResult(false, "退款登记必须关联接派记录。", 0);
+            }
+
+            RefundRecord refund = new RefundRecord
+            {
+                PaymentId = payment.PaymentId,
+                RefundAmount = payment.PayAmount,
+                RefundReason = model.RefundReason.Trim(),
+                ApprovedAmount = null,
+                ProcessStatus = "PENDING"
+            };
+
+            int refundId = await _refundRepository.InsertAsync(refund, connection, transaction, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new RefundOperationResult(true, string.Empty, refundId);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    public async Task<RefundAdminListViewModel> GetAdminListAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        (page, pageSize) = NormalizePage(page, pageSize);
+        int totalCount = await _refundRepository.GetRefundsCountAsync(cancellationToken);
+        page = ClampPage(page, totalCount, pageSize);
+        int offset = (page - 1) * pageSize;
+
+        IReadOnlyList<RefundListRecord> refunds = await _refundRepository.GetRefundsAsync(offset, pageSize, cancellationToken);
+        RefundAdminListViewModel model = new RefundAdminListViewModel
+        {
+            PageNumber = page,
+            TotalPages = GetTotalPages(totalCount, pageSize),
+            TotalCount = totalCount,
+            PageSize = pageSize
+        };
+
+        foreach (RefundListRecord refund in refunds)
+        {
+            model.Refunds.Add(new RefundSummaryViewModel
+            {
+                RefundId = refund.RefundId,
+                PaymentId = refund.PaymentId,
+                TaskId = refund.TaskId,
+                TaskTitle = refund.TaskTitle,
+                RefundAmount = refund.RefundAmount,
+                RefundReason = refund.RefundReason,
+                ApprovedAmount = refund.ApprovedAmount,
+                ProcessStatusDisplayName = DisplayNameService.GetRefundStatusName(refund.ProcessStatus),
+                AssignedAt = refund.AssignedAt
+            });
+        }
+
+        return model;
+    }
+
+    public async Task<RefundReviewViewModel?> GetReviewModelAsync(int refundId, CancellationToken cancellationToken = default)
+    {
+        RefundListRecord? refund = await _refundRepository.GetByIdAsync(refundId, cancellationToken);
+        if (refund == null)
+        {
+            return null;
+        }
+
+        TaskDetailsRecord? details = await _taskRepository.GetDetailsAsync(refund.TaskId, 0, true, cancellationToken);
+        if (details == null)
+        {
+            return null;
+        }
+
+        return new RefundReviewViewModel
+        {
+            RefundId = refund.RefundId,
+            PaymentId = refund.PaymentId,
+            TaskId = refund.TaskId,
+            TaskTitle = details.Task.TaskTitle,
+            RefundAmount = refund.RefundAmount,
+            RefundReason = refund.RefundReason,
+            Decision = refund.ProcessStatus == "REJECTED" ? "REJECTED" : "APPROVED",
+            ReviewReason = refund.ProcessStatus == "已拒绝" ? "驳回退款" : "通过退款"
+        };
+    }
+
+    public async Task<RefundOperationResult> ReviewAsync(
+        int refundId,
+        string decision,
+        string reviewReason,
+        int adminUserId,
+        CancellationToken cancellationToken = default)
+    {
+        if (decision is not "APPROVED" and not "REJECTED")
+        {
+            return new RefundOperationResult(false, "审核结果无效。", 0);
+        }
+
+        RefundListRecord? refund = await _refundRepository.GetByIdAsync(refundId, cancellationToken);
+        if (refund == null)
+        {
+            return new RefundOperationResult(false, "退款记录不存在。", 0);
+        }
+
+        if (!string.Equals(refund.ProcessStatus, "待审核", StringComparison.Ordinal))
+        {
+            return new RefundOperationResult(false, "只有待审核退款可以处理。", refund.RefundId);
+        }
+
+        await using OracleConnection connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using OracleTransaction transaction = (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            decimal approvedAmount = decision == "APPROVED" ? refund.RefundAmount : 0m;
+            await _refundRepository.UpdateAsync(
+                refund.RefundId,
+                new RefundRecord
+                {
+                    PaymentId = refund.PaymentId,
+                    RefundAmount = refund.RefundAmount,
+                    RefundReason = refund.RefundReason,
+                    ApprovedAmount = approvedAmount,
+                    ProcessStatus = decision == "APPROVED" ? "APPROVED" : "REJECTED"
+                },
+                connection,
+                transaction,
+                cancellationToken);
+
+            if (decision == "APPROVED")
+            {
+                PaymentListRecord? payment = await _paymentRepository.GetByPaymentIdAsync(refund.PaymentId, cancellationToken);
+                if (payment != null)
+                {
+                    await _paymentRepository.UpdatePayStatusAsync(payment.PaymentId, "REFUNDED", connection, transaction, cancellationToken);
+                }
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return new RefundOperationResult(true, string.Empty, refund.RefundId);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    private static (int Page, int PageSize) NormalizePage(int page, int pageSize)
+    {
+        page = Math.Max(1, page);
+        pageSize = pageSize is >= 1 and <= 20 ? pageSize : 10;
+        return (page, pageSize);
+    }
+
+    private static int ClampPage(int page, int totalCount, int pageSize)
+    {
+        int totalPages = GetTotalPages(totalCount, pageSize);
+        return Math.Min(page, totalPages);
+    }
+
+    private static int GetTotalPages(int totalCount, int pageSize)
+    {
+        return totalCount <= 0 ? 1 : (int)Math.Ceiling((double)totalCount / pageSize);
+    }
+}
+
+public sealed record RefundOperationResult(bool Success, string ErrorMessage, int RefundId);
