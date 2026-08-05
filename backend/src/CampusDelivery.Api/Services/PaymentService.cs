@@ -6,168 +6,139 @@ using Oracle.ManagedDataAccess.Client;
 
 namespace CampusDelivery.Api.Services;
 
-public sealed class PaymentService
+public sealed class PaymentService(
+    TaskRepository taskRepository,
+    PaymentRepository paymentRepository,
+    RefundRepository refundRepository,
+    OracleConnectionFactory connectionFactory)
 {
-    private readonly TaskRepository _taskRepository;
-    private readonly PaymentRepository _paymentRepository;
-    private readonly OracleConnectionFactory _connectionFactory;
+    private const string ReviewReasonMarker = "\n审核意见：";
 
-    public PaymentService(
-        TaskRepository taskRepository,
-        PaymentRepository paymentRepository,
-        OracleConnectionFactory connectionFactory)
+    public async Task<PaymentConfirmViewModel?> BuildConfirmModelAsync(int taskId, int currentUserId, CancellationToken cancellationToken = default)
     {
-        _taskRepository = taskRepository;
-        _paymentRepository = paymentRepository;
-        _connectionFactory = connectionFactory;
-    }
-
-    public async Task<PaymentConfirmViewModel?> BuildConfirmModelAsync(
-        int taskId,
-        int currentUserId,
-        CancellationToken cancellationToken = default)
-    {
-        TaskDetailsRecord? details = await _taskRepository.GetDetailsAsync(taskId, currentUserId, false, cancellationToken);
-        if (details == null || !details.RecordId.HasValue)
+        TaskDetailsRecord? details = await taskRepository.GetDetailsAsync(taskId, currentUserId, false, cancellationToken);
+        if (details?.RecordId is null)
         {
             return null;
         }
 
-        IReadOnlyList<TaskStatusLog> logs = await _taskRepository.GetStatusLogsByTaskIdAsync(taskId, cancellationToken);
-        bool receiptConfirmed = logs.Any(log => IsReceiptConfirmationLog(log, currentUserId));
-        PaymentRecord? payment = await _paymentRepository.GetByTaskIdAsync(taskId, cancellationToken);
+        PaymentRecord? payment = await paymentRepository.GetByTaskIdAsync(taskId, cancellationToken);
+        bool receiptConfirmed = (await taskRepository.GetStatusLogsByTaskIdAsync(taskId, cancellationToken))
+            .Any(log => log.StatusBefore == "WAIT_CONFIRM" && log.StatusAfter == "WAIT_CONFIRM" && log.OperatorUserId == currentUserId);
 
-        return new PaymentConfirmViewModel
+        return new()
         {
-            TaskId = details.Task.TaskId,
+            TaskId = taskId,
             RecordId = details.RecordId.Value,
             TaskTitle = details.Task.TaskTitle,
             TaskAmount = details.Task.TaskPrice,
             TaskStatusDisplayName = DisplayNameService.GetTaskStatusName(details.Task.TaskStatus),
             ReceiptConfirmed = receiptConfirmed,
-            CanSubmitPayment = details.Task.TaskStatus == "WAIT_CONFIRM"
+            CanSubmitPayment = (details.Task.TaskStatus == "WAIT_CONFIRM"
+                    || details.Task.TaskStatus == "FINISHED" && payment?.PayStatus == "UNPAID")
                 && receiptConfirmed
-                && payment?.PayStatus != "PAID"
-                && payment?.PayStatus != "REFUNDED"
+                && payment?.PayStatus is not "PAID" and not "REFUNDED",
+            PayMethod = payment?.PayMethod ?? "WECHAT"
         };
     }
 
-    public async Task<PaymentOperationResult> SubmitPaymentAsync(
+    public Task<PaymentOperationResult> SubmitPaymentAsync(
+        int taskId, int currentUserId, string payMethod, CancellationToken cancellationToken = default) =>
+        SavePaymentAsync(taskId, currentUserId, payMethod, completePayment: true, cancellationToken);
+
+    public Task<PaymentOperationResult> SaveUnpaidPaymentAsync(
+        int taskId, int currentUserId, string payMethod, CancellationToken cancellationToken = default) =>
+        SavePaymentAsync(taskId, currentUserId, payMethod, completePayment: false, cancellationToken);
+
+    private async Task<PaymentOperationResult> SavePaymentAsync(
         int taskId,
         int currentUserId,
         string payMethod,
-        string? thirdTradeNo,
-        CancellationToken cancellationToken = default)
+        bool completePayment,
+        CancellationToken cancellationToken)
     {
-        if (!IsValidPayMethod(payMethod))
+        if (payMethod is not ("WECHAT" or "ALIPAY" or "CASH"))
         {
-            return new PaymentOperationResult(false, "支付方式无效。", 0);
+            return new(false, "支付方式无效。", 0);
         }
 
-        TaskDetailsRecord? details = await _taskRepository.GetDetailsAsync(taskId, currentUserId, false, cancellationToken);
-        if (details == null || !details.RecordId.HasValue)
+        TaskDetailsRecord? details = await taskRepository.GetDetailsAsync(taskId, currentUserId, false, cancellationToken);
+        if (details?.RecordId is null)
         {
-            return new PaymentOperationResult(false, "任务不存在或无权支付。", 0);
+            return new(false, "任务不存在或无权操作。", 0);
         }
 
-        await using OracleConnection connection = _connectionFactory.CreateConnection();
+        await using OracleConnection connection = connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
         await using OracleTransaction transaction = (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
-
         try
         {
-            string? taskStatus = await _taskRepository.GetTaskStatusWithLockAsync(taskId, connection, transaction, cancellationToken);
-            if (taskStatus != "WAIT_CONFIRM")
+            string? taskStatus = await taskRepository.GetTaskStatusWithLockAsync(taskId, connection, transaction, cancellationToken);
+            int? publisherUserId = await taskRepository.GetTaskPublisherUserIdAsync(taskId, connection, transaction, cancellationToken);
+            AssignRecord? assignRecord = await taskRepository.GetLatestAssignRecordWithConnectionAsync(taskId, connection, transaction, cancellationToken);
+            PaymentRecord? existing = await paymentRepository.GetByTaskIdWithLockAsync(taskId, connection, transaction, cancellationToken);
+            bool isInitialReceiptSettlement = taskStatus == "WAIT_CONFIRM";
+            bool isDeferredPayment = taskStatus == "FINISHED" && existing?.PayStatus == "UNPAID";
+            if ((!isInitialReceiptSettlement && !isDeferredPayment)
+                || publisherUserId != currentUserId
+                || assignRecord is null)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                return new PaymentOperationResult(false, "只有已确认收货的任务才能发起支付。", 0);
+                return new(false, "只有已确认收货的任务，或已保存的待付款记录可以继续付款。", 0);
             }
 
-            int? taskPublisherUserId = await _taskRepository.GetTaskPublisherUserIdAsync(taskId, connection, transaction, cancellationToken);
-            if (taskPublisherUserId != currentUserId)
+            if (!await taskRepository.IsReceiptConfirmedAsync(assignRecord.RecordId, currentUserId, connection, transaction, cancellationToken))
             {
                 await transaction.RollbackAsync(cancellationToken);
-                return new PaymentOperationResult(false, "任务不存在或无权支付。", 0);
+                return new(false, "请先确认收货。", 0);
             }
 
-            AssignRecord? assignRecord = await _taskRepository.GetLatestAssignRecordWithConnectionAsync(taskId, connection, transaction, cancellationToken);
-            if (assignRecord == null)
+            if (existing?.PayStatus is "PAID" or "REFUNDED")
             {
                 await transaction.RollbackAsync(cancellationToken);
-                return new PaymentOperationResult(false, "只有已产生接派记录的任务才允许收货后支付。", 0);
+                return new(false, "该任务已经支付或退款，不能重复操作。", existing.PaymentId);
             }
 
-            bool receiptConfirmed = await _taskRepository.IsReceiptConfirmedAsync(
-                assignRecord.RecordId,
-                currentUserId,
-                connection,
-                transaction,
-                cancellationToken);
-            if (!receiptConfirmed)
+            PaymentRecord payment = new()
             {
-                await transaction.RollbackAsync(cancellationToken);
-                return new PaymentOperationResult(false, "请先确认收货后再完成支付。", 0);
-            }
-
-            PaymentRecord? existingPayment = await _paymentRepository.GetByTaskIdWithLockAsync(taskId, connection, transaction, cancellationToken);
-            if (existingPayment != null)
-            {
-                if (existingPayment.PayStatus == "PAID")
-                {
-                    await transaction.RollbackAsync(cancellationToken);
-                    return new PaymentOperationResult(false, "该任务已完成支付，不能重复确认付款。", existingPayment.PaymentId);
-                }
-
-                if (existingPayment.PayStatus == "REFUNDED")
-                {
-                    await transaction.RollbackAsync(cancellationToken);
-                    return new PaymentOperationResult(false, "已退款任务不能重复确认付款。", existingPayment.PaymentId);
-                }
-            }
-
-            Runner? runner = await _taskRepository.GetRunnerWithLockAsync(assignRecord.RunnerId, connection, transaction, cancellationToken);
-            if (runner == null)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                return new PaymentOperationResult(false, "无法找到当前接单跑腿员。", 0);
-            }
-
-            PaymentRecord payment = new PaymentRecord
-            {
-                TaskId = taskId,
                 RecordId = assignRecord.RecordId,
-                PublisherUserId = currentUserId,
                 OrderAmount = details.Task.TaskPrice,
                 PayAmount = details.Task.TaskPrice,
                 PayMethod = payMethod,
-                ThirdTradeNo = NormalizeText(thirdTradeNo),
-                PayStatus = "PAID",
-                PaidAt = DateTime.Now
+                ThirdTradeNo = null,
+                PayStatus = completePayment ? "PAID" : "UNPAID"
             };
 
-            int paymentId;
-            if (existingPayment == null)
+            int paymentId = existing is null
+                ? await paymentRepository.InsertAsync(payment, connection, transaction, cancellationToken)
+                : existing.PaymentId;
+            if (existing is not null)
             {
-                paymentId = await _paymentRepository.InsertAsync(payment, connection, transaction, cancellationToken);
-            }
-            else
-            {
-                paymentId = existingPayment.PaymentId;
-                await _paymentRepository.UpdatePaymentAsync(paymentId, payment, connection, transaction, cancellationToken);
+                await paymentRepository.UpdatePaymentAsync(paymentId, payment, connection, transaction, cancellationToken);
             }
 
-            await _taskRepository.UpdateTaskStatusAsync(taskId, "FINISHED", connection, transaction, cancellationToken);
-            await _taskRepository.UpdateRunnerWorkStatusAsync(assignRecord.RunnerId, "FREE", connection, transaction, cancellationToken);
-            await _taskRepository.InsertTaskStatusLogAsync(new TaskStatusLog
+            if (isInitialReceiptSettlement)
             {
-                RecordId = assignRecord.RecordId,
-                StatusBefore = "WAIT_CONFIRM",
-                StatusAfter = "FINISHED",
-                OperatorUserId = currentUserId
-            }, connection, transaction, cancellationToken);
+                Runner? runner = await taskRepository.GetRunnerWithLockAsync(assignRecord.RunnerId, connection, transaction, cancellationToken);
+                if (runner is null)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return new(false, "接单跑腿员不存在。", 0);
+                }
+
+                await taskRepository.UpdateTaskStatusAsync(taskId, "FINISHED", connection, transaction, cancellationToken);
+                await taskRepository.UpdateRunnerWorkStatusAsync(assignRecord.RunnerId, "FREE", connection, transaction, cancellationToken);
+                await taskRepository.InsertTaskStatusLogAsync(new TaskStatusLog
+                {
+                    RecordId = assignRecord.RecordId,
+                    StatusBefore = "WAIT_CONFIRM",
+                    StatusAfter = "FINISHED",
+                    OperatorUserId = currentUserId
+                }, connection, transaction, cancellationToken);
+            }
 
             await transaction.CommitAsync(cancellationToken);
-            return new PaymentOperationResult(true, string.Empty, paymentId);
+            return new(true, string.Empty, paymentId);
         }
         catch
         {
@@ -177,148 +148,92 @@ public sealed class PaymentService
     }
 
     public async Task<PaymentStatusQueryViewModel> GetMyPaymentStatusAsync(
-        int currentUserId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default)
+        int currentUserId, string? keyword, int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        (page, pageSize) = NormalizePage(page, pageSize);
-        int totalCount = await _paymentRepository.GetPaymentsCountByPublisherUserIdAsync(currentUserId, cancellationToken);
-        page = ClampPage(page, totalCount, pageSize);
-        int offset = (page - 1) * pageSize;
-        IReadOnlyList<PaymentListRecord> payments = await _paymentRepository.GetPaymentsByPublisherUserIdAsync(
-            currentUserId,
-            offset,
-            pageSize,
-            cancellationToken);
-
-        return new PaymentStatusQueryViewModel
+        keyword = string.IsNullOrWhiteSpace(keyword) ? null : keyword.Trim();
+        page = Math.Max(1, page);
+        pageSize = pageSize is >= 1 and <= 20 ? pageSize : 10;
+        int count = await paymentRepository.GetPaymentsCountByPublisherUserIdAsync(currentUserId, keyword, cancellationToken);
+        int totalPages = Math.Max(1, (int)Math.Ceiling(count / (double)pageSize));
+        page = Math.Min(page, totalPages);
+        IReadOnlyList<PaymentListRecord> payments = await paymentRepository.GetPaymentsByPublisherUserIdAsync(
+            currentUserId, keyword, (page - 1) * pageSize, pageSize, cancellationToken);
+        return new()
         {
-            QueryText = "我的支付记录",
+            Keyword = keyword,
+            QueryText = keyword is null ? "我的支付记录" : $"标题包含“{keyword}”的支付记录",
             Payments = payments.Select(MapSummary).ToList(),
-            Payment = null,
             PageNumber = page,
-            TotalPages = GetTotalPages(totalCount, pageSize),
-            TotalCount = totalCount,
-            PageSize = pageSize
+            PageSize = pageSize,
+            TotalCount = count,
+            TotalPages = totalPages
         };
     }
 
     public async Task<PaymentStatusQueryViewModel> QueryPaymentAsync(
-        int currentUserId,
-        int? taskId,
-        int? paymentId,
-        CancellationToken cancellationToken = default)
+        int currentUserId, int? taskId, int? paymentId, CancellationToken cancellationToken = default)
     {
-        PaymentSummaryViewModel? paymentSummary = null;
-        string? queryText = null;
-
-        if (paymentId.HasValue)
+        PaymentRecord? payment = paymentId.HasValue
+            ? await paymentRepository.GetByIdAsync(paymentId.Value, cancellationToken)
+            : taskId.HasValue ? await paymentRepository.GetByTaskIdAsync(taskId.Value, cancellationToken) : null;
+        if (payment is null || payment.PublisherUserId != currentUserId)
         {
-            PaymentRecord? payment = await _paymentRepository.GetByIdAsync(paymentId.Value, cancellationToken);
-            if (payment != null)
-            {
-                TaskDetailsRecord? details = await _taskRepository.GetDetailsAsync(payment.TaskId, currentUserId, false, cancellationToken);
-                if (details != null)
-                {
-                    paymentSummary = MapSummary(payment, details.Task.TaskTitle);
-                    queryText = $"支付编号 #{payment.PaymentId}";
-                }
-            }
-        }
-        else if (taskId.HasValue)
-        {
-            TaskDetailsRecord? details = await _taskRepository.GetDetailsAsync(taskId.Value, currentUserId, false, cancellationToken);
-            if (details != null)
-            {
-                PaymentRecord? payment = await _paymentRepository.GetByTaskIdAsync(taskId.Value, cancellationToken);
-                if (payment != null)
-                {
-                    paymentSummary = MapSummary(payment, details.Task.TaskTitle);
-                    queryText = $"任务编号 #{taskId.Value}";
-                }
-            }
+            return new() { TaskId = taskId, PaymentId = paymentId };
         }
 
-        return new PaymentStatusQueryViewModel
+        TaskDetailsRecord? details = await taskRepository.GetDetailsAsync(payment.TaskId, currentUserId, false, cancellationToken);
+        RefundRecord? refund = await refundRepository.GetByPaymentIdAsync(payment.PaymentId, cancellationToken);
+        PaymentSummaryViewModel summary = MapSummary(payment, details?.Task.TaskTitle ?? string.Empty);
+        summary.RefundProcessStatus = refund?.ProcessStatus;
+        summary.RefundStatusDisplayName = refund is null ? null : DisplayNameService.GetRefundStatusName(refund.ProcessStatus);
+        if (refund is not null)
         {
-            TaskId = taskId,
-            PaymentId = paymentId,
-            QueryText = queryText,
-            Payment = paymentSummary,
-            Payments = Array.Empty<PaymentSummaryViewModel>()
+            (summary.RefundReason, summary.RefundReviewReason) = SplitRefundReasons(refund.RefundReason);
+        }
+        return new()
+        {
+            TaskId = payment.TaskId,
+            PaymentId = payment.PaymentId,
+            QueryText = details?.Task.TaskTitle ?? $"支付记录 #{payment.PaymentId}",
+            Payment = summary
         };
     }
 
-    private static bool IsValidPayMethod(string value)
+    private static PaymentSummaryViewModel MapSummary(PaymentListRecord payment) => new()
     {
-        return value is "WECHAT" or "ALIPAY" or "CASH";
-    }
+        PaymentId = payment.PaymentId,
+        TaskId = payment.TaskId,
+        RecordId = payment.RecordId,
+        TaskTitle = payment.TaskTitle,
+        OrderAmount = payment.OrderAmount,
+        PayAmount = payment.PayAmount,
+        PayMethodDisplayName = DisplayNameService.GetPayMethodName(payment.PayMethod),
+        PayStatusDisplayName = DisplayNameService.GetPayStatusName(payment.PayStatus),
+        PayStatus = payment.PayStatus,
+        RefundProcessStatus = payment.RefundProcessStatus,
+        RefundStatusDisplayName = payment.RefundProcessStatus is null ? null : DisplayNameService.GetRefundStatusName(payment.RefundProcessStatus)
+    };
 
-    private static PaymentSummaryViewModel MapSummary(PaymentListRecord record)
+    private static PaymentSummaryViewModel MapSummary(PaymentRecord payment, string taskTitle) => new()
     {
-        return new PaymentSummaryViewModel
-        {
-            PaymentId = record.PaymentId,
-            TaskId = record.TaskId,
-            RecordId = record.RecordId,
-            TaskTitle = record.TaskTitle,
-            OrderAmount = record.OrderAmount,
-            PayAmount = record.PayAmount,
-            PayMethodDisplayName = DisplayNameService.GetPayMethodName(record.PayMethod),
-            PayStatusDisplayName = DisplayNameService.GetPayStatusName(record.PayStatus),
-            ThirdTradeNo = record.ThirdTradeNo,
-            PaidAt = record.PaidAt,
-            CreatedAt = record.CreatedAt
-        };
-    }
+        PaymentId = payment.PaymentId,
+        TaskId = payment.TaskId,
+        RecordId = payment.RecordId,
+        TaskTitle = taskTitle,
+        OrderAmount = payment.OrderAmount,
+        PayAmount = payment.PayAmount,
+        PayMethodDisplayName = DisplayNameService.GetPayMethodName(payment.PayMethod),
+        PayStatusDisplayName = DisplayNameService.GetPayStatusName(payment.PayStatus),
+        PayStatus = payment.PayStatus
+    };
 
-    private static PaymentSummaryViewModel MapSummary(PaymentRecord record, string taskTitle)
+    private static (string ApplicationReason, string? ReviewReason) SplitRefundReasons(string? combinedReason)
     {
-        return new PaymentSummaryViewModel
-        {
-            PaymentId = record.PaymentId,
-            TaskId = record.TaskId,
-            RecordId = record.RecordId,
-            TaskTitle = taskTitle,
-            OrderAmount = record.OrderAmount,
-            PayAmount = record.PayAmount,
-            PayMethodDisplayName = DisplayNameService.GetPayMethodName(record.PayMethod),
-            PayStatusDisplayName = DisplayNameService.GetPayStatusName(record.PayStatus),
-            ThirdTradeNo = record.ThirdTradeNo,
-            PaidAt = record.PaidAt,
-            CreatedAt = record.CreatedAt
-        };
-    }
-
-    private static int GetTotalPages(int totalCount, int pageSize)
-    {
-        return totalCount == 0 ? 1 : (int)Math.Ceiling((double)totalCount / pageSize);
-    }
-
-    private static (int Page, int PageSize) NormalizePage(int page, int pageSize)
-    {
-        page = Math.Max(1, page);
-        pageSize = pageSize is >= 1 and <= 20 ? pageSize : 10;
-        return (page, pageSize);
-    }
-
-    private static int ClampPage(int page, int totalCount, int pageSize)
-    {
-        int totalPages = GetTotalPages(totalCount, pageSize);
-        return Math.Min(page, totalPages);
-    }
-
-    private static string? NormalizeText(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
-
-    private static bool IsReceiptConfirmationLog(TaskStatusLog log, int publisherUserId)
-    {
-        return log.StatusBefore == "WAIT_CONFIRM"
-            && log.StatusAfter == "WAIT_CONFIRM"
-            && log.OperatorUserId == publisherUserId;
+        string value = combinedReason ?? string.Empty;
+        int markerIndex = value.LastIndexOf(ReviewReasonMarker, StringComparison.Ordinal);
+        return markerIndex < 0
+            ? (value, null)
+            : (value[..markerIndex], value[(markerIndex + ReviewReasonMarker.Length)..]);
     }
 }
 

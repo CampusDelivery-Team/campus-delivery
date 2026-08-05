@@ -31,8 +31,8 @@
                     <th>退款金额</th>
                     <th>退款状态</th>
                     <th>申请原因</th>
-                    <th>处理结果</th>
-                    <th>处理人</th>
+                    <th>审核理由</th>
+                    <th>核定金额</th>
                     <th>操作</th>
                 </tr>
             </thead>
@@ -52,9 +52,9 @@
                             <td>@refund.RefundStatusDisplayName</td>
                             <td>@(string.IsNullOrWhiteSpace(refund.RefundReason) ? "—" : refund.RefundReason)</td>
                             <td>@(string.IsNullOrWhiteSpace(refund.ReviewReason) ? "—" : refund.ReviewReason)</td>
-                            <td>@(string.IsNullOrWhiteSpace(refund.ReviewedByName) ? "—" : refund.ReviewedByName)</td>
+                            <td>@(refund.ApprovedAmount.HasValue ? $"¥{refund.ApprovedAmount.Value:F2}" : "—")</td>
                             <td>
-                                @if (refund.RefundStatusDisplayName == "待审核")
+                                @if (refund.RefundStatus == "APPLY")
                                 {
                                     <a class="button primary task-button--small" asp-action="Review" asp-route-refundId="@refund.RefundId">审核</a>
                                 }

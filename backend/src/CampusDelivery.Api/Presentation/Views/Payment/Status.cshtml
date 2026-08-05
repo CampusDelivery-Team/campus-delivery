@@ -1,30 +1,26 @@
 @model PaymentStatusQueryViewModel
 
 @{
-    ViewData["Title"] = "支付状态查询";
+    ViewData["Title"] = "支付查询";
 }
 
 <section class="panel management-panel">
     <div class="section-header management-heading">
         <div>
             <p class="eyebrow">支付管理</p>
-            <h1>支付状态查询</h1>
+            <h1>@(Model.QueryText ?? "支付记录")</h1>
         </div>
-        <a class="button primary" asp-action="Status">查看我的支付记录</a>
+        <a class="button primary" asp-controller="Task" asp-action="Create">发布任务</a>
     </div>
 
     <form method="get" asp-action="Status" class="application-form" style="margin-bottom: 1rem;">
         <div class="application-field">
-            <label>任务编号</label>
-            <input type="number" name="taskId" value="@Model.TaskId" min="1" placeholder="按任务编号查询" />
-        </div>
-        <div class="application-field">
-            <label>支付编号</label>
-            <input type="number" name="paymentId" value="@Model.PaymentId" min="1" placeholder="按支付编号查询" />
+            <label for="keyword">按任务标题查询</label>
+            <input id="keyword" name="keyword" value="@Model.Keyword" placeholder="输入任务标题中的关键词，例如：快递、外卖" />
         </div>
         <div class="application-actions">
-            <button type="submit" class="button primary">查询</button>
-            <a class="button" asp-action="Status">清空条件</a>
+            <button type="submit" class="button primary">搜索</button>
+            <a class="button" asp-action="Status">查看全部</a>
         </div>
     </form>
 
@@ -33,26 +29,36 @@
         <div class="inline-notice success">@success</div>
     }
 
-    @if (Model.Payment != null)
+    @if (Model.Payment is not null)
     {
         <div class="task-admin-panel">
-            <h2>@(Model.QueryText ?? "支付详情")</h2>
+            <h2>@Model.Payment.TaskTitle</h2>
             <div class="profile-info-grid">
-                <div><span>支付编号</span><strong>#@Model.Payment.PaymentId</strong></div>
-                <div><span>任务编号</span><strong>#@Model.Payment.TaskId</strong></div>
-                <div><span>任务标题</span><strong>@Model.Payment.TaskTitle</strong></div>
-                <div><span>支付方式</span><strong>@Model.Payment.PayMethodDisplayName</strong></div>
                 <div><span>支付状态</span><strong>@Model.Payment.PayStatusDisplayName</strong></div>
+                <div><span>支付方式</span><strong>@Model.Payment.PayMethodDisplayName</strong></div>
                 <div><span>支付金额</span><strong>¥@Model.Payment.PayAmount.ToString("F2")</strong></div>
-                <div><span>第三方流水号</span><strong>@(string.IsNullOrWhiteSpace(Model.Payment.ThirdTradeNo) ? "—" : Model.Payment.ThirdTradeNo)</strong></div>
-                <div><span>支付时间</span><strong>@(Model.Payment.PaidAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "—")</strong></div>
+                <div><span>退款状态</span><strong>@(Model.Payment.RefundStatusDisplayName ?? "未申请退款")</strong></div>
+                @if (!string.IsNullOrWhiteSpace(Model.Payment.RefundReason))
+                {
+                    <div><span>退款原因</span><strong>@Model.Payment.RefundReason</strong></div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Payment.RefundReviewReason))
+                {
+                    <div><span>审核理由</span><strong>@Model.Payment.RefundReviewReason</strong></div>
+                }
             </div>
-            @if (Model.Payment.PayStatusDisplayName == "已支付")
-            {
-                <div class="application-actions" style="margin-top: 1rem;">
+            <div class="application-actions" style="margin-top: 1rem;">
+                @if (Model.Payment.PayStatus == "UNPAID")
+                {
+                    <a class="button primary" asp-action="Confirm" asp-route-taskId="@Model.Payment.TaskId">继续付款</a>
+                }
+                else if (Model.Payment.PayStatus == "PAID"
+                    && Model.Payment.RefundProcessStatus is not "APPLY" and not "APPROVED")
+                {
                     <a class="button primary" asp-controller="Refund" asp-action="Create" asp-route-taskId="@Model.Payment.TaskId">申请退款</a>
-                </div>
-            }
+                }
+                <a class="button" asp-action="Status">返回支付列表</a>
+            </div>
         </div>
     }
     else
@@ -61,30 +67,39 @@
             <table>
                 <thead>
                     <tr>
-                        <th>支付编号</th>
                         <th>任务标题</th>
                         <th>支付方式</th>
                         <th>支付状态</th>
+                        <th>退款状态</th>
                         <th>支付金额</th>
-                        <th>支付时间</th>
+                        <th>操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     @if (Model.Payments.Count == 0)
                     {
-                        <tr><td colspan="6" class="empty task-table__empty">暂无支付记录</td></tr>
+                        <tr><td colspan="6" class="empty task-table__empty">没有找到符合条件的支付记录</td></tr>
                     }
                     else
                     {
                         foreach (var payment in Model.Payments)
                         {
                             <tr>
-                                <td>#@payment.PaymentId</td>
                                 <td>@payment.TaskTitle</td>
                                 <td>@payment.PayMethodDisplayName</td>
                                 <td>@payment.PayStatusDisplayName</td>
+                                <td>@(payment.RefundStatusDisplayName ?? "未申请退款")</td>
                                 <td>¥@payment.PayAmount.ToString("F2")</td>
-                                <td>@(payment.PaidAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? payment.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"))</td>
+                                <td>
+                                    @if (payment.PayStatus == "UNPAID")
+                                    {
+                                        <a class="button primary task-button--small" asp-action="Confirm" asp-route-taskId="@payment.TaskId">去付款</a>
+                                    }
+                                    else
+                                    {
+                                        <a class="button task-button--small" asp-action="Status" asp-route-paymentId="@payment.PaymentId">查看</a>
+                                    }
+                                </td>
                             </tr>
                         }
                     }
@@ -95,9 +110,9 @@
         @if (Model.TotalPages > 1)
         {
             <nav class="pagination">
-                <a asp-action="Status" asp-route-page="@(Model.PageNumber - 1)" asp-route-pageSize="@Model.PageSize" class="@(Model.PageNumber <= 1 ? "disabled" : "")">上一页</a>
+                <a asp-action="Status" asp-route-keyword="@Model.Keyword" asp-route-page="@(Model.PageNumber - 1)" asp-route-pageSize="@Model.PageSize" class="@(Model.PageNumber <= 1 ? "disabled" : "")">上一页</a>
                 <span>第 @Model.PageNumber / @Model.TotalPages 页</span>
-                <a asp-action="Status" asp-route-page="@(Model.PageNumber + 1)" asp-route-pageSize="@Model.PageSize" class="@(Model.PageNumber >= Model.TotalPages ? "disabled" : "")">下一页</a>
+                <a asp-action="Status" asp-route-keyword="@Model.Keyword" asp-route-page="@(Model.PageNumber + 1)" asp-route-pageSize="@Model.PageSize" class="@(Model.PageNumber >= Model.TotalPages ? "disabled" : "")">下一页</a>
             </nav>
         }
     }
