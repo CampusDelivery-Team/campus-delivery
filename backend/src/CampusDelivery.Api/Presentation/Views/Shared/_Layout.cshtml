@@ -18,12 +18,25 @@
             <a asp-controller="Home" asp-action="Index" asp-fragment="workflow">服务流程</a>
             @if (User.Identity?.IsAuthenticated == true)
             {
-                <a asp-controller="Task" asp-action="Index">任务大厅</a>
+                @if (!User.IsInRole("ADMIN"))
+                {
+                    <a asp-controller="Task" asp-action="Create">发布任务</a>
+                    <a asp-controller="Payment" asp-action="Status">支付查询</a>
+                }
+
+                @if (User.IsInRole("RUNNER"))
+                {
+                    <a asp-controller="Task" asp-action="Hall">任务大厅</a>
+                }
+                else
+                {
+                    <a asp-controller="Task" asp-action="Index">我的任务</a>
+                }
+
                 <a asp-controller="Task" asp-action="Receipt">确认收货</a>
 
                 @if (User.IsInRole("RUNNER"))
                 {
-
                     <a asp-controller="Task" asp-action="MyTasks">配送工作台</a>
                 }
 
@@ -41,6 +54,8 @@
                         <div class="nav-menu-panel">
                             <span class="nav-menu-label">任务调度</span>
                             <a asp-controller="Task" asp-action="AdminConsole">指派控制台</a>
+                            <span class="nav-menu-label">支付退款</span>
+                            <a asp-controller="Refund" asp-action="AdminIndex">退款审核</a>
                             <span class="nav-menu-label">基础资料</span>
                             <a asp-controller="Node" asp-action="Index">节点管理</a>
                             <a asp-controller="ServiceType" asp-action="Index">服务类型</a>

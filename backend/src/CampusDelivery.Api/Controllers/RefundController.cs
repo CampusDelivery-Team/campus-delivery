@@ -41,16 +41,7 @@ public sealed class RefundController : Controller
 
         if (!ModelState.IsValid)
         {
-            RefundCreateViewModel? rebuild = await _refundService.BuildCreateModelAsync(model.TaskId, currentUserId.Value, cancellationToken);
-            if (rebuild != null)
-            {
-                model.TaskTitle = rebuild.TaskTitle;
-                model.RefundAmount = rebuild.RefundAmount;
-                model.PayStatusDisplayName = rebuild.PayStatusDisplayName;
-                model.RecordId = rebuild.RecordId;
-                model.PaymentId = rebuild.PaymentId;
-            }
-
+            await RebuildCreateModelAsync(model, currentUserId.Value, cancellationToken);
             return View(model);
         }
 
@@ -58,16 +49,7 @@ public sealed class RefundController : Controller
         if (!result.Success)
         {
             ModelState.AddModelError(string.Empty, result.ErrorMessage);
-            RefundCreateViewModel? rebuild = await _refundService.BuildCreateModelAsync(model.TaskId, currentUserId.Value, cancellationToken);
-            if (rebuild != null)
-            {
-                model.TaskTitle = rebuild.TaskTitle;
-                model.RefundAmount = rebuild.RefundAmount;
-                model.PayStatusDisplayName = rebuild.PayStatusDisplayName;
-                model.RecordId = rebuild.RecordId;
-                model.PaymentId = rebuild.PaymentId;
-            }
-
+            await RebuildCreateModelAsync(model, currentUserId.Value, cancellationToken);
             return View(model);
         }
 
@@ -104,6 +86,7 @@ public sealed class RefundController : Controller
 
         if (!ModelState.IsValid)
         {
+            await RebuildReviewModelAsync(model, cancellationToken);
             return View(model);
         }
 
@@ -116,11 +99,44 @@ public sealed class RefundController : Controller
         if (!result.Success)
         {
             ModelState.AddModelError(string.Empty, result.ErrorMessage);
+            await RebuildReviewModelAsync(model, cancellationToken);
             return View(model);
         }
 
-        TempData["SuccessMessage"] = model.Decision == "APPROVED" ? "退款已通过，支付状态已更新为已退款。" : "退款已拒绝。";
+        TempData["SuccessMessage"] = model.Decision == "APPROVED"
+            ? "退款已通过，支付状态已更新为已退款。"
+            : "退款已拒绝。";
         return RedirectToAction(nameof(AdminIndex));
+    }
+
+    private async Task RebuildCreateModelAsync(RefundCreateViewModel model, int currentUserId, CancellationToken cancellationToken)
+    {
+        RefundCreateViewModel? rebuild = await _refundService.BuildCreateModelAsync(model.TaskId, currentUserId, cancellationToken);
+        if (rebuild is null)
+        {
+            return;
+        }
+
+        model.TaskTitle = rebuild.TaskTitle;
+        model.RefundAmount = rebuild.RefundAmount;
+        model.PayStatusDisplayName = rebuild.PayStatusDisplayName;
+        model.RecordId = rebuild.RecordId;
+        model.PaymentId = rebuild.PaymentId;
+    }
+
+    private async Task RebuildReviewModelAsync(RefundReviewViewModel model, CancellationToken cancellationToken)
+    {
+        RefundReviewViewModel? rebuild = await _refundService.GetReviewModelAsync(model.RefundId, cancellationToken);
+        if (rebuild is null)
+        {
+            return;
+        }
+
+        model.PaymentId = rebuild.PaymentId;
+        model.TaskId = rebuild.TaskId;
+        model.TaskTitle = rebuild.TaskTitle;
+        model.RefundAmount = rebuild.RefundAmount;
+        model.RefundReason = rebuild.RefundReason;
     }
 
     private int? GetCurrentUserId()

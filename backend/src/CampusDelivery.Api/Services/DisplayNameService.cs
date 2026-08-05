@@ -111,9 +111,10 @@ public static class DisplayNameService
     {
         return value switch
         {
+            "APPLY" => "待审核",
             "PENDING" => "待审核",
-            "APPROVED" => "已通过",
-            "REJECTED" => "已拒绝",
+            "APPROVED" => "退款成功",
+            "REJECTED" => "退款失败",
             _ => value
         };
     }
