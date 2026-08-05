@@ -47,7 +47,14 @@ builder.Services.AddScoped<AddressService>();
 // 接单派单流转模块
 builder.Services.AddScoped<TaskRepository>();
 builder.Services.AddScoped<AssignService>();
+// 任务发布模块
+builder.Services.AddScoped<TaskService>();
 
+// 支付退款模块
+builder.Services.AddScoped<PaymentRepository>();
+builder.Services.AddScoped<PaymentService>();
+builder.Services.AddScoped<RefundRepository>();
+builder.Services.AddScoped<RefundService>();
 // 评价投诉模块
 builder.Services.AddScoped<ReviewsRepository>();
 builder.Services.AddScoped<ReviewService>();
