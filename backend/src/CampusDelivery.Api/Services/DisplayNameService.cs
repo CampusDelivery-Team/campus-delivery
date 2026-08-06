@@ -122,15 +122,7 @@ public static class DisplayNameService
 
     public static string GetRefundProcessStatusName(string value)
     {
-        return value switch
-        {
-            "APPLY" => "已申请",
-            "PENDING" => "待审核",
-            "APPROVED" => "已通过",
-            "REJECTED" => "已拒绝",
-            "DONE" => "已完成",
-            _ => value
-        };
+        return GetRefundStatusName(value);
     }
 
     public static string GetUrgentFlagName(string value)
