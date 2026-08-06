@@ -138,19 +138,30 @@ public sealed class SettlementService(
         }
     }
 
-    public async Task<SettlementOperationResult> ChangeStatusAsync(
-        int settlementId,
-        string status,
-        CancellationToken cancellationToken = default)
+public async Task<SettlementOperationResult> ChangeStatusAsync(
+    int settlementId,
+    string status,
+    CancellationToken cancellationToken = default)
+{
+    if (settlementId <= 0)
     {
-        if (status is not ("WAITING" or "DONE" or "BLOCKED"))
-        {
-            return new SettlementOperationResult(false, "结算状态无效。", settlementId);
-        }
-
-        await settlementRepository.UpdateStatusAsync(settlementId, status, cancellationToken);
-        return new SettlementOperationResult(true, "结算状态已更新。", settlementId);
+        return new SettlementOperationResult(false, "结算单编号无效。", settlementId);
     }
+
+    status = string.IsNullOrWhiteSpace(status) ? string.Empty : status.Trim().ToUpperInvariant();
+    if (status is not ("WAITING" or "DONE" or "BLOCKED"))
+    {
+        return new SettlementOperationResult(false, "结算状态无效。", settlementId);
+    }
+
+    Settlement? existing = await settlementRepository.GetByIdAsync(settlementId, cancellationToken);
+    if (existing is null)
+    {
+        return new SettlementOperationResult(false, "未找到对应的结算单。", settlementId);
+    }
+
+    await settlementRepository.UpdateStatusAsync(settlementId, status, cancellationToken);
+    return new SettlementOperationResult(true, "结算状态已更新。", settlementId);
 }
 
 public sealed record SettlementOperationResult(bool Success, string Message, int? SettlementId);
