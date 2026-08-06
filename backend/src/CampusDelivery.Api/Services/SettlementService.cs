@@ -31,10 +31,9 @@ public sealed class SettlementService(
         IReadOnlyList<SettlementCandidate> candidates = await settlementRepository.GetSettlementCandidatesAsync(cancellationToken);
         var groups = candidates
             .GroupBy(item => new { item.RunnerId, item.RunnerName })
-            .Select(group =>
             {
                 decimal total = group.Sum(item => item.PayAmount);
-                decimal fee = decimal.Round(total * PlatformFeeRate, 2);
+                decimal fee = decimal.Round(total * PlatformFeeRate, 2, MidpointRounding.AwayFromZero);
                 return new SettlementRunnerGroupViewModel
                 {
                     RunnerId = group.Key.RunnerId,
