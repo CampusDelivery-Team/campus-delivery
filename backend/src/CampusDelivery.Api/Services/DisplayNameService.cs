@@ -111,9 +111,24 @@ public static class DisplayNameService
     {
         return value switch
         {
+            "APPLY" => "已申请",
+            "DONE" => "已完成",
             "PENDING" => "待审核",
             "APPROVED" => "已通过",
             "REJECTED" => "已拒绝",
+            _ => value
+        };
+    }
+
+    public static string GetRefundProcessStatusName(string value)
+    {
+        return value switch
+        {
+            "APPLY" => "已申请",
+            "APPROVED" => "已通过",
+            "REJECTED" => "已拒绝",
+            "DONE" => "已完成",
+            "PENDING" => "待审核",
             _ => value
         };
     }
@@ -146,6 +161,59 @@ public static class DisplayNameService
             "SUBMITTED" => "待处理",
             "PROCESSING" => "处理中",
             "DONE" => "已处理",
+            _ => value
+        };
+    }
+
+    public static string GetSettlementStatusName(string value)
+    {
+        return value switch
+        {
+            "WAITING" => "待结算",
+            "DONE" => "已结算",
+            "BLOCKED" => "已阻断",
+            _ => value
+        };
+    }
+
+    public static string GetAuditObjectName(string value)
+    {
+        return value switch
+        {
+            "LOG" => "状态日志",
+            "PAYMENT" => "支付记录",
+            "REFUND" => "退款记录",
+            _ => value
+        };
+    }
+
+    public static string GetAuditResultName(string value)
+    {
+        return value switch
+        {
+            "PASS" => "通过",
+            "ABNORMAL" => "异常",
+            _ => value
+        };
+    }
+
+    public static string GetReportTypeName(string value)
+    {
+        return value switch
+        {
+            "ORDER" => "订单报表",
+            "PAYMENT" => "支付报表",
+            "COMPLAINT" => "投诉报表",
+            _ => value
+        };
+    }
+
+    public static string GetReportStatusName(string value)
+    {
+        return value switch
+        {
+            "GENERATED" => "已生成",
+            "EXPORTED" => "已导出",
             _ => value
         };
     }

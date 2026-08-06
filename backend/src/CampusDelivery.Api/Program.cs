@@ -68,6 +68,14 @@ builder.Services.AddScoped<ReviewService>();
 builder.Services.AddScoped<ComplaintRepository>();
 builder.Services.AddScoped<ComplaintService>();
 
+// 结算、审计与报表模块
+builder.Services.AddScoped<SettlementRepository>();
+builder.Services.AddScoped<SettlementService>();
+builder.Services.AddScoped<AuditRepository>();
+builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<ReportRepository>();
+builder.Services.AddScoped<ReportService>();
+
 // ===== Cookie 认证配置 =====
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
