@@ -15,25 +15,30 @@ public sealed class SettlementService(
     public async Task<SettlementIndexViewModel> GetIndexAsync(CancellationToken cancellationToken = default)
     {
         IReadOnlyList<Settlement> settlements = await settlementRepository.GetRecentSettlementsAsync(cancellationToken);
-        IReadOnlyList<SettlementCandidate> candidates = await settlementRepository.GetSettlementCandidatesAsync(cancellationToken);
+        SettlementCandidateSummary candidateSummary =
+            await settlementRepository.GetSettlementCandidateSummaryAsync(cancellationToken);
 
         return new SettlementIndexViewModel
         {
             Settlements = settlements.Select(SettlementSummaryViewModel.FromModel).ToList(),
-            CandidatePaymentCount = candidates.Count,
-            CandidatePayAmount = candidates.Sum(item => item.PayAmount),
+            CandidatePaymentCount = candidateSummary.PaymentCount,
+            CandidatePayAmount = candidateSummary.PayAmount,
             PlatformFeeRate = PlatformFeeRate
         };
     }
 
     public async Task<SettlementCandidatesViewModel> GetCandidatesAsync(CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<SettlementCandidate> candidates = await settlementRepository.GetSettlementCandidatesAsync(cancellationToken);
+        IReadOnlyList<SettlementCandidate> candidates =
+            await settlementRepository.GetSettlementCandidatesAsync(cancellationToken);
+
         var groups = candidates
             .GroupBy(item => new { item.RunnerId, item.RunnerName })
+            .Select(group =>
             {
                 decimal total = group.Sum(item => item.PayAmount);
                 decimal fee = decimal.Round(total * PlatformFeeRate, 2, MidpointRounding.AwayFromZero);
+
                 return new SettlementRunnerGroupViewModel
                 {
                     RunnerId = group.Key.RunnerId,
@@ -56,7 +61,9 @@ public sealed class SettlementService(
         };
     }
 
-    public async Task<SettlementDetailsViewModel?> GetDetailsAsync(int settlementId, CancellationToken cancellationToken = default)
+    public async Task<SettlementDetailsViewModel?> GetDetailsAsync(
+        int settlementId,
+        CancellationToken cancellationToken = default)
     {
         Settlement? settlement = await settlementRepository.GetByIdAsync(settlementId, cancellationToken);
         if (settlement == null)
@@ -64,7 +71,9 @@ public sealed class SettlementService(
             return null;
         }
 
-        IReadOnlyList<SettlementPaymentItem> items = await settlementRepository.GetItemsAsync(settlementId, cancellationToken);
+        IReadOnlyList<SettlementPaymentItem> items =
+            await settlementRepository.GetItemsAsync(settlementId, cancellationToken);
+
         return new SettlementDetailsViewModel
         {
             Settlement = SettlementSummaryViewModel.FromModel(settlement),
@@ -83,7 +92,8 @@ public sealed class SettlementService(
 
         await using OracleConnection connection = connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using OracleTransaction transaction = (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using OracleTransaction transaction =
+            (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
 
         try
         {
@@ -101,7 +111,7 @@ public sealed class SettlementService(
             }
 
             decimal total = candidates.Sum(item => item.PayAmount);
-            decimal platformFee = decimal.Round(total * PlatformFeeRate, 2);
+            decimal platformFee = decimal.Round(total * PlatformFeeRate, 2, MidpointRounding.AwayFromZero);
             var settlement = new Settlement
             {
                 RunnerId = runnerId,
@@ -137,31 +147,31 @@ public sealed class SettlementService(
         }
     }
 
-public async Task<SettlementOperationResult> ChangeStatusAsync(
-    int settlementId,
-    string status,
-    CancellationToken cancellationToken = default)
-{
-    if (settlementId <= 0)
+    public async Task<SettlementOperationResult> ChangeStatusAsync(
+        int settlementId,
+        string status,
+        CancellationToken cancellationToken = default)
     {
-        return new SettlementOperationResult(false, "结算单编号无效。", settlementId);
-    }
+        if (settlementId <= 0)
+        {
+            return new SettlementOperationResult(false, "结算单编号无效。", settlementId);
+        }
 
-    status = string.IsNullOrWhiteSpace(status) ? string.Empty : status.Trim().ToUpperInvariant();
-    if (status is not ("WAITING" or "DONE" or "BLOCKED"))
-    {
-        return new SettlementOperationResult(false, "结算状态无效。", settlementId);
-    }
+        status = string.IsNullOrWhiteSpace(status) ? string.Empty : status.Trim().ToUpperInvariant();
+        if (status is not ("WAITING" or "DONE" or "BLOCKED"))
+        {
+            return new SettlementOperationResult(false, "结算状态无效。", settlementId);
+        }
 
-    Settlement? existing = await settlementRepository.GetByIdAsync(settlementId, cancellationToken);
-    if (existing is null)
-    {
-        return new SettlementOperationResult(false, "未找到对应的结算单。", settlementId);
-    }
+        Settlement? existing = await settlementRepository.GetByIdAsync(settlementId, cancellationToken);
+        if (existing is null)
+        {
+            return new SettlementOperationResult(false, "未找到对应的结算单。", settlementId);
+        }
 
-    await settlementRepository.UpdateStatusAsync(settlementId, status, cancellationToken);
-    return new SettlementOperationResult(true, "结算状态已更新。", settlementId);
+        await settlementRepository.UpdateStatusAsync(settlementId, status, cancellationToken);
+        return new SettlementOperationResult(true, "结算状态已更新。", settlementId);
+    }
 }
 
 public sealed record SettlementOperationResult(bool Success, string Message, int? SettlementId);
-

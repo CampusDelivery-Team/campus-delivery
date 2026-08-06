@@ -8,6 +8,29 @@ namespace CampusDelivery.Api.Repositories;
 
 public sealed class SettlementRepository(OracleConnectionFactory connectionFactory)
 {
+    private const string SettlementCandidateFilterSql = """
+              p.pay_status = 'PAID'
+              AND t.task_status = 'FINISHED'
+              AND (:runnerId IS NULL OR ar.runner_id = :runnerId)
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM APPUSER.settlement_payment_items spi
+                  WHERE spi.payment_id = p.payment_id
+              )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM APPUSER.complaints c
+                  WHERE c.record_id = p.record_id
+                    AND c.process_status IN ('SUBMITTED', 'PROCESSING')
+              )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM APPUSER.refunds rf
+                  WHERE rf.payment_id = p.payment_id
+                    AND rf.process_status IN ('APPLY', 'APPROVED', 'DONE')
+              )
+            """;
+
     public async Task<IReadOnlyList<Settlement>> GetRecentSettlementsAsync(CancellationToken cancellationToken = default)
     {
         var items = new List<Settlement>();
@@ -32,6 +55,40 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         }
 
         return items;
+    }
+
+    public async Task<SettlementCandidateSummary> GetSettlementCandidateSummaryAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = $"""
+            SELECT COUNT(*) AS payment_count,
+                   NVL(SUM(p.pay_amount), 0) AS pay_amount
+            FROM APPUSER.payments p
+            JOIN APPUSER.assign_records ar ON ar.record_id = p.record_id
+            JOIN APPUSER.tasks t ON t.task_id = ar.task_id
+            WHERE {SettlementCandidateFilterSql}
+            """;
+        command.Parameters.Add(new OracleParameter("runnerId", OracleDbType.Int32)
+        {
+            Value = DBNull.Value
+        });
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return new SettlementCandidateSummary();
+        }
+
+        return new SettlementCandidateSummary
+        {
+            PaymentCount = Convert.ToInt32(reader["payment_count"]),
+            PayAmount = Convert.ToDecimal(reader["pay_amount"])
+        };
     }
 
     public async Task<IReadOnlyList<SettlementCandidate>> GetSettlementCandidatesAsync(CancellationToken cancellationToken = default)
@@ -204,30 +261,14 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
             JOIN APPUSER.assign_records ar ON ar.record_id = p.record_id
             JOIN APPUSER.runners r ON r.runner_id = ar.runner_id
             JOIN APPUSER.tasks t ON t.task_id = ar.task_id
-            WHERE p.pay_status = 'PAID'
-              AND t.task_status = 'FINISHED'
-              AND (:runnerId IS NULL OR ar.runner_id = :runnerId)
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM APPUSER.settlement_payment_items spi
-                  WHERE spi.payment_id = p.payment_id
-              )
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM APPUSER.complaints c
-                  WHERE c.record_id = p.record_id
-                    AND c.process_status IN ('SUBMITTED', 'PROCESSING')
-              )
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM APPUSER.refunds rf
-                  WHERE rf.payment_id = p.payment_id
-                    AND rf.process_status IN ('APPLY', 'APPROVED', 'DONE')
-              )
+            WHERE {SettlementCandidateFilterSql}
             ORDER BY ar.runner_id, p.payment_id
             {(forUpdate ? "FOR UPDATE OF p.payment_id" : string.Empty)}
             """;
-        command.Parameters.Add(new OracleParameter("runnerId", (object?)runnerId ?? DBNull.Value));
+        command.Parameters.Add(new OracleParameter("runnerId", OracleDbType.Int32)
+        {
+            Value = (object?)runnerId ?? DBNull.Value
+        });
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
@@ -265,4 +306,3 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         };
     }
 }
-
