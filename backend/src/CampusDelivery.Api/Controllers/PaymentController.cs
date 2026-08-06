@@ -7,15 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize]
-public sealed class PaymentController : Controller
+public sealed class PaymentController(PaymentService paymentService) : Controller
 {
-    private readonly PaymentService _paymentService;
-
-    public PaymentController(PaymentService paymentService)
-    {
-        _paymentService = paymentService;
-    }
-
     [HttpGet]
     public async Task<IActionResult> Confirm(int taskId, CancellationToken cancellationToken)
     {
@@ -25,13 +18,13 @@ public sealed class PaymentController : Controller
             return RedirectToAction("Login", "Auth");
         }
 
-        PaymentConfirmViewModel? model = await _paymentService.BuildConfirmModelAsync(taskId, currentUserId.Value, cancellationToken);
-        return model == null ? NotFound() : View(model);
+        PaymentConfirmViewModel? model = await paymentService.BuildConfirmModelAsync(taskId, currentUserId.Value, cancellationToken);
+        return model is null ? NotFound() : View(model);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Confirm(PaymentConfirmViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Confirm(PaymentConfirmViewModel model, string submitAction, CancellationToken cancellationToken)
     {
         int? currentUserId = GetCurrentUserId();
         if (!currentUserId.HasValue)
@@ -41,48 +34,36 @@ public sealed class PaymentController : Controller
 
         if (!ModelState.IsValid)
         {
-            PaymentConfirmViewModel? confirmModel = await _paymentService.BuildConfirmModelAsync(model.TaskId, currentUserId.Value, cancellationToken);
-            if (confirmModel != null)
-            {
-                model.TaskTitle = confirmModel.TaskTitle;
-                model.TaskAmount = confirmModel.TaskAmount;
-                model.TaskStatusDisplayName = confirmModel.TaskStatusDisplayName;
-                model.ReceiptConfirmed = confirmModel.ReceiptConfirmed;
-                model.CanSubmitPayment = confirmModel.CanSubmitPayment;
-            }
-
+            await RebuildConfirmModelAsync(model, currentUserId.Value, cancellationToken);
             return View(model);
         }
 
-        PaymentOperationResult result = await _paymentService.SubmitPaymentAsync(
-            model.TaskId,
-            currentUserId.Value,
-            model.PayMethod,
-            model.ThirdTradeNo,
-            cancellationToken);
+        bool payLater = string.Equals(submitAction, "LATER", StringComparison.OrdinalIgnoreCase);
+        PaymentOperationResult result = payLater
+            ? await paymentService.SaveUnpaidPaymentAsync(model.TaskId, currentUserId.Value, model.PayMethod, cancellationToken)
+            : await paymentService.SubmitPaymentAsync(model.TaskId, currentUserId.Value, model.PayMethod, cancellationToken);
 
         if (!result.Success)
         {
             ModelState.AddModelError(string.Empty, result.ErrorMessage);
-            PaymentConfirmViewModel? confirmModel = await _paymentService.BuildConfirmModelAsync(model.TaskId, currentUserId.Value, cancellationToken);
-            if (confirmModel != null)
-            {
-                model.TaskTitle = confirmModel.TaskTitle;
-                model.TaskAmount = confirmModel.TaskAmount;
-                model.TaskStatusDisplayName = confirmModel.TaskStatusDisplayName;
-                model.ReceiptConfirmed = confirmModel.ReceiptConfirmed;
-                model.CanSubmitPayment = confirmModel.CanSubmitPayment;
-            }
-
+            await RebuildConfirmModelAsync(model, currentUserId.Value, cancellationToken);
             return View(model);
         }
 
-        TempData["SuccessMessage"] = "支付成功，任务已进入已完成状态。";
-        return RedirectToAction(nameof(Status), new { taskId = model.TaskId });
+        TempData["SuccessMessage"] = payLater
+            ? "已保存为待付款；任务已经完成，跑腿员已恢复为可接单状态。"
+            : "支付成功，任务已进入已完成状态。";
+        return RedirectToAction(nameof(Status), new { paymentId = result.PaymentId });
     }
 
     [HttpGet]
-    public async Task<IActionResult> Status(int? taskId, int? paymentId, int page = 1, int pageSize = 10, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Status(
+        string? keyword,
+        int? taskId,
+        int? paymentId,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
     {
         int? currentUserId = GetCurrentUserId();
         if (!currentUserId.HasValue)
@@ -91,9 +72,25 @@ public sealed class PaymentController : Controller
         }
 
         PaymentStatusQueryViewModel model = paymentId.HasValue || taskId.HasValue
-            ? await _paymentService.QueryPaymentAsync(currentUserId.Value, taskId, paymentId, cancellationToken)
-            : await _paymentService.GetMyPaymentStatusAsync(currentUserId.Value, page, pageSize, cancellationToken);
+            ? await paymentService.QueryPaymentAsync(currentUserId.Value, taskId, paymentId, cancellationToken)
+            : await paymentService.GetMyPaymentStatusAsync(currentUserId.Value, keyword, page, pageSize, cancellationToken);
         return View(model);
+    }
+
+    private async Task RebuildConfirmModelAsync(PaymentConfirmViewModel model, int currentUserId, CancellationToken cancellationToken)
+    {
+        PaymentConfirmViewModel? source = await paymentService.BuildConfirmModelAsync(model.TaskId, currentUserId, cancellationToken);
+        if (source is null)
+        {
+            return;
+        }
+
+        model.RecordId = source.RecordId;
+        model.TaskTitle = source.TaskTitle;
+        model.TaskAmount = source.TaskAmount;
+        model.TaskStatusDisplayName = source.TaskStatusDisplayName;
+        model.ReceiptConfirmed = source.ReceiptConfirmed;
+        model.CanSubmitPayment = source.CanSubmitPayment;
     }
 
     private int? GetCurrentUserId()

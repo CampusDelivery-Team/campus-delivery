@@ -60,7 +60,7 @@ public static class DisplayNameService
         return value switch
         {
             "NORMAL" => "正常",
-            "BLOCKED" => "已封控",
+            "BLOCKED" => "已封禁",
             "CANCELLED" => "已注销",
             _ => value
         };
@@ -111,11 +111,11 @@ public static class DisplayNameService
     {
         return value switch
         {
-            "APPLY" => "已申请",
-            "DONE" => "已完成",
+            "APPLY" => "待审核",
             "PENDING" => "待审核",
-            "APPROVED" => "已通过",
-            "REJECTED" => "已拒绝",
+            "APPROVED" => "退款成功",
+            "REJECTED" => "退款失败",
+            "DONE" => "已完成",
             _ => value
         };
     }
@@ -125,10 +125,10 @@ public static class DisplayNameService
         return value switch
         {
             "APPLY" => "已申请",
+            "PENDING" => "待审核",
             "APPROVED" => "已通过",
             "REJECTED" => "已拒绝",
             "DONE" => "已完成",
-            "PENDING" => "待审核",
             _ => value
         };
     }
