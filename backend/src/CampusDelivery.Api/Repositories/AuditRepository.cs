@@ -17,14 +17,33 @@ public sealed class AuditRepository(OracleConnectionFactory connectionFactory)
         await using var command = connection.CreateCommand();
         command.BindByName = true;
         command.CommandText = """
-            SELECT a.audit_id, a.audit_object, a.audit_result, a.audited_at, a.exception_note,
+            SELECT a.audit_id,
+                   a.audit_object,
+                   a.audit_result,
+                   a.audited_at,
+                   a.exception_note,
                    CASE a.audit_object
-                       WHEN 'PAYMENT' THEN (SELECT COUNT(*) FROM APPUSER.audit_payment_checks x WHERE x.audit_id = a.audit_id)
-                       WHEN 'REFUND' THEN (SELECT COUNT(*) FROM APPUSER.audit_refund_checks x WHERE x.audit_id = a.audit_id)
-                       WHEN 'LOG' THEN (SELECT COUNT(*) FROM APPUSER.audit_status_log_checks x WHERE x.audit_id = a.audit_id)
+                       WHEN 'PAYMENT' THEN NVL(ap.cnt, 0)
+                       WHEN 'REFUND' THEN NVL(ar.cnt, 0)
+                       WHEN 'LOG' THEN NVL(al.cnt, 0)
                        ELSE 0
                    END AS related_count
             FROM APPUSER.audit_logs a
+            LEFT JOIN (
+                SELECT audit_id, COUNT(*) AS cnt
+                FROM APPUSER.audit_payment_checks
+                GROUP BY audit_id
+            ) ap ON ap.audit_id = a.audit_id
+            LEFT JOIN (
+                SELECT audit_id, COUNT(*) AS cnt
+                FROM APPUSER.audit_refund_checks
+                GROUP BY audit_id
+            ) ar ON ar.audit_id = a.audit_id
+            LEFT JOIN (
+                SELECT audit_id, COUNT(*) AS cnt
+                FROM APPUSER.audit_status_log_checks
+                GROUP BY audit_id
+            ) al ON al.audit_id = a.audit_id
             ORDER BY a.audited_at DESC, a.audit_id DESC
             FETCH FIRST 100 ROWS ONLY
             """;
