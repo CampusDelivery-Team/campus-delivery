@@ -3,15 +3,19 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>@ViewData["Title"] - 校园跑腿服务管理系统</title>
+    <title>@ViewData["Title"] - 济跑跑 JiRun</title>
+    <link rel="icon" href="~/images/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="~/images/jirun-mark-192.png" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
     <header class="topbar">
         <a class="brand" asp-controller="Home" asp-action="Index">
-            <span>跑</span>
-            <strong>校园跑腿</strong>
-            <small>Campus Runner Service</small>
+            <img class="brand-mark" src="~/images/jirun-mark-64.png" alt="" />
+            <div class="brand-copy">
+                <strong>济跑跑</strong>
+                <small>JiRun Campus Service</small>
+            </div>
         </a>
         <nav class="nav">
             <a asp-controller="Home" asp-action="Index" asp-fragment="services">服务类型</a>
