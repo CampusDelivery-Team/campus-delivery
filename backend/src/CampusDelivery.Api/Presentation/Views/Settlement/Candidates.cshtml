@@ -1,0 +1,84 @@
+@model SettlementCandidatesViewModel
+
+@{
+    ViewData["Title"] = "可结算记录";
+}
+
+<section class="panel management-panel ops-page">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">SETTLEMENT CANDIDATES</p>
+            <h1>可结算支付记录</h1>
+            <p class="section-description">系统仅列出已支付、已完成、未结算且没有未处理投诉或退款异常的记录。</p>
+        </div>
+        <a class="button" asp-action="Index">返回结算列表</a>
+    </div>
+
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="task-alert task-alert--error">@error</div>
+    }
+
+    @if (Model.RunnerGroups.Count == 0)
+    {
+        <div class="task-empty-card">暂无可结算记录。请先完成任务支付，或确认没有未处理投诉和退款异常。</div>
+    }
+    else
+    {
+        <div class="ops-stack">
+            @foreach (var group in Model.RunnerGroups)
+            {
+                <article class="ops-section-card">
+                    <div class="ops-card-header">
+                        <div>
+                            <p class="eyebrow">RUNNER #@group.RunnerId</p>
+                            <h2>@group.RunnerName</h2>
+                        </div>
+                        <form asp-action="GenerateForRunner" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="runnerId" value="@group.RunnerId" />
+                            <button type="submit" class="button primary">生成结算单</button>
+                        </form>
+                    </div>
+
+                    <div class="ops-mini-metrics">
+                        <div><span>支付笔数</span><strong>@group.PaymentCount</strong></div>
+                        <div><span>订单总额</span><strong>¥@group.OrderTotal.ToString("F2")</strong></div>
+                        <div><span>平台抽成</span><strong>¥@group.PlatformFee.ToString("F2")</strong></div>
+                        <div><span>跑腿员净收入</span><strong>¥@group.NetIncome.ToString("F2")</strong></div>
+                    </div>
+
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>支付编号</th>
+                                    <th>任务</th>
+                                    <th>接派记录</th>
+                                    <th>支付方式</th>
+                                    <th>支付金额</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var payment in group.Payments)
+                                {
+                                    <tr>
+                                        <td>#@payment.PaymentId</td>
+                                        <td>
+                                            <span class="table-primary">@payment.TaskTitle</span>
+                                            <span class="table-secondary">任务 #@payment.TaskId</span>
+                                        </td>
+                                        <td>#@payment.RecordId</td>
+                                        <td>@payment.PayMethodDisplayName</td>
+                                        <td class="task-price">¥@payment.PayAmount.ToString("F2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</section>
+
