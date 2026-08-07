@@ -2866,9 +2866,7 @@ a.quick-entry:focus-visible {
     color: #a76000;
 }
 
-.service-card.blue,
-.service-card.pink,
-.service-card.cyan {
+.service-card.blue {
     border-top-color: var(--jirun-blue);
 }
 
