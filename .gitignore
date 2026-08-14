@@ -1,5 +1,6 @@
 .vs/
 .tmp/
+tmp/
 .vscode/*
 !.vscode/extensions.json
 bin/

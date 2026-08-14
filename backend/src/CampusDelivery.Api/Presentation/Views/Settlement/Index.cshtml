@@ -1,0 +1,95 @@
+@model SettlementIndexViewModel
+
+@{
+    ViewData["Title"] = "结算管理";
+}
+
+<section class="panel management-panel ops-page">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">SETTLEMENT</p>
+            <h1>跑腿员结算管理</h1>
+            <p class="section-description">按已支付且无未处理投诉、无退款异常的记录生成结算单。当前平台抽成为 @((Model.PlatformFeeRate * 100).ToString("F0"))%。</p>
+        </div>
+        <a class="button primary" asp-action="Candidates">查看可结算记录</a>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="task-alert task-alert--success">@success</div>
+    }
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="task-alert task-alert--error">@error</div>
+    }
+
+    <div class="summary-strip ops-summary">
+        <div>
+            <strong>@Model.CandidatePaymentCount</strong>
+            <span>可结算支付</span>
+        </div>
+        <div>
+            <strong>¥@Model.CandidatePayAmount.ToString("F2")</strong>
+            <span>候选支付金额</span>
+        </div>
+        <div>
+            <strong>@((Model.PlatformFeeRate * 100).ToString("F0"))%</strong>
+            <span>平台抽成比例</span>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table class="management-table">
+            <thead>
+                <tr>
+                    <th>结算单</th>
+                    <th>跑腿员</th>
+                    <th>订单总额</th>
+                    <th>平台抽成</th>
+                    <th>净收入</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Settlements.Count == 0)
+                {
+                    <tr>
+                        <td colspan="7" class="empty task-table__empty">暂无结算单。可先进入“可结算记录”生成。</td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var item in Model.Settlements)
+                    {
+                        <tr>
+                            <td><strong>#@item.SettlementId</strong></td>
+                            <td>
+                                <span class="table-primary">@item.RunnerName</span>
+                                <span class="table-secondary">跑腿员 #@item.RunnerId</span>
+                            </td>
+                            <td>¥@item.OrderTotal.ToString("F2")</td>
+                            <td>¥@item.PlatformFee.ToString("F2")</td>
+                            <td class="task-price">¥@item.NetIncome.ToString("F2")</td>
+                            <td><span class="badge @GetSettlementBadgeClass(item.SettlementStatus)">@item.SettlementStatusDisplayName</span></td>
+                            <td><a asp-action="Details" asp-route-id="@item.SettlementId">查看明细</a></td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@functions {
+    private static string GetSettlementBadgeClass(string status)
+    {
+        return status switch
+        {
+            "DONE" => "success",
+            "BLOCKED" => "danger",
+            _ => "muted"
+        };
+    }
+}
+

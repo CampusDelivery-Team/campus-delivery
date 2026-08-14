@@ -60,7 +60,7 @@ public static class DisplayNameService
         return value switch
         {
             "NORMAL" => "正常",
-            "BLOCKED" => "已封控",
+            "BLOCKED" => "已封禁",
             "CANCELLED" => "已注销",
             _ => value
         };
@@ -115,8 +115,14 @@ public static class DisplayNameService
             "PENDING" => "待审核",
             "APPROVED" => "退款成功",
             "REJECTED" => "退款失败",
+            "DONE" => "已完成",
             _ => value
         };
+    }
+
+    public static string GetRefundProcessStatusName(string value)
+    {
+        return GetRefundStatusName(value);
     }
 
     public static string GetUrgentFlagName(string value)
@@ -147,6 +153,59 @@ public static class DisplayNameService
             "SUBMITTED" => "待处理",
             "PROCESSING" => "处理中",
             "DONE" => "已处理",
+            _ => value
+        };
+    }
+
+    public static string GetSettlementStatusName(string value)
+    {
+        return value switch
+        {
+            "WAITING" => "待结算",
+            "DONE" => "已结算",
+            "BLOCKED" => "已阻断",
+            _ => value
+        };
+    }
+
+    public static string GetAuditObjectName(string value)
+    {
+        return value switch
+        {
+            "LOG" => "状态日志",
+            "PAYMENT" => "支付记录",
+            "REFUND" => "退款记录",
+            _ => value
+        };
+    }
+
+    public static string GetAuditResultName(string value)
+    {
+        return value switch
+        {
+            "PASS" => "通过",
+            "ABNORMAL" => "异常",
+            _ => value
+        };
+    }
+
+    public static string GetReportTypeName(string value)
+    {
+        return value switch
+        {
+            "ORDER" => "订单报表",
+            "PAYMENT" => "支付报表",
+            "COMPLAINT" => "投诉报表",
+            _ => value
+        };
+    }
+
+    public static string GetReportStatusName(string value)
+    {
+        return value switch
+        {
+            "GENERATED" => "已生成",
+            "EXPORTED" => "已导出",
             _ => value
         };
     }
