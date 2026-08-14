@@ -62,4 +62,3 @@ public sealed class ReportService(ReportRepository reportRepository)
 }
 
 public sealed record ReportOperationResult(bool Success, string Message, int? ReportId);
-

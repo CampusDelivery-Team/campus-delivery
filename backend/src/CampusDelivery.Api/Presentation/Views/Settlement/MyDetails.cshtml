@@ -1,0 +1,91 @@
+@model RunnerSettlementDetailsViewModel
+
+@{
+    ViewData["Title"] = "我的结算明细";
+}
+
+<section class="panel management-panel ops-page">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">SETTLEMENT DETAIL</p>
+            <h1>结算单 #@Model.Settlement.SettlementId</h1>
+            <p class="section-description">这里列出本次结算包含的支付记录。平台服务费和实际收入由管理员结算时统一计算。</p>
+        </div>
+        <a class="button" asp-action="My">返回我的结算</a>
+    </div>
+
+    <div class="ops-detail-hero">
+        <div>
+            <span>结算状态</span>
+            <strong>@Model.Settlement.SettlementStatusDisplayName</strong>
+            <small>跑腿员 #@Model.Settlement.RunnerId</small>
+        </div>
+        <div>
+            <span>订单总额</span>
+            <strong>¥@Model.Settlement.OrderTotal.ToString("F2")</strong>
+        </div>
+        <div>
+            <span>平台服务费</span>
+            <strong>¥@Model.Settlement.PlatformFee.ToString("F2")</strong>
+        </div>
+        <div>
+            <span>实际收入</span>
+            <strong>¥@Model.Settlement.NetIncome.ToString("F2")</strong>
+        </div>
+    </div>
+
+    <div class="ops-status-actions">
+        <span class="badge @GetSettlementBadgeClass(Model.Settlement.SettlementStatus)">@Model.Settlement.SettlementStatusDisplayName</span>
+        <span class="muted-text">如结算状态为已阻断，请联系管理员查看异常原因。</span>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>支付编号</th>
+                    <th>任务</th>
+                    <th>接派记录</th>
+                    <th>支付方式</th>
+                    <th>支付金额</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="5" class="empty task-table__empty">该结算单暂无明细。</td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>#@item.PaymentId</td>
+                            <td>
+                                <span class="table-primary">@item.TaskTitle</span>
+                                <span class="table-secondary">任务 #@item.TaskId</span>
+                            </td>
+                            <td>#@item.RecordId</td>
+                            <td>@item.PayMethodDisplayName</td>
+                            <td class="task-price">¥@item.PayAmount.ToString("F2")</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@functions {
+    private static string GetSettlementBadgeClass(string status)
+    {
+        return status switch
+        {
+            "DONE" => "success",
+            "BLOCKED" => "danger",
+            _ => "muted"
+        };
+    }
+}

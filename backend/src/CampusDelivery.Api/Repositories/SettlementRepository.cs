@@ -127,6 +127,102 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         return await reader.ReadAsync(cancellationToken) ? MapSettlement(reader) : null;
     }
 
+    public async Task<RunnerSettlementSummary> GetRunnerSettlementSummaryAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT COUNT(*) AS settlement_count,
+                   NVL(SUM(CASE WHEN s.settlement_status = 'WAITING' THEN 1 ELSE 0 END), 0) AS waiting_count,
+                   NVL(SUM(CASE WHEN s.settlement_status = 'DONE' THEN 1 ELSE 0 END), 0) AS done_count,
+                   NVL(SUM(CASE WHEN s.settlement_status = 'BLOCKED' THEN 1 ELSE 0 END), 0) AS blocked_count,
+                   NVL(SUM(s.net_income), 0) AS total_net_income,
+                   NVL(SUM(CASE WHEN s.settlement_status = 'WAITING' THEN s.net_income ELSE 0 END), 0) AS waiting_net_income,
+                   NVL(SUM(CASE WHEN s.settlement_status = 'DONE' THEN s.net_income ELSE 0 END), 0) AS done_net_income
+            FROM APPUSER.settlements s
+            JOIN APPUSER.runners r ON r.runner_id = s.runner_id
+            WHERE r.user_id = :userId
+            """;
+        command.Parameters.Add(new OracleParameter("userId", userId));
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return new RunnerSettlementSummary();
+        }
+
+        return new RunnerSettlementSummary
+        {
+            SettlementCount = Convert.ToInt32(reader["settlement_count"]),
+            WaitingCount = Convert.ToInt32(reader["waiting_count"]),
+            DoneCount = Convert.ToInt32(reader["done_count"]),
+            BlockedCount = Convert.ToInt32(reader["blocked_count"]),
+            TotalNetIncome = Convert.ToDecimal(reader["total_net_income"]),
+            WaitingNetIncome = Convert.ToDecimal(reader["waiting_net_income"]),
+            DoneNetIncome = Convert.ToDecimal(reader["done_net_income"])
+        };
+    }
+
+    public async Task<IReadOnlyList<Settlement>> GetSettlementsByRunnerUserIdAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        var items = new List<Settlement>();
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT s.settlement_id, s.runner_id, r.real_name, s.order_total,
+                   s.platform_fee, s.net_income, s.settlement_status
+            FROM APPUSER.settlements s
+            JOIN APPUSER.runners r ON r.runner_id = s.runner_id
+            WHERE r.user_id = :userId
+            ORDER BY s.settlement_id DESC
+            FETCH FIRST 80 ROWS ONLY
+            """;
+        command.Parameters.Add(new OracleParameter("userId", userId));
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(MapSettlement(reader));
+        }
+
+        return items;
+    }
+
+    public async Task<Settlement?> GetByIdForRunnerUserAsync(
+        int settlementId,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT s.settlement_id, s.runner_id, r.real_name, s.order_total,
+                   s.platform_fee, s.net_income, s.settlement_status
+            FROM APPUSER.settlements s
+            JOIN APPUSER.runners r ON r.runner_id = s.runner_id
+            WHERE s.settlement_id = :settlementId
+              AND r.user_id = :userId
+            """;
+        command.Parameters.Add(new OracleParameter("settlementId", settlementId));
+        command.Parameters.Add(new OracleParameter("userId", userId));
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? MapSettlement(reader) : null;
+    }
+
     public async Task<IReadOnlyList<SettlementPaymentItem>> GetItemsAsync(
         int settlementId,
         CancellationToken cancellationToken = default)
@@ -148,6 +244,51 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
             ORDER BY spi.payment_id
             """;
         command.Parameters.Add(new OracleParameter("settlementId", settlementId));
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new SettlementPaymentItem
+            {
+                SettlementId = Convert.ToInt32(reader["settlement_id"]),
+                PaymentId = Convert.ToInt32(reader["payment_id"]),
+                RecordId = Convert.ToInt32(reader["record_id"]),
+                TaskId = Convert.ToInt32(reader["task_id"]),
+                TaskTitle = Convert.ToString(reader["task_title"]) ?? string.Empty,
+                PayAmount = Convert.ToDecimal(reader["pay_amount"]),
+                PayMethod = Convert.ToString(reader["pay_method"]) ?? "CASH"
+            });
+        }
+
+        return items;
+    }
+
+    public async Task<IReadOnlyList<SettlementPaymentItem>> GetItemsForRunnerUserAsync(
+        int settlementId,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        var items = new List<SettlementPaymentItem>();
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT spi.settlement_id, spi.payment_id, p.record_id, ar.task_id,
+                   t.task_title, p.pay_amount, p.pay_method
+            FROM APPUSER.settlement_payment_items spi
+            JOIN APPUSER.settlements s ON s.settlement_id = spi.settlement_id
+            JOIN APPUSER.runners r ON r.runner_id = s.runner_id
+            JOIN APPUSER.payments p ON p.payment_id = spi.payment_id
+            JOIN APPUSER.assign_records ar ON ar.record_id = p.record_id
+            JOIN APPUSER.tasks t ON t.task_id = ar.task_id
+            WHERE spi.settlement_id = :settlementId
+              AND r.user_id = :userId
+            ORDER BY spi.payment_id
+            """;
+        command.Parameters.Add(new OracleParameter("settlementId", settlementId));
+        command.Parameters.Add(new OracleParameter("userId", userId));
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
