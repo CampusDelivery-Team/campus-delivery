@@ -1,0 +1,44 @@
+﻿@model ComplaintProcessViewModel
+
+@{
+    ViewData["Title"] = "处理投诉";
+}
+
+<section class="application-shell">
+    <header class="application-heading">
+        <p class="eyebrow">售后管理</p>
+        <h1>处理投诉 #@Model.ComplaintId</h1>
+        <p>接派记录 #@Model.RecordId</p>
+    </header>
+
+    <div class="profile-info-grid">
+        <div><span>投诉原因</span><strong>@Model.Reason</strong></div>
+        <div><span>当前状态</span><strong>@(Model.CurrentStatus == "SUBMITTED" ? "待处理" : Model.CurrentStatus == "PROCESSING" ? "处理中" : "已处理")</strong></div>
+    </div>
+
+    <form asp-action="Process" method="post" class="application-form">
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+        <input type="hidden" asp-for="ComplaintId" />
+        <input type="hidden" asp-for="RecordId" />
+
+        <div class="application-field">
+            <label asp-for="Decision"></label>
+            <select asp-for="Decision" class="form-control">
+                <option value="UPHELD">投诉成立（扣减跑腿员信誉分）</option>
+                <option value="REJECTED">投诉驳回</option>
+            </select>
+            <span asp-validation-for="Decision" class="validation-message"></span>
+        </div>
+
+        <div class="application-field">
+            <label asp-for="ProcessNote"></label>
+            <textarea asp-for="ProcessNote" rows="4" maxlength="300" placeholder="选填，说明处理结果"></textarea>
+            <span asp-validation-for="ProcessNote" class="validation-message"></span>
+        </div>
+
+        <div class="application-actions">
+            <button type="submit" class="button primary">确认处理</button>
+            <a class="button" asp-action="Index">返回列表</a>
+        </div>
+    </form>
+</section>

@@ -1,0 +1,29 @@
+﻿@model ComplaintCreateViewModel
+
+@{
+    ViewData["Title"] = "提交投诉";
+}
+
+<section class="application-shell">
+    <header class="application-heading">
+        <p class="eyebrow">售后反馈</p>
+        <h1>为接派记录 #@Model.RecordId 提交投诉</h1>
+        <p>请描述您在本次服务中遇到的问题，管理员将尽快核实处理。</p>
+    </header>
+
+    <form asp-action="Create" method="post" class="application-form">
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+        <input type="hidden" asp-for="RecordId" />
+
+        <div class="application-field">
+            <label asp-for="Reason"></label>
+            <textarea asp-for="Reason" rows="5" maxlength="300" placeholder="请详细说明投诉原因（必填，最多300字）"></textarea>
+            <span asp-validation-for="Reason" class="validation-message"></span>
+        </div>
+
+        <div class="application-actions">
+            <button type="submit" class="button primary">提交投诉</button>
+            <a class="button" asp-controller="Task" asp-action="Index">返回任务大厅</a>
+        </div>
+    </form>
+</section>

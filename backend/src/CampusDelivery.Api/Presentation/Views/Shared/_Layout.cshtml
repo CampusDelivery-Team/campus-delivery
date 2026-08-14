@@ -35,6 +35,8 @@
 
                 <a asp-controller="Task" asp-action="Receipt">确认收货</a>
 
+                <a asp-controller="Complaint" asp-action="MyComplaints">我的投诉</a>
+
                 @if (User.IsInRole("RUNNER"))
                 {
                     <a asp-controller="Task" asp-action="MyTasks">配送工作台</a>

@@ -9,6 +9,8 @@ namespace CampusDelivery.Api.Controllers;
 [Authorize]
 public sealed class ComplaintController(ComplaintService complaintService) : Controller
 {
+    private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+
     [HttpGet]
     public IActionResult Create(int recordId)
     {
@@ -21,13 +23,20 @@ public sealed class ComplaintController(ComplaintService complaintService) : Con
     {
         if (!ModelState.IsValid) return View(model);
         var (success, message) = await complaintService.CreateComplaintAsync(
-            model.RecordId, model.Reason, cancellationToken);
+            model.RecordId, model.Reason, CurrentUserId, cancellationToken);
         TempData[success ? "SuccessMessage" : "ErrorMessage"] = message;
         return success ? RedirectToAction(nameof(MyComplaints)) : View(model);
     }
 
     [HttpGet]
-    public IActionResult MyComplaints() => RedirectToAction(nameof(Index));
+    public async Task<IActionResult> MyComplaints(int page = 1, int size = 10, CancellationToken cancellationToken = default)
+    {
+        var (items, total) = await complaintService.GetMyComplaintsAsync(CurrentUserId, page, size, cancellationToken);
+        var viewItems = items.Select(ComplaintListItemViewModel.FromModel).ToList();
+        ViewBag.Total = total; ViewBag.Page = page; ViewBag.Size = size;
+        ViewBag.TotalPages = (int)Math.Ceiling((double)total / size);
+        return View(viewItems);
+    }
 
     [Authorize(Roles = "ADMIN")]
     [HttpGet]
@@ -56,7 +65,7 @@ public sealed class ComplaintController(ComplaintService complaintService) : Con
     {
         if (!ModelState.IsValid) return View(model);
         var (success, message) = await complaintService.ProcessComplaintAsync(
-            model.ComplaintId, model.ProcessStatus, model.ProcessResult, cancellationToken);
+            model.ComplaintId, model.Decision, model.ProcessNote, cancellationToken);
         TempData[success ? "SuccessMessage" : "ErrorMessage"] = message;
         return success ? RedirectToAction(nameof(Index)) : View(model);
     }

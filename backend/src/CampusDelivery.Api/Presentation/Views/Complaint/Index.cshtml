@@ -1,0 +1,81 @@
+﻿@model List<ComplaintListItemViewModel>
+
+@{
+    ViewData["Title"] = "投诉管理";
+    var page = ViewBag.Page ?? 1;
+    var size = ViewBag.Size ?? 20;
+    var total = ViewBag.Total ?? 0;
+    var totalPages = ViewBag.TotalPages ?? 0;
+}
+
+<section class="panel management-panel">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">售后管理</p>
+            <h1>投诉列表</h1>
+        </div>
+        <span class="badge">共 @total 条</span>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="inline-notice success">@success</div>
+    }
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="inline-notice error">@error</div>
+    }
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>投诉编号</th>
+                    <th>接派记录</th>
+                    <th>投诉原因</th>
+                    <th>处理状态</th>
+                    <th>处理结果</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="6" class="empty task-table__empty">暂无投诉记录</td></tr>
+                }
+                else
+                {
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>#@item.ComplaintId</td>
+                            <td>#@item.RecordId</td>
+                            <td>@item.Reason</td>
+                            <td>@item.ProcessStatusDisplayName</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.ProcessResult) ? "—" : item.ProcessResult)</td>
+                            <td>
+                                @if (item.ProcessStatus != "DONE")
+                                {
+                                    <a class="button primary task-button--small" asp-action="Process" asp-route-id="@item.ComplaintId">处理</a>
+                                }
+                                else
+                                {
+                                    <span class="task-status-text">已处理</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (totalPages > 1)
+    {
+        <nav class="pagination">
+            <a asp-action="Index" asp-route-page="@(page - 1)" asp-route-size="@size" class="@(page <= 1 ? "disabled" : "")">上一页</a>
+            <span>第 @(page) / @totalPages 页</span>
+            <a asp-action="Index" asp-route-page="@(page + 1)" asp-route-size="@size" class="@(page >= totalPages ? "disabled" : "")">下一页</a>
+        </nav>
+    }
+</section>

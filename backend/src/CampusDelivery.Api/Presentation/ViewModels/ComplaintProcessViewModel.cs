@@ -10,13 +10,13 @@ public sealed class ComplaintProcessViewModel
     public string Reason { get; set; } = string.Empty;
     public string CurrentStatus { get; set; } = "SUBMITTED";
 
-    [Required(ErrorMessage = "请选择处理状态")]
-    [Display(Name = "处理状态")]
-    public string ProcessStatus { get; set; } = "PROCESSING";
-
-    [StringLength(500, ErrorMessage = "处理结果不能超过500字")]
+    [Required(ErrorMessage = "请选择处理结果")]
     [Display(Name = "处理结果")]
-    public string? ProcessResult { get; set; }
+    public string Decision { get; set; } = "UPHELD";
+
+    [StringLength(300, ErrorMessage = "处理说明不能超过300字")]
+    [Display(Name = "处理说明")]
+    public string? ProcessNote { get; set; }
 
     public static ComplaintProcessViewModel FromModel(Complaint complaint)
     {
@@ -26,8 +26,7 @@ public sealed class ComplaintProcessViewModel
             RecordId = complaint.RecordId,
             Reason = complaint.Reason,
             CurrentStatus = complaint.ProcessStatus,
-            ProcessStatus = complaint.ProcessStatus == "SUBMITTED" ? "PROCESSING" : complaint.ProcessStatus,
-            ProcessResult = complaint.ProcessResult
+            Decision = "UPHELD"
         };
     }
 }
