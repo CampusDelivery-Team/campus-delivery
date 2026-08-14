@@ -80,6 +80,8 @@ public sealed class RunnerPerformanceViewModel
 
     public decimal SettledIncome { get; set; }
 
+    public decimal CreditScore { get; set; }
+
     public static RunnerPerformanceViewModel FromModel(RunnerPerformanceRecord record)
     {
         return new RunnerPerformanceViewModel
@@ -88,7 +90,8 @@ public sealed class RunnerPerformanceViewModel
             RunnerName = record.RunnerName,
             FinishedTaskCount = record.FinishedTaskCount,
             PaidAmount = record.PaidAmount,
-            SettledIncome = record.SettledIncome
+            SettledIncome = record.SettledIncome,
+            CreditScore = record.CreditScore
         };
     }
 }

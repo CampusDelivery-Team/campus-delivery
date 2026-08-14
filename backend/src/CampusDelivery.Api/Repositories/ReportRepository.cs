@@ -99,7 +99,7 @@ public sealed class ReportRepository(OracleConnectionFactory connectionFactory)
         await using var command = connection.CreateCommand();
         command.BindByName = true;
         command.CommandText = """
-            SELECT r.runner_id, r.real_name,
+            SELECT r.runner_id, r.real_name, r.credit_score,
                    COUNT(DISTINCT CASE WHEN t.task_status = 'FINISHED' THEN t.task_id END) AS finished_count,
                    NVL(SUM(CASE WHEN p.pay_status = 'PAID' THEN p.pay_amount ELSE 0 END), 0) AS paid_amount,
                    NVL((SELECT SUM(s.net_income)
@@ -110,7 +110,7 @@ public sealed class ReportRepository(OracleConnectionFactory connectionFactory)
             LEFT JOIN APPUSER.assign_records ar ON ar.runner_id = r.runner_id
             LEFT JOIN APPUSER.tasks t ON t.task_id = ar.task_id
             LEFT JOIN APPUSER.payments p ON p.record_id = ar.record_id
-            GROUP BY r.runner_id, r.real_name
+            GROUP BY r.runner_id, r.real_name, r.credit_score
             ORDER BY finished_count DESC, paid_amount DESC, r.runner_id
             FETCH FIRST 10 ROWS ONLY
             """;
@@ -124,7 +124,8 @@ public sealed class ReportRepository(OracleConnectionFactory connectionFactory)
                 RunnerName = Convert.ToString(reader["real_name"]) ?? string.Empty,
                 FinishedTaskCount = Convert.ToInt32(reader["finished_count"]),
                 PaidAmount = Convert.ToDecimal(reader["paid_amount"]),
-                SettledIncome = Convert.ToDecimal(reader["settled_income"])
+                SettledIncome = Convert.ToDecimal(reader["settled_income"]),
+                CreditScore = Convert.ToDecimal(reader["credit_score"])
             });
         }
 
@@ -219,4 +220,3 @@ public sealed class ReportRepository(OracleConnectionFactory connectionFactory)
         };
     }
 }
-

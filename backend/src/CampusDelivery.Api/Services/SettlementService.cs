@@ -81,6 +81,50 @@ public sealed class SettlementService(
         };
     }
 
+    public async Task<RunnerSettlementIndexViewModel> GetRunnerSettlementsAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        RunnerSettlementSummary summary =
+            await settlementRepository.GetRunnerSettlementSummaryAsync(userId, cancellationToken);
+        IReadOnlyList<Settlement> settlements =
+            await settlementRepository.GetSettlementsByRunnerUserIdAsync(userId, cancellationToken);
+
+        return new RunnerSettlementIndexViewModel
+        {
+            Settlements = settlements.Select(SettlementSummaryViewModel.FromModel).ToList(),
+            SettlementCount = summary.SettlementCount,
+            WaitingCount = summary.WaitingCount,
+            DoneCount = summary.DoneCount,
+            BlockedCount = summary.BlockedCount,
+            TotalNetIncome = summary.TotalNetIncome,
+            WaitingNetIncome = summary.WaitingNetIncome,
+            DoneNetIncome = summary.DoneNetIncome
+        };
+    }
+
+    public async Task<RunnerSettlementDetailsViewModel?> GetRunnerSettlementDetailsAsync(
+        int settlementId,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        Settlement? settlement =
+            await settlementRepository.GetByIdForRunnerUserAsync(settlementId, userId, cancellationToken);
+        if (settlement is null)
+        {
+            return null;
+        }
+
+        IReadOnlyList<SettlementPaymentItem> items =
+            await settlementRepository.GetItemsForRunnerUserAsync(settlementId, userId, cancellationToken);
+
+        return new RunnerSettlementDetailsViewModel
+        {
+            Settlement = SettlementSummaryViewModel.FromModel(settlement),
+            Items = items.Select(SettlementPaymentItemViewModel.FromModel).ToList()
+        };
+    }
+
     public async Task<SettlementOperationResult> GenerateForRunnerAsync(
         int runnerId,
         CancellationToken cancellationToken = default)

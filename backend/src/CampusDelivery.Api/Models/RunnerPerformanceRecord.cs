@@ -11,5 +11,7 @@ public sealed class RunnerPerformanceRecord
     public decimal PaidAmount { get; set; }
 
     public decimal SettledIncome { get; set; }
+
+    public decimal CreditScore { get; set; }
 }
 

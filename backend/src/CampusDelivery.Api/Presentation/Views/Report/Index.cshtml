@@ -9,7 +9,7 @@
         <div>
             <p class="eyebrow">REPORTS</p>
             <h1>统计报表</h1>
-            <p class="section-description">实时汇总任务、支付、投诉、结算和跑腿员绩效；报表生成记录写入 `reports` 表。</p>
+            <p class="section-description">实时汇总任务、支付、投诉、结算和跑腿员绩效数据；报表生成记录写入 `reports` 表。</p>
         </div>
     </div>
 
@@ -38,7 +38,7 @@
         <div>
             <p class="eyebrow">GENERATE</p>
             <h2>生成报表记录</h2>
-            <p>统计结果实时展示；这里保存报表类型、周期和生成状态，方便答辩时验证 `reports` 表变化。</p>
+            <p>统计结果实时展示；这里保存报表类型、周期和生成状态，便于答辩时验证 `reports` 表变化。</p>
         </div>
         <label>
             <span>报表类型</span>
@@ -111,12 +111,13 @@
                             <th>完成单</th>
                             <th>支付金额</th>
                             <th>已结算收入</th>
+                            <th>信誉分</th>
                         </tr>
                     </thead>
                     <tbody>
                         @if (Model.RunnerPerformances.Count == 0)
                         {
-                            <tr><td colspan="4" class="empty task-table__empty">暂无跑腿员绩效数据。</td></tr>
+                            <tr><td colspan="5" class="empty task-table__empty">暂无跑腿员绩效数据。</td></tr>
                         }
                         else
                         {
@@ -130,6 +131,7 @@
                                     <td>@item.FinishedTaskCount</td>
                                     <td>¥@item.PaidAmount.ToString("F2")</td>
                                     <td class="task-price">¥@item.SettledIncome.ToString("F2")</td>
+                                    <td>@item.CreditScore.ToString("F0")</td>
                                 </tr>
                             }
                         }
@@ -180,4 +182,3 @@
         </div>
     </article>
 </section>
-

@@ -28,6 +28,32 @@ public sealed class SettlementDetailsViewModel
     public IReadOnlyList<SettlementPaymentItemViewModel> Items { get; set; } = Array.Empty<SettlementPaymentItemViewModel>();
 }
 
+public sealed class RunnerSettlementIndexViewModel
+{
+    public IReadOnlyList<SettlementSummaryViewModel> Settlements { get; set; } = Array.Empty<SettlementSummaryViewModel>();
+
+    public int SettlementCount { get; set; }
+
+    public int WaitingCount { get; set; }
+
+    public int DoneCount { get; set; }
+
+    public int BlockedCount { get; set; }
+
+    public decimal TotalNetIncome { get; set; }
+
+    public decimal WaitingNetIncome { get; set; }
+
+    public decimal DoneNetIncome { get; set; }
+}
+
+public sealed class RunnerSettlementDetailsViewModel
+{
+    public SettlementSummaryViewModel Settlement { get; set; } = new();
+
+    public IReadOnlyList<SettlementPaymentItemViewModel> Items { get; set; } = Array.Empty<SettlementPaymentItemViewModel>();
+}
+
 public sealed class SettlementSummaryViewModel
 {
     public int SettlementId { get; set; }
