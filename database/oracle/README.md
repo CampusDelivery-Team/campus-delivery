@@ -18,6 +18,17 @@ campus_runner_oracle_schema.sql
 
 该脚本插入基础运行数据，不插入完整演示测试数据。
 
+## 已有数据库迁移
+
+现有数据库按顺序执行：
+
+```text
+003_add_account_lifecycle.sql
+004_add_review_integrity.sql
+```
+
+`004_add_review_integrity.sql` 会为评价补充 `task_id`，增加“一项任务只能评价一次”的唯一约束，并通过复合外键保证评价绑定的接派记录属于同一任务。脚本执行前会检查历史数据；如果同一任务已经存在多条评价，脚本会停止并提示先处理冲突数据，不会自动删除历史评价。
+
 ## 当前未提供的脚本
 
 ```text

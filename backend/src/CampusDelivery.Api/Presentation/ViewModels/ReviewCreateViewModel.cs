@@ -5,8 +5,10 @@ namespace CampusDelivery.Api.Presentation.ViewModels;
 public class ReviewCreateViewModel
 {
     [Required]
-    public int RecordId { get; set; }
+    [Range(1, int.MaxValue, ErrorMessage = "任务编号无效")]
+    public int TaskId { get; set; }
 
+    [Required(ErrorMessage = "请选择评分")]
     [Range(1, 5, ErrorMessage = "评分必须在1到5之间")]
     [Display(Name = "评分")]
     public int? Rating { get; set; }
@@ -18,8 +20,4 @@ public class ReviewCreateViewModel
     [StringLength(300, ErrorMessage = "评价内容不能超过300字")]
     [Display(Name = "评价内容")]
     public string? CommentText { get; set; }
-
-    [Range(-100, 100, ErrorMessage = "信用变动范围-100到100")]
-    [Display(Name = "信用变动")]
-    public int CreditDelta { get; set; }
 }

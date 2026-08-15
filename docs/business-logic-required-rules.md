@@ -251,15 +251,18 @@ WAITING -> ASSIGNED -> PICKED_UP -> DELIVERING -> WAIT_CONFIRM -> FINISHED
 相关表：
 
 - `reviews`
+- `tasks`
 - `assign_records`
+- `runners`
 
 必须遵守：
 
-1. 评价必须绑定真实接派记录。
-2. 推荐只允许 `FINISHED` 任务评价。
-3. 一条 `assign_records` 只能评价一次。
-4. 评价产生的 `credit_delta` 应同步影响跑腿员信誉分。
-5. 更新信誉分时不得低于 0。
+1. 只有任务发布者可以评价，评价者身份必须来自登录 Claims。
+2. 只允许 `FINISHED` 任务评价。
+3. 评价必须绑定任务最终有效的真实接派记录，一项任务只能评价一次。
+4. 评价产生的 `credit_delta` 由评分自动计算，并同步影响跑腿员信誉分。
+5. 新增、编辑、删除评价与信誉分调整必须使用同一数据库事务。
+6. 更新信誉分时不得低于 0；触及下限时记录实际生效的信誉变化，以便后续一致性处理。
 
 ## 投诉规则
 

@@ -1,4 +1,4 @@
-﻿using CampusDelivery.Api.Models;
+using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Repositories;
 using Oracle.ManagedDataAccess.Client;
@@ -7,119 +7,418 @@ namespace CampusDelivery.Api.Services;
 
 public sealed class ReviewService(
     ReviewsRepository reviewsRepository,
+    TaskRepository taskRepository,
     OracleConnectionFactory connectionFactory)
 {
-    public async Task<Review?> GetByIdAsync(int reviewId, CancellationToken cancellationToken = default)
-        => await reviewsRepository.GetByIdAsync(reviewId, cancellationToken);
+    private const string FinishedTaskStatus = "FINISHED";
 
-    public async Task<IReadOnlyList<Review>> GetByTaskIdAsync(int taskId, CancellationToken cancellationToken = default)
-        => await reviewsRepository.GetByTaskIdAsync(taskId, cancellationToken);
+    public async Task<IReadOnlyList<Review>> GetByTaskIdAsync(
+        int taskId,
+        CancellationToken cancellationToken = default) =>
+        await reviewsRepository.GetByTaskIdAsync(taskId, cancellationToken);
+
+    public async Task<Review?> GetEditableReviewAsync(
+        int reviewId,
+        int currentUserId,
+        bool isAdmin,
+        CancellationToken cancellationToken = default)
+    {
+        Review? review = await reviewsRepository.GetByIdAsync(reviewId, cancellationToken);
+        return review != null && CanManageReview(review.PublisherUserId, currentUserId, isAdmin)
+            ? review
+            : null;
+    }
 
     public async Task<(IReadOnlyList<Review> Items, int TotalCount)> GetAllPagedAsync(
-        int page, int pageSize, CancellationToken cancellationToken = default)
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
-        page = Math.Max(1, page);
-        pageSize = pageSize is >= 1 and <= 50 ? pageSize : 20;
+        (page, pageSize) = NormalizePage(page, pageSize, 20);
         int total = await reviewsRepository.GetTotalCountAsync(cancellationToken);
+        page = ClampPage(page, total, pageSize);
         int offset = (page - 1) * pageSize;
-        var items = await reviewsRepository.GetAllPagedAsync(offset, pageSize, cancellationToken);
+        IReadOnlyList<Review> items = await reviewsRepository.GetAllPagedAsync(
+            offset,
+            pageSize,
+            cancellationToken);
+        return (items, total);
+    }
+
+    public async Task<(IReadOnlyList<Review> Items, int TotalCount)> GetMyReviewsAsync(
+        int currentUserId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        (page, pageSize) = NormalizePage(page, pageSize, 10);
+        int total = await reviewsRepository.GetCountByPublisherUserIdAsync(
+            currentUserId,
+            cancellationToken);
+        page = ClampPage(page, total, pageSize);
+        int offset = (page - 1) * pageSize;
+        IReadOnlyList<Review> items = await reviewsRepository.GetByPublisherUserIdPagedAsync(
+            currentUserId,
+            offset,
+            pageSize,
+            cancellationToken);
         return (items, total);
     }
 
     public async Task<(bool Success, string Message)> CreateReviewAsync(
-        int recordId, int rating, char anonymousFlag, string? commentText, int creditDelta,
+        int taskId,
+        int rating,
+        char anonymousFlag,
+        string? commentText,
+        int currentUserId,
         CancellationToken cancellationToken = default)
     {
-        if (rating < 1 || rating > 5) return (false, "评分必须在1到5之间");
-        await using var conn = connectionFactory.CreateConnection();
-        await conn.OpenAsync(cancellationToken);
-        await using var tx = (OracleTransaction)(await conn.BeginTransactionAsync(cancellationToken));
+        string? validationError = ValidateInput(rating, anonymousFlag, commentText);
+        if (validationError != null)
+        {
+            return (false, validationError);
+        }
+
+        await using OracleConnection connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using OracleTransaction transaction =
+            (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
         try
         {
-            var existing = await reviewsRepository.GetByRecordIdAsync(recordId, cancellationToken);
-            if (existing != null) { await tx.RollbackAsync(cancellationToken); return (false, "该接派记录已有评价"); }
-            var rv = new Review { RecordId = recordId, Rating = rating, AnonymousFlag = anonymousFlag, CommentText = commentText, ReviewedAt = DateTime.Now, CreditDelta = creditDelta };
-            if (!await reviewsRepository.InsertAsync(rv, conn, tx, cancellationToken))
-            { await tx.RollbackAsync(cancellationToken); return (false, "保存评价失败"); }
-            int? rid = await GetRunnerIdByRecordAsync(recordId, conn, tx, cancellationToken);
-            if (rid.HasValue && creditDelta != 0)
-                await UpdateRunnerCreditAsync(rid.Value, creditDelta, conn, tx, cancellationToken);
-            await tx.CommitAsync(cancellationToken);
+            string? taskStatus = await taskRepository.GetTaskStatusWithLockAsync(
+                taskId,
+                connection,
+                transaction,
+                cancellationToken);
+            if (taskStatus == null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "任务不存在，无法提交评价");
+            }
+
+            int? publisherUserId = await taskRepository.GetTaskPublisherUserIdAsync(
+                taskId,
+                connection,
+                transaction,
+                cancellationToken);
+            if (publisherUserId != currentUserId)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "只能评价自己发布的任务");
+            }
+
+            if (!string.Equals(taskStatus, FinishedTaskStatus, StringComparison.Ordinal))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "只有已完成的任务才能评价");
+            }
+
+            AssignRecord? assignRecord = await taskRepository.GetLatestAssignRecordWithConnectionAsync(
+                taskId,
+                connection,
+                transaction,
+                cancellationToken);
+            if (assignRecord == null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "该任务没有有效的接派记录，暂时无法评价");
+            }
+
+            Runner? runner = await taskRepository.GetRunnerWithLockAsync(
+                assignRecord.RunnerId,
+                connection,
+                transaction,
+                cancellationToken);
+            if (runner == null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "该任务没有有效的跑腿员，暂时无法评价");
+            }
+
+            if (await reviewsRepository.ExistsByTaskIdAsync(
+                    taskId,
+                    connection,
+                    transaction,
+                    cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "该任务已经评价过，不能重复评价");
+            }
+
+            decimal creditDelta = CalculateAppliedCreditDelta(
+                runner.CreditScore,
+                CalculateCreditDelta(rating));
+            var review = new Review
+            {
+                TaskId = taskId,
+                RecordId = assignRecord.RecordId,
+                PublisherUserId = currentUserId,
+                Rating = rating,
+                AnonymousFlag = anonymousFlag,
+                CommentText = NormalizeComment(commentText),
+                ReviewedAt = DateTime.Now,
+                CreditDelta = creditDelta
+            };
+
+            if (!await reviewsRepository.InsertAsync(
+                    review,
+                    connection,
+                    transaction,
+                    cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "评价保存失败，请稍后重试");
+            }
+
+            if (creditDelta != 0 && !await reviewsRepository.UpdateRunnerCreditAsync(
+                    runner.RunnerId,
+                    creditDelta,
+                    connection,
+                    transaction,
+                    cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "跑腿员信誉分更新失败，评价未保存");
+            }
+
+            await transaction.CommitAsync(cancellationToken);
             return (true, "评价提交成功");
         }
-        catch { await tx.RollbackAsync(cancellationToken); throw; }
+        catch (OracleException exception) when (exception.Number == 1)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return (false, "该任务已经评价过，不能重复评价");
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     public async Task<(bool Success, string Message)> UpdateReviewAsync(
-        int reviewId, int rating, char anonymousFlag, string? commentText, int creditDelta,
+        int reviewId,
+        int rating,
+        char anonymousFlag,
+        string? commentText,
+        int currentUserId,
+        bool isAdmin,
         CancellationToken cancellationToken = default)
     {
-        if (rating < 1 || rating > 5) return (false, "评分必须在1到5之间");
-        await using var conn = connectionFactory.CreateConnection();
-        await conn.OpenAsync(cancellationToken);
-        await using var tx = (OracleTransaction)(await conn.BeginTransactionAsync(cancellationToken));
+        string? validationError = ValidateInput(rating, anonymousFlag, commentText);
+        if (validationError != null)
+        {
+            return (false, validationError);
+        }
+
+        await using OracleConnection connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using OracleTransaction transaction =
+            (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
         try
         {
-            var existing = await reviewsRepository.GetByIdAsync(reviewId, cancellationToken);
-            if (existing == null) { await tx.RollbackAsync(cancellationToken); return (false, "评价不存在"); }
-            int oldDelta = existing.CreditDelta;
-            existing.Rating = rating; existing.AnonymousFlag = anonymousFlag;
-            existing.CommentText = commentText; existing.CreditDelta = creditDelta;
-            if (!await reviewsRepository.UpdateAsync(existing, conn, tx, cancellationToken))
-            { await tx.RollbackAsync(cancellationToken); return (false, "更新评价失败"); }
-            int deltaChange = creditDelta - oldDelta;
-            if (deltaChange != 0)
+            ReviewWriteContext? context = await reviewsRepository.GetWriteContextWithLockAsync(
+                reviewId,
+                connection,
+                transaction,
+                cancellationToken);
+            if (context == null)
             {
-                int? rid = await GetRunnerIdByRecordAsync(existing.RecordId, conn, tx, cancellationToken);
-                if (rid.HasValue) await UpdateRunnerCreditAsync(rid.Value, deltaChange, conn, tx, cancellationToken);
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "评价不存在");
             }
-            await tx.CommitAsync(cancellationToken);
+
+            Review existing = context.Review;
+            if (!CanManageReview(existing.PublisherUserId, currentUserId, isAdmin))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "只能修改自己提交的评价");
+            }
+
+            Runner? runner = await taskRepository.GetRunnerWithLockAsync(
+                context.RunnerId,
+                connection,
+                transaction,
+                cancellationToken);
+            if (runner == null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "关联的跑腿员不存在，评价未修改");
+            }
+
+            decimal requestedDifference = CalculateCreditDelta(rating) - existing.CreditDelta;
+            decimal creditDifference = CalculateAppliedCreditDelta(
+                runner.CreditScore,
+                requestedDifference);
+            decimal newCreditDelta = existing.CreditDelta + creditDifference;
+            existing.Rating = rating;
+            existing.AnonymousFlag = anonymousFlag;
+            existing.CommentText = NormalizeComment(commentText);
+            existing.CreditDelta = newCreditDelta;
+
+            if (!await reviewsRepository.UpdateAsync(
+                    existing,
+                    connection,
+                    transaction,
+                    cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "评价更新失败，请稍后重试");
+            }
+
+            if (creditDifference != 0 && !await reviewsRepository.UpdateRunnerCreditAsync(
+                    runner.RunnerId,
+                    creditDifference,
+                    connection,
+                    transaction,
+                    cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "跑腿员信誉分更新失败，评价未修改");
+            }
+
+            await transaction.CommitAsync(cancellationToken);
             return (true, "评价更新成功");
         }
-        catch { await tx.RollbackAsync(cancellationToken); throw; }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     public async Task<(bool Success, string Message)> DeleteReviewAsync(
-        int reviewId, CancellationToken cancellationToken = default)
+        int reviewId,
+        int currentUserId,
+        bool isAdmin,
+        CancellationToken cancellationToken = default)
     {
-        await using var conn = connectionFactory.CreateConnection();
-        await conn.OpenAsync(cancellationToken);
-        await using var tx = (OracleTransaction)(await conn.BeginTransactionAsync(cancellationToken));
+        await using OracleConnection connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using OracleTransaction transaction =
+            (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
         try
         {
-            var existing = await reviewsRepository.GetByIdAsync(reviewId, cancellationToken);
-            if (existing == null) { await tx.RollbackAsync(cancellationToken); return (false, "评价不存在"); }
-            if (existing.CreditDelta != 0)
+            ReviewWriteContext? context = await reviewsRepository.GetWriteContextWithLockAsync(
+                reviewId,
+                connection,
+                transaction,
+                cancellationToken);
+            if (context == null)
             {
-                int? rid = await GetRunnerIdByRecordAsync(existing.RecordId, conn, tx, cancellationToken);
-                if (rid.HasValue) await UpdateRunnerCreditAsync(rid.Value, -existing.CreditDelta, conn, tx, cancellationToken);
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "评价不存在");
             }
-            await reviewsRepository.DeleteAsync(reviewId, conn, tx, cancellationToken);
-            await tx.CommitAsync(cancellationToken);
-            return (true, "评价已删除");
+
+            Review existing = context.Review;
+            if (!CanManageReview(existing.PublisherUserId, currentUserId, isAdmin))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "只能删除自己提交的评价");
+            }
+
+            Runner? runner = await taskRepository.GetRunnerWithLockAsync(
+                context.RunnerId,
+                connection,
+                transaction,
+                cancellationToken);
+            if (runner == null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "关联的跑腿员不存在，评价未删除");
+            }
+
+            if (!await reviewsRepository.DeleteAsync(
+                    reviewId,
+                    connection,
+                    transaction,
+                    cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "评价删除失败，请稍后重试");
+            }
+
+            decimal rollbackCredit = CalculateAppliedCreditDelta(
+                runner.CreditScore,
+                -existing.CreditDelta);
+            if (rollbackCredit != 0 && !await reviewsRepository.UpdateRunnerCreditAsync(
+                    runner.RunnerId,
+                    rollbackCredit,
+                    connection,
+                    transaction,
+                    cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "跑腿员信誉分回滚失败，评价未删除");
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return (true, "评价已删除，相关信誉分变化已撤销");
         }
-        catch { await tx.RollbackAsync(cancellationToken); throw; }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
-    private static async Task<int?> GetRunnerIdByRecordAsync(
-        int recordId, OracleConnection conn, OracleTransaction tx, CancellationToken ct)
+    private static int CalculateCreditDelta(int rating) => rating switch
     {
-        await using var cmd = conn.CreateCommand();
-        cmd.BindByName = true;
-        cmd.CommandText = "SELECT runner_id FROM APPUSER.assign_records WHERE record_id = :rid";
-        cmd.Parameters.Add(new OracleParameter("rid", recordId));
-        var obj = await cmd.ExecuteScalarAsync(ct);
-        return obj == null || obj == DBNull.Value ? null : Convert.ToInt32(obj);
+        5 => 2,
+        4 => 1,
+        3 => 0,
+        2 => -1,
+        1 => -2,
+        _ => throw new ArgumentOutOfRangeException(nameof(rating))
+    };
+
+    private static decimal CalculateAppliedCreditDelta(
+        decimal currentCreditScore,
+        decimal requestedDelta)
+    {
+        decimal updatedCreditScore = Math.Max(0m, currentCreditScore + requestedDelta);
+        return updatedCreditScore - currentCreditScore;
     }
 
-    private static async Task UpdateRunnerCreditAsync(
-        int runnerId, int delta, OracleConnection conn, OracleTransaction tx, CancellationToken ct)
+    private static string? ValidateInput(int rating, char anonymousFlag, string? commentText)
     {
-        await using var cmd = conn.CreateCommand();
-        cmd.BindByName = true;
-        cmd.CommandText = "UPDATE APPUSER.runners SET credit_score = GREATEST(0, credit_score + :delta) WHERE runner_id = :runnerId";
-        cmd.Parameters.Add(new OracleParameter("delta", delta));
-        cmd.Parameters.Add(new OracleParameter("runnerId", runnerId));
-        await cmd.ExecuteNonQueryAsync(ct);
+        if (rating is < 1 or > 5)
+        {
+            return "评分必须在1到5之间";
+        }
+
+        if (anonymousFlag is not ('Y' or 'N'))
+        {
+            return "匿名选项无效";
+        }
+
+        if (commentText?.Trim().Length > 300)
+        {
+            return "评价内容不能超过300字";
+        }
+
+        return null;
+    }
+
+    private static string? NormalizeComment(string? commentText) =>
+        string.IsNullOrWhiteSpace(commentText) ? null : commentText.Trim();
+
+    private static bool CanManageReview(int publisherUserId, int currentUserId, bool isAdmin) =>
+        isAdmin || publisherUserId == currentUserId;
+
+    private static (int Page, int PageSize) NormalizePage(int page, int pageSize, int defaultPageSize)
+    {
+        page = Math.Max(1, page);
+        pageSize = pageSize is >= 1 and <= 50 ? pageSize : defaultPageSize;
+        return (page, pageSize);
+    }
+
+    private static int ClampPage(int page, int totalCount, int pageSize)
+    {
+        int totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)pageSize));
+        return Math.Min(page, totalPages);
     }
 }

@@ -7,14 +7,14 @@
 <section class="application-shell">
     <header class="application-heading">
         <p class="eyebrow">用户反馈</p>
-        <h1>添加评价</h1>
-        <p>请对本次服务或报告进行评价，您的意见将帮助我们改进。</p>
+        <h1>评价任务 #@Model.TaskId</h1>
+        <p>请对本次跑腿服务进行评价。信誉分变化将由系统根据星级自动计算。</p>
     </header>
 
     <form asp-action="Create" method="post" class="application-form">
         <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
 
-        <input type="hidden" asp-for="RecordId" />
+        <input type="hidden" asp-for="TaskId" />
 
         <div class="application-field">
             <label asp-for="Rating"></label>
@@ -32,7 +32,7 @@
         <div class="application-field">
             <label asp-for="AnonymousFlag"></label>
             <div>
-                <input type="radio" asp-for="AnonymousFlag" value="N" checked /> 实名
+                <input type="radio" asp-for="AnonymousFlag" value="N" /> 实名
                 <input type="radio" asp-for="AnonymousFlag" value="Y" /> 匿名
             </div>
             <span asp-validation-for="AnonymousFlag" class="validation-message"></span>
@@ -40,20 +40,13 @@
 
         <div class="application-field">
             <label asp-for="CommentText"></label>
-            <textarea asp-for="CommentText" rows="4" placeholder="请输入评价内容（可选）" maxlength="500"></textarea>
+            <textarea asp-for="CommentText" rows="4" placeholder="请输入评价内容（可选）" maxlength="300"></textarea>
             <span asp-validation-for="CommentText" class="validation-message"></span>
-        </div>
-
-        <div class="application-field">
-            <label asp-for="CreditDelta"></label>
-            <input asp-for="CreditDelta" type="number" placeholder="例如 5 或 -3" />
-            <small>正数表示加分，负数表示扣分，范围为 -100 到 100。</small>
-            <span asp-validation-for="CreditDelta" class="validation-message"></span>
         </div>
 
         <div class="application-actions">
             <button type="submit" class="button primary">提交评价</button>
-            <a class="button" asp-action="Index" asp-route-recordId="@Model.RecordId">返回</a>
+            <a class="button" asp-controller="Task" asp-action="Details" asp-route-id="@Model.TaskId">返回任务详情</a>
         </div>
     </form>
 </section>

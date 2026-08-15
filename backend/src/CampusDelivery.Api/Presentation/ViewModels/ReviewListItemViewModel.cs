@@ -5,12 +5,14 @@ namespace CampusDelivery.Api.Presentation.ViewModels;
 public sealed class ReviewListItemViewModel
 {
     public int ReviewId { get; set; }
+    public int TaskId { get; set; }
     public int RecordId { get; set; }
     public int Rating { get; set; }
     public char AnonymousFlag { get; set; }
     public string? CommentText { get; set; }
     public DateTime ReviewedAt { get; set; }
-    public int CreditDelta { get; set; }
+    public decimal CreditDelta { get; set; }
+    public bool CanManage { get; set; }
 
     public string RatingDisplayName => Rating switch
     {
@@ -24,19 +26,21 @@ public sealed class ReviewListItemViewModel
 
     public string AnonymousDisplayName => AnonymousFlag == 'Y' ? "匿名" : "实名";
 
-    public string CreditDeltaDisplayName => CreditDelta >= 0 ? $"+{CreditDelta}" : $"{CreditDelta}";
+    public string CreditDeltaDisplayName => CreditDelta >= 0 ? $"+{CreditDelta:0.##}" : $"{CreditDelta:0.##}";
 
-    public static ReviewListItemViewModel FromModel(Review review)
+    public static ReviewListItemViewModel FromModel(Review review, bool canManage = false)
     {
         return new ReviewListItemViewModel
         {
             ReviewId = review.ReviewId,
+            TaskId = review.TaskId,
             RecordId = review.RecordId,
             Rating = review.Rating,
             AnonymousFlag = review.AnonymousFlag,
             CommentText = review.CommentText,
             ReviewedAt = review.ReviewedAt,
-            CreditDelta = review.CreditDelta
+            CreditDelta = review.CreditDelta,
+            CanManage = canManage
         };
     }
 }

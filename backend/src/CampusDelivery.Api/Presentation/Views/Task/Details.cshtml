@@ -14,7 +14,7 @@
         <div class="actions">
             @if (Model.CanReview && Model.RecordId.HasValue)
             {
-                <a class="button primary" asp-controller="Review" asp-action="Create" asp-route-recordId="@Model.RecordId">评价服务</a>
+                <a class="button primary" asp-controller="Review" asp-action="Create" asp-route-taskId="@Model.TaskId">评价服务</a>
             }
             <a class="button" asp-action="Index">返回任务列表</a>
         </div>

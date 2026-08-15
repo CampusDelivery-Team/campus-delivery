@@ -52,6 +52,14 @@
 - 作用：保存围绕接派记录产生的支付记录
 - 关键字段：`order_amount`、`pay_amount`、`pay_method`、`third_trade_no`、`pay_status`
 
+### `reviews`
+
+- 主键：`review_id`
+- 唯一约束：`task_id`，保证一项任务最多一条评价
+- 复合外键：`record_id + task_id`，关联 `assign_records` 的同一接派记录和任务
+- 作用：保存任务发布者对最终有效接派服务的评分、文字反馈及系统计算后实际生效的信誉分变化
+- 关键字段：`task_id`、`record_id`、`rating`、`anonymous_flag`、`comment_text`、`reviewed_at`、`credit_delta`
+
 ## 脚本来源
 
 结构定义见：
@@ -64,6 +72,12 @@ database/oracle/campus_runner_oracle_schema.sql
 
 ```text
 database/oracle/002_init_base_data.sql
+```
+
+已有数据库的评价约束迁移见：
+
+```text
+database/oracle/004_add_review_integrity.sql
 ```
 
 ## 维护建议
