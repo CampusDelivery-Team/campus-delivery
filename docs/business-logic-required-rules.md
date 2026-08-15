@@ -352,7 +352,7 @@ runners
 
 | 业务对象 | 替代删除方式 |
 | --- | --- |
-| 用户 | `users.account_status = 'DISABLED'` |
+| 用户 | `users.account_status = 'BLOCKED'`（可恢复）或 `CANCELLED`（注销） |
 | 节点 | `nodes.node_status = 'CLOSED'` |
 | 服务类型 | `service_types.type_status = 'DISABLED'` |
 | 任务 | `tasks.task_status = 'CANCELLED'` |

@@ -16,6 +16,7 @@ backend/src/CampusDelivery.Api/
     Views/                                # Razor 页面
     ViewModels/                           # 页面展示和表单模型
     wwwroot/                              # 静态资源
+backend/tests/CampusDelivery.Tests/       # 高价值业务自动化测试
 
 database/oracle/campus_runner_oracle_schema.sql
 docs/
@@ -44,22 +45,35 @@ http://localhost:5227/Node
 http://localhost:5227/Database/Status
 ```
 
-## 当前已落地页面
+## 当前已落地模块与页面
 
 | 地址 | 说明 |
 | --- | --- |
 | `/` | 项目主页面，作为系统门户和其他模块入口 |
 | `/Auth/Login`、`/Auth/Register` | 登录和注册页面 |
 | `/User/Profile`、`/User/Edit` | 登录用户查看个人资料和修改联系电话 |
+| `/Address` | 登录用户新增、编辑、删除和设置默认地址 |
+| `/Account` | 管理员封禁、解封、注销和恢复账号 |
 | `/Node` | 管理员新增、修改、关闭和恢复节点资料 |
 | `/ServiceType` | 管理员维护服务类型、价格规则和启用状态 |
 | `/ServiceNodeRule` | 管理员维护服务类型与适用节点绑定 |
 | `/Runner` | 管理员查看跑腿员资格和工作状态 |
 | `/Runner/Pending` | 管理员审核待处理的跑腿员申请 |
 | `/Runner/Apply` | 登录用户提交或查看跑腿员申请 |
+| `/Task`、`/Task/Create` | 我的任务、三类任务发布和取消 |
+| `/Task/Hall`、`/Task/MyTasks` | 跑腿员任务大厅、抢单和配送状态流转 |
+| `/Task/Receipt` | 发布者确认收货 |
+| `/Task/AdminConsole` | 管理员派单和重派 |
+| `/Payment/Status` | 收货后支付、稍后付款和支付状态查询 |
+| `/Refund/Create`、`/Refund/AdminIndex` | 用户退款申请和管理员审核 |
+| `/Review/MyReviews`、`/Review/All` | 用户评价管理和管理员评价查询 |
+| `/Complaint/MyComplaints`、`/Complaint/Index` | 用户投诉记录和管理员处理 |
+| `/Settlement`、`/Settlement/My` | 管理员生成结算单、跑腿员查看结算 |
+| `/Audit` | 管理员对支付、退款和状态日志进行审计 |
+| `/Report` | 管理员查看统计面板并生成报表记录 |
 | `/Database/Status` | Oracle 连接检测页面 |
 
-首页仅显示当前存在的真实入口：访客可登录或注册；登录用户可进入个人中心和跑腿员资格申请；管理员可进入基础资料、跑腿员和数据库管理页面。任务发布、订单查询、任务大厅、接单、配送、评价、投诉、结算和报表尚无对应 Controller 路由，属于后续模块，当前页面不会为它们提供伪链接。
+首页和导航根据访客、普通用户、跑腿员和管理员身份展示真实入口。任务发布、抢单/派单、配送、收货支付、退款、评价、投诉、结算、审计和统计报表均已有 Controller、Service、Repository 和 Razor 页面。当前验收边界与已知问题以 `docs/system-test-report.md` 为准。
 
 ## 数据库连接
 
@@ -114,13 +128,20 @@ dotnet run --project backend/src/CampusDelivery.Api/CampusDelivery.Api.csproj
 ```text
 database/oracle/campus_runner_oracle_schema.sql
 database/oracle/002_init_base_data.sql
+database/oracle/003_add_account_lifecycle.sql
+database/oracle/004_add_review_integrity.sql
+database/oracle/005_hash_user_passwords.sql
 ```
 
 其中：
 
 - `campus_runner_oracle_schema.sql`：建表脚本，包含 `DROP TABLE` 和重建表逻辑，只用于初始化空库或确认需要重建时执行。
 - `002_init_base_data.sql`：基础运行数据脚本，插入管理员、普通用户、跑腿员、节点、服务类型和服务节点规则。
-- `003_init_test_data.sql`：当前尚未提供，后续业务流程稳定后再补充演示数据。
+- `003_add_account_lifecycle.sql`：为既有数据库补充账号生命周期状态与相关约束。
+- `004_add_review_integrity.sql`：为评价数据补充唯一性和接派关联完整性约束。
+- `005_hash_user_passwords.sql`：既有演示账号密码哈希迁移脚本。
+
+基础脚本不写入完整业务闭环数据；端到端测试数据应按 `docs/manual-system-test-guide.md` 在隔离测试库中通过页面操作形成。
 
 ## 数据显示规则
 
@@ -141,3 +162,15 @@ Repository 只读写英文代码；Service/ViewModel 负责准备中文显示字
 ```powershell
 dotnet build backend/CampusDelivery.sln
 ```
+
+## 测试与质量验证
+
+项目保留一个小型测试工程，只覆盖并发抢单、任务状态机、三类任务字段、确认收货幂等和支付事务等高价值规则，不使用大量无意义 CRUD 测试凑数。
+
+在仓库根目录执行完整本地门禁：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
+```
+
+2026-08-15 的本地结果为 21/21 项自动化测试通过；同时检查到 24 张关系表、45/45 个 POST Action 有防伪令牌、11 处仓储行锁语句，且 Controller/Service 未越过五层边界。

@@ -28,8 +28,14 @@ Controller 只注入 Service 接口，Service 只注入 Repository 接口。Orac
 | `ServiceType` | `service_types` | 管理员同页新增、编辑、启用和停用 |
 | `ServiceNodeRule` | `service_node_rules` | 管理员绑定服务类型和节点、受限解除 |
 | `Runner` | `runners`、`users` | 用户资格申请/重新申请，管理员审核与工作状态维护 |
+| `Account/Address` | `users`、`user_addresses` | 账号生命周期管理、用户地址维护和默认地址 |
+| `Task/Assign` | `tasks`、三类任务明细、`assign_records`、`task_status_logs` | 发布、取消、抢单、派单、重派、配送状态和确认收货 |
+| `Payment/Refund` | `payments`、`refunds` | 收货后支付、稍后付款、退款申请和审核 |
+| `Review/Complaint` | `reviews`、`complaints`、`runners` | 评价、投诉处理和信誉分联动 |
+| `Settlement` | `settlements`、`settlement_payment_items` | 候选筛选、结算生成和状态维护 |
+| `Audit/Report` | 审计表、`reports`、`report_audit_items` | 支付/退款/日志审计、统计面板和报表生成记录 |
 
-首页 `/` 会根据访客、普通用户、跑腿员和管理员身份展示真实入口。任务发布、订单、任务大厅、接单、配送、评价、投诉、结算和报表仍是后续模块，当前没有 Controller 路由或可点击入口。
+首页 `/` 会根据访客、普通用户、跑腿员和管理员身份展示真实入口。当前业务模块均已具备 Controller、Service、Repository 和 Razor 页面；功能验收结论、数据库待测项和已知缺口见 `system-test-report.md`。
 
 ## 数据值显示规则
 

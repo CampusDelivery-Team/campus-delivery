@@ -4,7 +4,7 @@
 
 本文用于帮助项目成员快速理解整个系统的业务逻辑。当前数据库表结构已经部署到服务器，后续开发以现有表关系为基础，不通过修改表结构来改变主流程。
 
-> 实现边界（2026-07-12）：本文描述完整的目标业务流程和后续模块约束，不代表每个流程都已提供页面或 Controller。当前已实现账户资料、节点、服务类型、服务节点规则和跑腿员资格管理；任务发布、订单查询、任务大厅、接单、配送、付款、评价、投诉、结算、审计和报表尚未提供路由。前端不得把这些未实现能力做成可点击的伪入口。
+> 实现边界（2026-08-15）：账户、地址、配置、资格审核、任务、接派、配送、收货支付、退款、评价、投诉、结算、审计和报表均已有 MVC 路由及五层实现。本文仍包含目标业务规则；当前已验证项、待数据库验证项和已知缺口以 `system-test-report.md` 为准。
 
 本项目是一个**校园中转分发与跑腿服务管理系统**。系统围绕校园内外卖分发、快递代取、私人跑腿等任务展开，支持用户发布任务、跑腿员接单配送、管理员派单和审核、送达后付款、评价投诉、退款售后、跑腿员结算、审计和报表。
 
@@ -150,7 +150,7 @@ users / user_addresses / service_types / nodes
 
 - 注册密码由 Service 使用 ASP.NET Core `PasswordHasher<User>` 生成带盐哈希后保存，登录使用 `VerifyHashedPassword` 校验。
 - Controller、View 和 Repository 不实现密码算法；数据库不保存原始密码。
-- 禁用账号 `account_status = 'DISABLED'` 不允许继续执行业务操作。
+- 封禁账号 `account_status = 'BLOCKED'` 和注销账号 `account_status = 'CANCELLED'` 不允许登录；正常账号状态为 `NORMAL`。
 - 地址只属于对应用户，不允许跨用户使用。
 - 页面显示中文名称，数据库保存英文状态代码。
 
@@ -527,7 +527,7 @@ runners
 
 | 业务对象 | 替代删除方式 |
 | --- | --- |
-| 用户 | `users.account_status = 'DISABLED'` |
+| 用户 | `users.account_status = 'BLOCKED'`（可恢复）或 `CANCELLED`（注销） |
 | 节点 | `nodes.node_status = 'CLOSED'` |
 | 服务类型 | `service_types.type_status = 'DISABLED'` |
 | 任务 | `tasks.task_status = 'CANCELLED'` |
