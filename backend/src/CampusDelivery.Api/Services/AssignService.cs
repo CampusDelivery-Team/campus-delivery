@@ -17,11 +17,11 @@ public sealed class AssignService(
         CancellationToken cancellationToken = default)
     {
         (page, pageSize) = NormalizePage(page, pageSize);
-        int totalCount = await taskRepository.GetGrabableCountAsync(cancellationToken);
+        int totalCount = await taskRepository.GetGrabableCountAsync(userId, cancellationToken);
         page = ClampPage(page, totalCount, pageSize);
         int offset = (page - 1) * pageSize;
 
-        var tasks = await taskRepository.GetGrabableTasksAsync(offset, pageSize, cancellationToken);
+        var tasks = await taskRepository.GetGrabableTasksAsync(userId, offset, pageSize, cancellationToken);
         var runner = await taskRepository.GetRunnerByUserIdAsync(userId, cancellationToken);
         var viewModel = new TaskHallViewModel
         {
@@ -257,6 +257,14 @@ public sealed class AssignService(
                 return false;
             }
 
+            int? publisherUserId = await taskRepository.GetTaskPublisherUserIdAsync(
+                taskId, connection, transaction, cancellationToken);
+            if (!publisherUserId.HasValue || publisherUserId.Value == userId)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
             var lockedRunner = await taskRepository.GetRunnerWithLockAsync(runner.RunnerId, connection, transaction, cancellationToken);
             if (lockedRunner == null || lockedRunner.WorkStatus != "FREE")
             {
@@ -309,6 +317,14 @@ public sealed class AssignService(
 
             var runner = await taskRepository.GetRunnerWithLockAsync(runnerId, connection, transaction, cancellationToken);
             if (runner == null || runner.AuditStatus != "APPROVED" || runner.WorkStatus != "FREE")
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            int? publisherUserId = await taskRepository.GetTaskPublisherUserIdAsync(
+                taskId, connection, transaction, cancellationToken);
+            if (!publisherUserId.HasValue || publisherUserId.Value == runner.UserId)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
@@ -373,6 +389,14 @@ public sealed class AssignService(
 
             var newRunner = await taskRepository.GetRunnerWithLockAsync(newRunnerId, connection, transaction, cancellationToken);
             if (newRunner == null || newRunner.AuditStatus != "APPROVED" || newRunner.WorkStatus != "FREE")
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            int? publisherUserId = await taskRepository.GetTaskPublisherUserIdAsync(
+                taskId, connection, transaction, cancellationToken);
+            if (!publisherUserId.HasValue || publisherUserId.Value == newRunner.UserId)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;

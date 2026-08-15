@@ -7,13 +7,20 @@ using System.Security.Claims;
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize]
-public sealed class ReviewController(ReviewService reviewService) : Controller
+public sealed class ReviewController(ReviewService reviewService, TaskService taskService) : Controller
 {
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
     [HttpGet]
     public async Task<IActionResult> Index(int taskId, CancellationToken cancellationToken)
     {
+        var task = await taskService.GetDetailsAsync(
+            taskId, CurrentUserId, User.IsInRole("ADMIN"), cancellationToken);
+        if (task == null)
+        {
+            return NotFound();
+        }
+
         var reviews = await reviewService.GetByTaskIdAsync(taskId, cancellationToken);
         var items = reviews.Select(ReviewListItemViewModel.FromModel).ToList();
         ViewBag.TaskId = taskId;
@@ -21,8 +28,13 @@ public sealed class ReviewController(ReviewService reviewService) : Controller
     }
 
     [HttpGet]
-    public IActionResult Create(int recordId)
+    public async Task<IActionResult> Create(int recordId, CancellationToken cancellationToken)
     {
+        if (!await reviewService.CanCreateReviewAsync(recordId, CurrentUserId, cancellationToken))
+        {
+            return Forbid();
+        }
+
         return View(new ReviewCreateViewModel { RecordId = recordId });
     }
 
@@ -33,7 +45,7 @@ public sealed class ReviewController(ReviewService reviewService) : Controller
         if (!ModelState.IsValid) return View(model);
         var (success, message) = await reviewService.CreateReviewAsync(
             model.RecordId, model.Rating ?? 5, model.AnonymousFlag,
-            model.CommentText, model.CreditDelta, cancellationToken);
+            model.CommentText, CurrentUserId, cancellationToken);
         TempData[success ? "SuccessMessage" : "ErrorMessage"] = message;
         return success ? RedirectToAction(nameof(MyReviews)) : View(model);
     }
@@ -41,7 +53,9 @@ public sealed class ReviewController(ReviewService reviewService) : Controller
     [HttpGet]
     public async Task<IActionResult> MyReviews(int page = 1, int size = 10, CancellationToken cancellationToken = default)
     {
-        var (items, total) = await reviewService.GetAllPagedAsync(page, size, cancellationToken);
+        page = Math.Max(1, page);
+        size = size is >= 1 and <= 50 ? size : 10;
+        var (items, total) = await reviewService.GetMyPagedAsync(CurrentUserId, page, size, cancellationToken);
         var viewItems = items.Select(ReviewListItemViewModel.FromModel).ToList();
         ViewBag.Total = total; ViewBag.Page = page; ViewBag.Size = size;
         ViewBag.TotalPages = (int)Math.Ceiling((double)total / size);
@@ -52,6 +66,8 @@ public sealed class ReviewController(ReviewService reviewService) : Controller
     [HttpGet]
     public async Task<IActionResult> All(int page = 1, int size = 20, CancellationToken cancellationToken = default)
     {
+        page = Math.Max(1, page);
+        size = size is >= 1 and <= 50 ? size : 20;
         var (items, total) = await reviewService.GetAllPagedAsync(page, size, cancellationToken);
         var viewItems = items.Select(ReviewListItemViewModel.FromModel).ToList();
         ViewBag.Total = total; ViewBag.Page = page; ViewBag.Size = size;
@@ -76,7 +92,7 @@ public sealed class ReviewController(ReviewService reviewService) : Controller
         if (!ModelState.IsValid) return View(model);
         var (success, message) = await reviewService.UpdateReviewAsync(
             model.ReviewId, model.Rating ?? 5, model.AnonymousFlag,
-            model.CommentText, model.CreditDelta, cancellationToken);
+            model.CommentText, cancellationToken);
         TempData[success ? "SuccessMessage" : "ErrorMessage"] = message;
         return success ? RedirectToAction(nameof(All)) : View(model);
     }

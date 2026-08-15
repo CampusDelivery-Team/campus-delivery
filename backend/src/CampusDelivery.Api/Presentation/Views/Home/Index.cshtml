@@ -138,7 +138,7 @@
     <div class="section-title">
         <div>
             <h2>校园服务类型</h2>
-            <p>以下为系统目前配置的服务场景。服务创建、订单和配送流程由后续任务模块统一承接，不再使用会跳回首页的临时链接。</p>
+            <p>以下为系统目前配置的服务场景，已接入任务发布、接单配送、确认收货和货到付款流程。</p>
         </div>
         @if (isAdmin)
         {
@@ -245,7 +245,7 @@ else
             <article class="portal-card">
                 <span>任务服务</span>
                 <h3>任务发布已接入</h3>
-                <p>当前已提供任务发布、我的任务和任务详情入口，后续会继续补接单、状态流转与支付流程。</p>
+                <p>任务发布、接单配送、确认收货、货到付款、评价投诉与退款均已接入对应业务页面。</p>
                 <div class="tag-row">
                     @if (isAuthenticated)
                     {
@@ -265,12 +265,12 @@ else
 <section class="home-section" id="workflow">
     <p class="eyebrow">WORKFLOW</p>
     <h2>完整服务流程</h2>
-    <p class="section-copy">以下流程说明系统的业务目标；目前已完成的基础资料、资格申请和审核入口均可从本页直接进入。</p>
+    <p class="section-copy">系统已贯通从基础资料、资格审核到任务履约、收货付款和售后处理的业务流程。</p>
     <div class="workflow-grid">
         <article><span>1</span><h3>维护资料</h3><p>管理员配置服务类型、服务节点及适用范围。</p></article>
         <article><span>2</span><h3>资格审核</h3><p>用户申请成为跑腿员，管理员进行审核处理。</p></article>
-        <article><span>3</span><h3>任务配送</h3><p>任务发布、接单与配送状态将在任务模块中实现。</p></article>
-        <article><span>4</span><h3>完成评价</h3><p>确认、结算与评价投诉将在订单相关模块中实现。</p></article>
+        <article><span>3</span><h3>任务配送</h3><p>跑腿员接单后更新配送状态，用户确认收到货物。</p></article>
+        <article><span>4</span><h3>付款售后</h3><p>收货后完成付款，并可进行评价、投诉、退款与结算。</p></article>
     </div>
 </section>
 

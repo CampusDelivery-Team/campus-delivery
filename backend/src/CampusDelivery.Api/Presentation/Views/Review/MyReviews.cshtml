@@ -1,0 +1,40 @@
+@model IReadOnlyList<ReviewListItemViewModel>
+
+@{
+    ViewData["Title"] = "我的评价";
+    int page = ViewBag.Page ?? 1;
+    int pageSize = ViewBag.Size ?? 10;
+    int total = ViewBag.Total ?? 0;
+    int totalPages = Math.Max(1, (int)Math.Ceiling((double)total / pageSize));
+}
+
+<section class="panel management-panel">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">用户反馈</p>
+            <h1>我的评价</h1>
+            <p class="section-description">查看你提交过的跑腿服务评价。</p>
+        </div>
+        <span class="badge">共 @total 条</span>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="inline-notice success">@success</div>
+    }
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="inline-notice error">@error</div>
+    }
+
+    <partial name="_ReviewTable" model="Model" />
+
+    @if (totalPages > 1)
+    {
+        <nav class="pagination">
+            <a asp-action="MyReviews" asp-route-page="@(page - 1)" asp-route-size="@pageSize" class="@(page <= 1 ? "disabled" : "")">上一页</a>
+            <span>第 @(page) / @totalPages 页</span>
+            <a asp-action="MyReviews" asp-route-page="@(page + 1)" asp-route-size="@pageSize" class="@(page >= totalPages ? "disabled" : "")">下一页</a>
+        </nav>
+    }
+</section>

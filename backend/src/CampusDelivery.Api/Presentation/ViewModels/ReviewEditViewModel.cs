@@ -14,8 +14,7 @@ public sealed class ReviewEditViewModel : ReviewCreateViewModel
             RecordId = review.RecordId,
             Rating = review.Rating,
             AnonymousFlag = review.AnonymousFlag,
-            CommentText = review.CommentText,
-            CreditDelta = review.CreditDelta
+            CommentText = review.CommentText
         };
     }
 }

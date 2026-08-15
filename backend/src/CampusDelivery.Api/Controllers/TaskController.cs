@@ -11,11 +11,19 @@ namespace CampusDelivery.Api.Controllers
     {
         private readonly TaskService _taskService;
         private readonly AssignService _assignService;
+        private readonly ReviewService _reviewService;
+        private readonly ComplaintService _complaintService;
 
-        public TaskController(TaskService taskService, AssignService assignService)
+        public TaskController(
+            TaskService taskService,
+            AssignService assignService,
+            ReviewService reviewService,
+            ComplaintService complaintService)
         {
             _taskService = taskService;
             _assignService = assignService;
+            _reviewService = reviewService;
+            _complaintService = complaintService;
         }
 
         [HttpGet]
@@ -113,7 +121,22 @@ namespace CampusDelivery.Api.Controllers
                 currentUserId.Value,
                 User.IsInRole("ADMIN"),
                 cancellationToken);
-            return model == null ? NotFound() : View(model);
+            if (model == null)
+            {
+                return NotFound();
+            }
+
+            if (model.RecordId.HasValue && !User.IsInRole("ADMIN"))
+            {
+                bool reviewAvailable = model.CanReview;
+                model.CanReview = await _reviewService.CanCreateReviewAsync(
+                    model.RecordId.Value, currentUserId.Value, cancellationToken);
+                model.HasReview = reviewAvailable && !model.CanReview;
+                model.CanComplain = await _complaintService.CanCreateComplaintAsync(
+                    model.RecordId.Value, currentUserId.Value, cancellationToken);
+            }
+
+            return View(model);
         }
 
         [Authorize(Roles = "RUNNER")]

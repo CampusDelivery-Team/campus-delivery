@@ -3,7 +3,7 @@
 @{
     ViewData["Title"] = "评价管理";
     int page = ViewBag.Page ?? 1;
-    int pageSize = ViewBag.PageSize ?? 20;
+    int pageSize = ViewBag.Size ?? 20;
     int total = ViewBag.Total ?? 0;
     int totalPages = Math.Max(1, (int)Math.Ceiling((double)total / pageSize));
 }
@@ -19,9 +19,9 @@
     @if (totalPages > 1)
     {
         <nav class="pagination">
-            <a asp-action="All" asp-route-page="@(page - 1)" asp-route-pageSize="@pageSize" class="@(page <= 1 ? "disabled" : "")">上一页</a>
+            <a asp-action="All" asp-route-page="@(page - 1)" asp-route-size="@pageSize" class="@(page <= 1 ? "disabled" : "")">上一页</a>
             <span>第 @(page) / @totalPages 页</span>
-            <a asp-action="All" asp-route-page="@(page + 1)" asp-route-pageSize="@pageSize" class="@(page >= totalPages ? "disabled" : "")">下一页</a>
+            <a asp-action="All" asp-route-page="@(page + 1)" asp-route-size="@pageSize" class="@(page >= totalPages ? "disabled" : "")">下一页</a>
         </nav>
     }
 </section>

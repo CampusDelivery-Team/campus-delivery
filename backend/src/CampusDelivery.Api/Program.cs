@@ -55,8 +55,6 @@ builder.Services.AddScoped<AddressService>();
 builder.Services.AddScoped<TaskRepository>();
 builder.Services.AddScoped<TaskService>();
 builder.Services.AddScoped<AssignService>();
-// 任务发布模块
-builder.Services.AddScoped<TaskService>();
 
 builder.Services.AddScoped<PaymentRepository>();
 builder.Services.AddScoped<PaymentService>();

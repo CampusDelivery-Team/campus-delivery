@@ -5,6 +5,8 @@ public sealed class TaskDetailsViewModel
     public int TaskId { get; set; }
     public int? RecordId { get; set; }
     public bool CanReview { get; set; }
+    public bool HasReview { get; set; }
+    public bool CanComplain { get; set; }
     public string PublisherUsername { get; set; } = string.Empty;
     public string TaskKindDisplayName { get; set; } = string.Empty;
     public string ServiceName { get; set; } = string.Empty;

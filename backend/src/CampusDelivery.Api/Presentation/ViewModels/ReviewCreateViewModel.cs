@@ -19,7 +19,4 @@ public class ReviewCreateViewModel
     [Display(Name = "评价内容")]
     public string? CommentText { get; set; }
 
-    [Range(-100, 100, ErrorMessage = "信用变动范围-100到100")]
-    [Display(Name = "信用变动")]
-    public int CreditDelta { get; set; }
 }

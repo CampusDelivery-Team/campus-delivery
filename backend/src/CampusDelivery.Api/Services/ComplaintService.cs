@@ -36,6 +36,10 @@ public sealed class ComplaintService(
         return (items, total);
     }
 
+    public async Task<bool> CanCreateComplaintAsync(
+        int recordId, int currentUserId, CancellationToken cancellationToken = default)
+        => await complaintRepository.CanCreateAsync(recordId, currentUserId, cancellationToken);
+
     public async Task<(bool Success, string Message)> CreateComplaintAsync(
         int recordId, string reason, int currentUserId, CancellationToken cancellationToken = default)
     {
@@ -51,7 +55,7 @@ public sealed class ComplaintService(
             if (context.PublisherUserId != currentUserId) { await tx.RollbackAsync(cancellationToken); return (false, "只能投诉自己发布的订单"); }
             if (context.TaskStatus != "FINISHED") { await tx.RollbackAsync(cancellationToken); return (false, "只有已完成的服务才能投诉"); }
 
-            var existing = await complaintRepository.GetByRecordIdAsync(recordId, cancellationToken);
+            var existing = await complaintRepository.GetByRecordIdAsync(recordId, conn, tx, cancellationToken);
             if (existing != null) { await tx.RollbackAsync(cancellationToken); return (false, "该接派记录已有投诉"); }
 
             var complaint = new Complaint { RecordId = recordId, Reason = reason, ProcessStatus = "SUBMITTED" };

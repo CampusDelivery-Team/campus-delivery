@@ -6,7 +6,11 @@ namespace CampusDelivery.Api.Repositories;
 
 public sealed partial class TaskRepository
 {
-    public async Task<IReadOnlyList<CampusTask>> GetGrabableTasksAsync(int offset, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<CampusTask>> GetGrabableTasksAsync(
+        int excludedPublisherUserId,
+        int offset,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
         var tasks = new List<CampusTask>();
         await using var connection = _connectionFactory.CreateConnection();
@@ -19,9 +23,11 @@ public sealed partial class TaskRepository
                    task_title, task_price, urgent_flag, task_status, created_at, completed_at
             FROM APPUSER.tasks
             WHERE task_status = 'WAITING'
+              AND publisher_user_id <> :excludedPublisherUserId
             ORDER BY urgent_flag DESC, created_at DESC
             OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
             """;
+        command.Parameters.Add(new OracleParameter("excludedPublisherUserId", excludedPublisherUserId));
         command.Parameters.Add(new OracleParameter("offset", offset));
         command.Parameters.Add(new OracleParameter("pageSize", pageSize));
 
@@ -33,14 +39,17 @@ public sealed partial class TaskRepository
         return tasks;
     }
 
-    public async Task<int> GetGrabableCountAsync(CancellationToken cancellationToken = default)
+    public async Task<int> GetGrabableCountAsync(
+        int excludedPublisherUserId,
+        CancellationToken cancellationToken = default)
     {
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.BindByName = true;
-        command.CommandText = "SELECT COUNT(*) FROM APPUSER.tasks WHERE task_status = 'WAITING'";
+        command.CommandText = "SELECT COUNT(*) FROM APPUSER.tasks WHERE task_status = 'WAITING' AND publisher_user_id <> :excludedPublisherUserId";
+        command.Parameters.Add(new OracleParameter("excludedPublisherUserId", excludedPublisherUserId));
 
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return Convert.ToInt32(result);

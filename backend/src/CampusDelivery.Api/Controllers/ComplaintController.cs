@@ -12,8 +12,13 @@ public sealed class ComplaintController(ComplaintService complaintService) : Con
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
     [HttpGet]
-    public IActionResult Create(int recordId)
+    public async Task<IActionResult> Create(int recordId, CancellationToken cancellationToken)
     {
+        if (!await complaintService.CanCreateComplaintAsync(recordId, CurrentUserId, cancellationToken))
+        {
+            return Forbid();
+        }
+
         return View(new ComplaintCreateViewModel { RecordId = recordId });
     }
 

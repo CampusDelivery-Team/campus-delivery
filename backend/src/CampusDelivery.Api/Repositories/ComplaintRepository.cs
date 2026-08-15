@@ -44,12 +44,48 @@ public sealed class ComplaintRepository(OracleConnectionFactory connectionFactor
         return await reader.ReadAsync(cancellationToken) ? MapComplaint(reader) : null;
     }
 
+    public async Task<bool> CanCreateAsync(
+        int recordId, int publisherUserId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM APPUSER.assign_records ar
+            JOIN APPUSER.tasks t ON ar.task_id = t.task_id
+            WHERE ar.record_id = :recordId
+              AND t.publisher_user_id = :publisherUserId
+              AND t.task_status = 'FINISHED'
+              AND NOT EXISTS (
+                  SELECT 1 FROM APPUSER.complaints c WHERE c.record_id = ar.record_id
+              )
+            """;
+        command.Parameters.Add(new OracleParameter("recordId", recordId));
+        command.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+    }
+
+    public async Task<Complaint?> GetByRecordIdAsync(
+        int recordId, OracleConnection connection, OracleTransaction transaction,
+        CancellationToken cancellationToken = default)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.BindByName = true;
+        command.CommandText = Projection + " WHERE record_id = :recordId";
+        command.Parameters.Add(new OracleParameter("recordId", recordId));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? MapComplaint(reader) : null;
+    }
+
     public async Task<ComplaintContext?> GetContextByRecordIdAsync(int recordId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
     {
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
-        command.CommandText = "SELECT ar.task_id, ar.runner_id, t.publisher_user_id, t.task_status, t.task_title FROM APPUSER.assign_records ar JOIN APPUSER.tasks t ON ar.task_id = t.task_id WHERE ar.record_id = :recordId";
+        command.CommandText = "SELECT ar.task_id, ar.runner_id, t.publisher_user_id, t.task_status, t.task_title FROM APPUSER.assign_records ar JOIN APPUSER.tasks t ON ar.task_id = t.task_id WHERE ar.record_id = :recordId FOR UPDATE OF ar.runner_id";
         command.Parameters.Add(new OracleParameter("recordId", recordId));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken)) return null;
