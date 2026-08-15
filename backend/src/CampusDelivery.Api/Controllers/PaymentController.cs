@@ -1,13 +1,13 @@
 using System.Security.Claims;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize]
-public sealed class PaymentController(PaymentService paymentService) : Controller
+public sealed class PaymentController(IPaymentService paymentService) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Confirm(int taskId, CancellationToken cancellationToken)

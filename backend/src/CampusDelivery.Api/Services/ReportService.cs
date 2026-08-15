@@ -1,10 +1,11 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services;
 
-public sealed class ReportService(ReportRepository reportRepository)
+public sealed class ReportService(IReportRepository reportRepository) : IReportService
 {
     public async Task<ReportDashboardViewModel> GetDashboardAsync(CancellationToken cancellationToken = default)
     {
@@ -18,7 +19,10 @@ public sealed class ReportService(ReportRepository reportRepository)
             Metrics = metrics.Select(ReportMetricViewModel.FromModel).ToList(),
             NodeVolumes = nodeVolumes.Select(NodeVolumeViewModel.FromModel).ToList(),
             RunnerPerformances = runnerPerformances.Select(RunnerPerformanceViewModel.FromModel).ToList(),
-            RecentReports = recentReports.Select(ReportRecordViewModel.FromModel).ToList(),
+            RecentReports = recentReports.Select(record => ReportRecordViewModel.FromModel(
+                record,
+                DisplayNameService.GetReportTypeName(record.ReportType),
+                DisplayNameService.GetReportStatusName(record.ReportStatus))).ToList(),
             GenerateForm = new ReportGenerateViewModel
             {
                 ReportType = "ORDER",
@@ -60,5 +64,3 @@ public sealed class ReportService(ReportRepository reportRepository)
         return string.IsNullOrWhiteSpace(reportType) ? "ORDER" : reportType.Trim().ToUpperInvariant();
     }
 }
-
-public sealed record ReportOperationResult(bool Success, string Message, int? ReportId);

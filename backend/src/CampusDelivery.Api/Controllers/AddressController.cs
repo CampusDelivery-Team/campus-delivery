@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using CampusDelivery.Api.Services;
-using CampusDelivery.Api.Repositories;
+using CampusDelivery.Api.Services.Interfaces;
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Presentation.ViewModels;
+using System.Security.Claims;
 
 namespace CampusDelivery.Api.Controllers
 {
@@ -11,21 +11,18 @@ namespace CampusDelivery.Api.Controllers
     [Authorize]
     public class AddressController : Controller
     {
-        private readonly AddressService _addressService;
-        private readonly UserRepository _userRepository;
+        private readonly IAddressService _addressService;
 
-        public AddressController(AddressService addressService, UserRepository userRepository)
+        public AddressController(IAddressService addressService)
         {
             _addressService = addressService;
-            _userRepository = userRepository;
         }
 
         // 辅助方法：获取当前登录用户的 UserId
         private int GetCurrentUserId()
         {
-            var username = User.Identity?.Name;
-            var user = _userRepository.GetUserByUsername(username!);
-            return user?.UserId ?? 0;
+            string? value = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return int.TryParse(value, out int userId) ? userId : 0;
         }
 
         // 1. 地址列表页

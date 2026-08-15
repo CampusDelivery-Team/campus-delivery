@@ -1,12 +1,13 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 using System.Data;
 
 namespace CampusDelivery.Api.Repositories;
 
-public sealed class ReportRepository(OracleConnectionFactory connectionFactory)
+public sealed class ReportRepository(OracleConnectionFactory connectionFactory) : IReportRepository
 {
     public async Task<IReadOnlyList<ReportMetricRecord>> GetMetricsAsync(CancellationToken cancellationToken = default)
     {

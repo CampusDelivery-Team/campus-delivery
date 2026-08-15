@@ -1,11 +1,15 @@
 using CampusDelivery.Api.Models;
+using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 using System.Data;
 
 namespace CampusDelivery.Api.Repositories;
 
-public sealed partial class TaskRepository
+public sealed class AssignRepository(OracleConnectionFactory connectionFactory) : IAssignRepository
 {
+    private readonly OracleConnectionFactory _connectionFactory = connectionFactory;
+
     public async Task<IReadOnlyList<CampusTask>> GetGrabableTasksAsync(int offset, int pageSize, CancellationToken cancellationToken = default)
     {
         var tasks = new List<CampusTask>();
@@ -228,9 +232,10 @@ public sealed partial class TaskRepository
     }
 
 
-    public async Task<string?> GetTaskStatusWithLockAsync(int taskId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<string?> GetTaskStatusWithLockAsync(int taskId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
 
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -241,8 +246,9 @@ public sealed partial class TaskRepository
         return result == DBNull.Value ? null : Convert.ToString(result);
     }
 
-    public async Task<Runner?> GetRunnerWithLockAsync(int runnerId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<Runner?> GetRunnerWithLockAsync(int runnerId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -262,8 +268,9 @@ public sealed partial class TaskRepository
         return null;
     }
 
-    public async Task<int?> GetTaskPublisherUserIdAsync(int taskId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<int?> GetTaskPublisherUserIdAsync(int taskId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -274,8 +281,9 @@ public sealed partial class TaskRepository
         return result == null || result == DBNull.Value ? null : Convert.ToInt32(result);
     }
 
-    public async Task<bool> IsReceiptConfirmedAsync(int recordId, int publisherUserId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<bool> IsReceiptConfirmedAsync(int recordId, int publisherUserId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -294,9 +302,10 @@ public sealed partial class TaskRepository
         return Convert.ToInt32(result) > 0;
     }
 
-    public async Task UpdateTaskStatusAsync(int taskId, string status, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task UpdateTaskStatusAsync(int taskId, string status, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
 
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -312,8 +321,9 @@ public sealed partial class TaskRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public async Task UpdateRunnerWorkStatusAsync(int runnerId, string workStatus, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task UpdateRunnerWorkStatusAsync(int runnerId, string workStatus, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -324,8 +334,9 @@ public sealed partial class TaskRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public async Task<int> InsertAssignRecordAsync(AssignRecord record, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<int> InsertAssignRecordAsync(AssignRecord record, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -346,8 +357,9 @@ public sealed partial class TaskRepository
         return int.Parse(recordIdParam.Value.ToString()!);
     }
 
-    public async Task InsertTaskStatusLogAsync(TaskStatusLog log, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task InsertTaskStatusLogAsync(TaskStatusLog log, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -387,8 +399,9 @@ public sealed partial class TaskRepository
         return null;
     }
 
-    public async Task<AssignRecord?> GetLatestAssignRecordWithConnectionAsync(int taskId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<AssignRecord?> GetLatestAssignRecordWithLockAsync(int taskId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;

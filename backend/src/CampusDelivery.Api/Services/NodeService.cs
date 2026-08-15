@@ -1,10 +1,11 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services;
 
-public sealed class NodeService(NodeRepository nodeRepository)
+public sealed class NodeService(INodeRepository nodeRepository) : INodeService
 {
     public async Task<NodeIndexViewModel> GetIndexAsync(CancellationToken cancellationToken = default)
     {
@@ -73,11 +74,17 @@ public sealed class NodeService(NodeRepository nodeRepository)
             : NodeStatusUpdateResult.NoChange;
     }
 
-    public Task<NodeDeleteResult> DeleteAsync(
+    public async Task<NodeDeleteOperationResult> DeleteAsync(
         int nodeId,
         CancellationToken cancellationToken = default)
     {
-        return nodeRepository.DeleteAsync(nodeId, cancellationToken);
+        NodeDeleteResult result = await nodeRepository.DeleteAsync(nodeId, cancellationToken);
+        return result switch
+        {
+            NodeDeleteResult.Success => NodeDeleteOperationResult.Success,
+            NodeDeleteResult.Referenced => NodeDeleteOperationResult.Referenced,
+            _ => NodeDeleteOperationResult.NotFound
+        };
     }
 
     private static Node ToNode(NodeCreateViewModel model)
@@ -106,18 +113,4 @@ public sealed class NodeService(NodeRepository nodeRepository)
             NodeStatusDisplayName = DisplayNameService.GetNodeStatusName(node.NodeStatus)
         };
     }
-}
-
-public enum NodeUpdateResult
-{
-    Success,
-    NotFound,
-    DuplicateName
-}
-
-public enum NodeStatusUpdateResult
-{
-    Success,
-    NotFound,
-    NoChange
 }

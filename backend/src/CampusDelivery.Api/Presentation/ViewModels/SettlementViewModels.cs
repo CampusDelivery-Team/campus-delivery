@@ -1,5 +1,4 @@
 using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Services;
 
 namespace CampusDelivery.Api.Presentation.ViewModels;
 
@@ -70,9 +69,11 @@ public sealed class SettlementSummaryViewModel
 
     public string SettlementStatus { get; set; } = "WAITING";
 
-    public string SettlementStatusDisplayName => DisplayNameService.GetSettlementStatusName(SettlementStatus);
+    public string SettlementStatusDisplayName { get; set; } = string.Empty;
 
-    public static SettlementSummaryViewModel FromModel(Settlement settlement)
+    public static SettlementSummaryViewModel FromModel(
+        Settlement settlement,
+        string settlementStatusDisplayName)
     {
         return new SettlementSummaryViewModel
         {
@@ -82,7 +83,8 @@ public sealed class SettlementSummaryViewModel
             OrderTotal = settlement.OrderTotal,
             PlatformFee = settlement.PlatformFee,
             NetIncome = settlement.NetIncome,
-            SettlementStatus = settlement.SettlementStatus
+            SettlementStatus = settlement.SettlementStatus,
+            SettlementStatusDisplayName = settlementStatusDisplayName
         };
     }
 }
@@ -118,7 +120,9 @@ public sealed class SettlementCandidateViewModel
 
     public string PayMethodDisplayName { get; set; } = string.Empty;
 
-    public static SettlementCandidateViewModel FromModel(SettlementCandidate candidate)
+    public static SettlementCandidateViewModel FromModel(
+        SettlementCandidate candidate,
+        string payMethodDisplayName)
     {
         return new SettlementCandidateViewModel
         {
@@ -127,7 +131,7 @@ public sealed class SettlementCandidateViewModel
             RecordId = candidate.RecordId,
             TaskTitle = candidate.TaskTitle,
             PayAmount = candidate.PayAmount,
-            PayMethodDisplayName = DisplayNameService.GetPayMethodName(candidate.PayMethod)
+            PayMethodDisplayName = payMethodDisplayName
         };
     }
 }
@@ -146,7 +150,9 @@ public sealed class SettlementPaymentItemViewModel
 
     public string PayMethodDisplayName { get; set; } = string.Empty;
 
-    public static SettlementPaymentItemViewModel FromModel(SettlementPaymentItem item)
+    public static SettlementPaymentItemViewModel FromModel(
+        SettlementPaymentItem item,
+        string payMethodDisplayName)
     {
         return new SettlementPaymentItemViewModel
         {
@@ -155,7 +161,7 @@ public sealed class SettlementPaymentItemViewModel
             RecordId = item.RecordId,
             TaskTitle = item.TaskTitle,
             PayAmount = item.PayAmount,
-            PayMethodDisplayName = DisplayNameService.GetPayMethodName(item.PayMethod)
+            PayMethodDisplayName = payMethodDisplayName
         };
     }
 }

@@ -1,10 +1,11 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 
 namespace CampusDelivery.Api.Repositories;
 
-public sealed class ServiceTypeRepository(OracleConnectionFactory connectionFactory)
+public sealed class ServiceTypeRepository(OracleConnectionFactory connectionFactory) : IServiceTypeRepository
 {
     public async Task<IReadOnlyList<ServiceType>> GetAllAsync(
         CancellationToken cancellationToken = default)
@@ -215,11 +216,4 @@ public sealed class ServiceTypeRepository(OracleConnectionFactory connectionFact
             (object?)serviceType.UrgentRule ?? DBNull.Value));
         command.Parameters.Add(new OracleParameter("typeStatus", serviceType.TypeStatus));
     }
-}
-
-public enum ServiceTypeDeleteResult
-{
-    Success,
-    NotFound,
-    Referenced
 }

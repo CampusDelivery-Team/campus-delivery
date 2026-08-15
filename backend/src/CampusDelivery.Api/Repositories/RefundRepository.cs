@@ -1,13 +1,14 @@
 using System.Data;
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 
 namespace CampusDelivery.Api.Repositories;
 
 /// <summary>退款表访问，仅使用 refunds 的实际字段。</summary>
-public sealed class RefundRepository(OracleConnectionFactory connectionFactory)
+public sealed class RefundRepository(OracleConnectionFactory connectionFactory) : IRefundRepository
 {
     private const string RefundProjection = """
         SELECT refund_id, payment_id, refund_amount, refund_reason, approved_amount, process_status
@@ -34,8 +35,9 @@ public sealed class RefundRepository(OracleConnectionFactory connectionFactory)
     }
 
     public async Task<RefundRecord?> GetActiveByPaymentIdWithLockAsync(
-        int paymentId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+        int paymentId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using OracleCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -50,8 +52,11 @@ public sealed class RefundRepository(OracleConnectionFactory connectionFactory)
     }
 
     public Task<RefundRecord?> GetByIdWithLockAsync(
-        int refundId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default) =>
-        GetByIdAsync(refundId, connection, transaction, true, cancellationToken);
+        int refundId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+        return GetByIdAsync(refundId, connection, transaction, true, cancellationToken);
+    }
 
     public async Task<IReadOnlyList<RefundListRecord>> GetRefundsAsync(int offset, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -100,8 +105,9 @@ public sealed class RefundRepository(OracleConnectionFactory connectionFactory)
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
     }
 
-    public async Task<int> InsertAsync(RefundRecord record, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<int> InsertAsync(RefundRecord record, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using OracleCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -121,8 +127,9 @@ public sealed class RefundRepository(OracleConnectionFactory connectionFactory)
         return refundId.Value is OracleDecimal value ? value.ToInt32() : Convert.ToInt32(refundId.Value);
     }
 
-    public async Task UpdateReviewAsync(int refundId, string processStatus, decimal approvedAmount, string combinedReason, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task UpdateReviewAsync(int refundId, string processStatus, decimal approvedAmount, string combinedReason, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using OracleCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;

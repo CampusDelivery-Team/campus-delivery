@@ -1,14 +1,14 @@
 using System.Security.Claims;
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize]
-public sealed class ReviewController(ReviewService reviewService) : Controller
+public sealed class ReviewController(IReviewService reviewService) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(int taskId, CancellationToken cancellationToken)

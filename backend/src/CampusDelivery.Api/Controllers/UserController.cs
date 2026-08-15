@@ -2,9 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Oracle.ManagedDataAccess.Client;
-using CampusDelivery.Api.Repositories;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using CampusDelivery.Api.Presentation.ViewModels;
 
 namespace CampusDelivery.Api.Controllers
@@ -14,12 +12,10 @@ namespace CampusDelivery.Api.Controllers
     [Authorize]
     public class UserController : Controller
     {
-        private readonly UserRepository _userRepository;
-        private readonly UserService _userService;
+        private readonly IUserService _userService;
 
-        public UserController(UserRepository userRepository, UserService userService)
+        public UserController(IUserService userService)
         {
-            _userRepository = userRepository;
             _userService = userService;
         }
 
@@ -31,11 +27,10 @@ namespace CampusDelivery.Api.Controllers
             var username = User.Identity?.Name;
             if (string.IsNullOrEmpty(username)) return RedirectToAction("Login", "Auth");
 
-            // 去数据库查这个人的完整信息
-            var user = _userRepository.GetUserByUsername(username);
-            if (user == null) return NotFound();
+            UserViewModel? model = _userService.GetProfile(username);
+            if (model == null) return NotFound();
 
-            return View(BuildUserViewModel(user));
+            return View(model);
         }
         // 2. 跳转到修改信息页面 (GET)
         [HttpGet]
@@ -44,10 +39,10 @@ namespace CampusDelivery.Api.Controllers
             var username = User.Identity?.Name;
             if (string.IsNullOrEmpty(username)) return RedirectToAction("Login", "Auth");
 
-            var user = _userRepository.GetUserByUsername(username);
-            if (user == null) return NotFound();
+            UserViewModel? model = _userService.GetProfile(username);
+            if (model == null) return NotFound();
 
-            return View(BuildUserViewModel(user));
+            return View(model);
         }
 
         // 3. 接收用户提交的新手机号 (POST)
@@ -62,17 +57,17 @@ namespace CampusDelivery.Api.Controllers
             var username = User.Identity?.Name;
             if (string.IsNullOrEmpty(username)) return RedirectToAction("Login", "Auth");
 
-            var currentUser = _userRepository.GetUserByUsername(username);
+            UserViewModel? currentUser = _userService.GetProfile(username);
             if (currentUser == null) return NotFound();
 
             if (!ModelState.IsValid)
             {
-                var retryModel = BuildUserViewModel(currentUser);
+                UserViewModel retryModel = currentUser;
                 retryModel.Phone = model.Phone;
                 return View(retryModel);
             }
 
-            var (success, errorMessage) = _userService.UpdatePhone(currentUser.UserId, model.Phone);
+            var (success, errorMessage) = _userService.UpdatePhone(username, model.Phone);
 
             if (success)
             {
@@ -81,7 +76,7 @@ namespace CampusDelivery.Api.Controllers
                 return RedirectToAction("Profile");
             }
 
-            ModelState.AddModelError(string.Empty, errorMessage);
+            ModelState.AddModelError(nameof(model.Phone), errorMessage);
             return View(model);
         }
 
@@ -92,21 +87,7 @@ namespace CampusDelivery.Api.Controllers
             var username = User.Identity?.Name;
             if (string.IsNullOrEmpty(username)) return RedirectToAction("Login", "Auth");
 
-            var currentUser = _userRepository.GetUserByUsername(username);
-            if (currentUser == null) return NotFound();
-
-            (bool success, string errorMessage) result;
-            try
-            {
-                result = _userService.CancelOwnAccount(currentUser.UserId);
-            }
-            catch (OracleException exception) when (exception.Number == 2290)
-            {
-                TempData["SuccessMessage"] = "数据库账号状态尚未升级，请联系管理员执行账号状态迁移。";
-                return RedirectToAction(nameof(Profile));
-            }
-
-            var (success, errorMessage) = result;
+            var (success, errorMessage) = _userService.CancelOwnAccount(username);
             if (!success)
             {
                 TempData["SuccessMessage"] = errorMessage;
@@ -118,24 +99,5 @@ namespace CampusDelivery.Api.Controllers
             return RedirectToAction("Login", "Auth");
         }
 
-        private UserViewModel BuildUserViewModel(Models.User user)
-        {
-            var address = _userRepository.GetPrimaryAddress(user.UserId);
-
-            return new UserViewModel
-            {
-                UserId = user.UserId,
-                Username = user.Username,
-                Phone = user.Phone,
-                UserRole = _userService.GetChineseRoleName(user.UserRole),
-                HasAddress = address != null,
-                AddressSummary = address == null
-                    ? "暂未设置常用地址"
-                    : $"{address.Campus} · {address.BuildingRoom}",
-                AddressContact = address == null
-                    ? "后续可在地址管理中新增收货地址"
-                    : $"{address.ContactName} · {address.ContactPhone}"
-            };
-        }
     }
 }

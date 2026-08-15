@@ -1,5 +1,5 @@
 ﻿using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize]
-public sealed class ComplaintController(ComplaintService complaintService) : Controller
+public sealed class ComplaintController(IComplaintService complaintService) : Controller
 {
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 

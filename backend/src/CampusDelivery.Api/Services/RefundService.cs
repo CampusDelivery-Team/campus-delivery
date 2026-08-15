@@ -1,17 +1,17 @@
 using System.Text;
 using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
-using Oracle.ManagedDataAccess.Client;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services;
 
 public sealed class RefundService(
-    TaskRepository taskRepository,
-    PaymentRepository paymentRepository,
-    RefundRepository refundRepository,
-    OracleConnectionFactory connectionFactory)
+    ITaskRepository taskRepository,
+    IAssignRepository assignRepository,
+    IPaymentRepository paymentRepository,
+    IRefundRepository refundRepository,
+    IRepositoryTransactionManager transactionManager) : IRefundService
 {
     private const string ReviewReasonMarker = "\n审核意见：";
 
@@ -53,12 +53,10 @@ public sealed class RefundService(
             return new(false, "退款原因内容过长（中文建议不超过 60 字）。", 0);
         }
 
-        await using OracleConnection connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using OracleTransaction transaction = (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
         try
         {
-            PaymentRecord? payment = await paymentRepository.GetByIdWithLockAsync(model.PaymentId, connection, transaction, cancellationToken);
+            PaymentRecord? payment = await paymentRepository.GetByIdWithLockAsync(model.PaymentId, transaction, cancellationToken);
             if (payment is null || payment.TaskId != model.TaskId || payment.PublisherUserId != currentUserId)
             {
                 await transaction.RollbackAsync(cancellationToken);
@@ -69,14 +67,14 @@ public sealed class RefundService(
                 await transaction.RollbackAsync(cancellationToken);
                 return new(false, "只有已支付记录才能申请退款。", 0);
             }
-            if (await refundRepository.GetActiveByPaymentIdWithLockAsync(payment.PaymentId, connection, transaction, cancellationToken) is not null)
+            if (await refundRepository.GetActiveByPaymentIdWithLockAsync(payment.PaymentId, transaction, cancellationToken) is not null)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return new(false, "该支付记录已有待处理或已通过的退款申请。", 0);
             }
 
-            string? taskStatus = await taskRepository.GetTaskStatusWithLockAsync(payment.TaskId, connection, transaction, cancellationToken);
-            AssignRecord? assignRecord = await taskRepository.GetLatestAssignRecordWithConnectionAsync(payment.TaskId, connection, transaction, cancellationToken);
+            string? taskStatus = await assignRepository.GetTaskStatusWithLockAsync(payment.TaskId, transaction, cancellationToken);
+            AssignRecord? assignRecord = await assignRepository.GetLatestAssignRecordWithLockAsync(payment.TaskId, transaction, cancellationToken);
             if (taskStatus != "FINISHED" || assignRecord is null)
             {
                 await transaction.RollbackAsync(cancellationToken);
@@ -90,15 +88,15 @@ public sealed class RefundService(
                 RefundReason = refundReason,
                 ProcessStatus = "APPLY"
             };
-            int refundId = await refundRepository.InsertAsync(refund, connection, transaction, cancellationToken);
-            await taskRepository.UpdateTaskStatusAsync(payment.TaskId, "REFUNDING", connection, transaction, cancellationToken);
-            await taskRepository.InsertTaskStatusLogAsync(new TaskStatusLog
+            int refundId = await refundRepository.InsertAsync(refund, transaction, cancellationToken);
+            await assignRepository.UpdateTaskStatusAsync(payment.TaskId, "REFUNDING", transaction, cancellationToken);
+            await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
             {
                 RecordId = assignRecord.RecordId,
                 StatusBefore = "FINISHED",
                 StatusAfter = "REFUNDING",
                 OperatorUserId = currentUserId
-            }, connection, transaction, cancellationToken);
+            }, transaction, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return new(true, string.Empty, refundId);
         }
@@ -191,21 +189,19 @@ public sealed class RefundService(
             return new(false, "审核理由内容过长（中文建议不超过 33 字）。", 0);
         }
 
-        await using OracleConnection connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using OracleTransaction transaction = (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
         try
         {
-            RefundRecord? refund = await refundRepository.GetByIdWithLockAsync(refundId, connection, transaction, cancellationToken);
+            RefundRecord? refund = await refundRepository.GetByIdWithLockAsync(refundId, transaction, cancellationToken);
             if (refund?.ProcessStatus != "APPLY")
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return new(false, "只有待审核退款可以处理。", refund?.RefundId ?? 0);
             }
 
-            PaymentRecord? payment = await paymentRepository.GetByIdWithLockAsync(refund.PaymentId, connection, transaction, cancellationToken);
-            string? taskStatus = payment is null ? null : await taskRepository.GetTaskStatusWithLockAsync(payment.TaskId, connection, transaction, cancellationToken);
-            AssignRecord? assignRecord = payment is null ? null : await taskRepository.GetLatestAssignRecordWithConnectionAsync(payment.TaskId, connection, transaction, cancellationToken);
+            PaymentRecord? payment = await paymentRepository.GetByIdWithLockAsync(refund.PaymentId, transaction, cancellationToken);
+            string? taskStatus = payment is null ? null : await assignRepository.GetTaskStatusWithLockAsync(payment.TaskId, transaction, cancellationToken);
+            AssignRecord? assignRecord = payment is null ? null : await assignRepository.GetLatestAssignRecordWithLockAsync(payment.TaskId, transaction, cancellationToken);
             if (payment is null || taskStatus != "REFUNDING" || assignRecord is null)
             {
                 await transaction.RollbackAsync(cancellationToken);
@@ -226,22 +222,21 @@ public sealed class RefundService(
                 decision,
                 approvedAmount,
                 combinedReason,
-                connection,
                 transaction,
                 cancellationToken);
             if (decision == "APPROVED")
             {
-                await paymentRepository.UpdatePaymentStatusAsync(payment.PaymentId, "REFUNDED", connection, transaction, cancellationToken);
+                await paymentRepository.UpdatePaymentStatusAsync(payment.PaymentId, "REFUNDED", transaction, cancellationToken);
             }
 
-            await taskRepository.UpdateTaskStatusAsync(payment.TaskId, "FINISHED", connection, transaction, cancellationToken);
-            await taskRepository.InsertTaskStatusLogAsync(new TaskStatusLog
+            await assignRepository.UpdateTaskStatusAsync(payment.TaskId, "FINISHED", transaction, cancellationToken);
+            await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
             {
                 RecordId = assignRecord.RecordId,
                 StatusBefore = "REFUNDING",
                 StatusAfter = "FINISHED",
                 OperatorUserId = adminUserId
-            }, connection, transaction, cancellationToken);
+            }, transaction, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return new(true, string.Empty, refund.RefundId);
         }
@@ -261,5 +256,3 @@ public sealed class RefundService(
             : (value[..markerIndex], value[(markerIndex + ReviewReasonMarker.Length)..]);
     }
 }
-
-public sealed record RefundOperationResult(bool Success, string ErrorMessage, int RefundId);

@@ -1,13 +1,12 @@
 ﻿using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Persistence.Oracle;
-using CampusDelivery.Api.Repositories;
-using Oracle.ManagedDataAccess.Client;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services;
 
 public sealed class ComplaintService(
-    ComplaintRepository complaintRepository,
-    OracleConnectionFactory connectionFactory)
+    IComplaintRepository complaintRepository,
+    IRepositoryTransactionManager transactionManager) : IComplaintService
 {
     private const int CreditPenalty = 10;
 
@@ -41,26 +40,24 @@ public sealed class ComplaintService(
     {
         if (string.IsNullOrWhiteSpace(reason)) return (false, "投诉原因不能为空");
         if (reason.Length > 300) return (false, "投诉原因不能超过300字");
-        await using var conn = connectionFactory.CreateConnection();
-        await conn.OpenAsync(cancellationToken);
-        await using var tx = (OracleTransaction)(await conn.BeginTransactionAsync(cancellationToken));
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
         try
         {
-            var context = await complaintRepository.GetContextByRecordIdAsync(recordId, conn, tx, cancellationToken);
-            if (context == null) { await tx.RollbackAsync(cancellationToken); return (false, "接派记录不存在"); }
-            if (context.PublisherUserId != currentUserId) { await tx.RollbackAsync(cancellationToken); return (false, "只能投诉自己发布的订单"); }
-            if (context.TaskStatus != "FINISHED") { await tx.RollbackAsync(cancellationToken); return (false, "只有已完成的服务才能投诉"); }
+            var context = await complaintRepository.GetContextByRecordIdAsync(recordId, transaction, cancellationToken);
+            if (context == null) { await transaction.RollbackAsync(cancellationToken); return (false, "接派记录不存在"); }
+            if (context.PublisherUserId != currentUserId) { await transaction.RollbackAsync(cancellationToken); return (false, "只能投诉自己发布的订单"); }
+            if (context.TaskStatus != "FINISHED") { await transaction.RollbackAsync(cancellationToken); return (false, "只有已完成的服务才能投诉"); }
 
-            var existing = await complaintRepository.GetByRecordIdAsync(recordId, cancellationToken);
-            if (existing != null) { await tx.RollbackAsync(cancellationToken); return (false, "该接派记录已有投诉"); }
+            var existing = await complaintRepository.GetByRecordIdAsync(recordId, transaction, cancellationToken);
+            if (existing != null) { await transaction.RollbackAsync(cancellationToken); return (false, "该接派记录已有投诉"); }
 
             var complaint = new Complaint { RecordId = recordId, Reason = reason, ProcessStatus = "SUBMITTED" };
-            if (!await complaintRepository.InsertAsync(complaint, conn, tx, cancellationToken))
-            { await tx.RollbackAsync(cancellationToken); return (false, "提交投诉失败"); }
-            await tx.CommitAsync(cancellationToken);
+            if (!await complaintRepository.InsertAsync(complaint, transaction, cancellationToken))
+            { await transaction.RollbackAsync(cancellationToken); return (false, "提交投诉失败"); }
+            await transaction.CommitAsync(cancellationToken);
             return (true, "投诉已提交，管理员将尽快处理");
         }
-        catch { await tx.RollbackAsync(cancellationToken); throw; }
+        catch { await transaction.RollbackAsync(cancellationToken); throw; }
     }
 
     public async Task<(bool Success, string Message)> ProcessComplaintAsync(
@@ -71,14 +68,12 @@ public sealed class ComplaintService(
         note = note?.Trim();
         if (!string.IsNullOrEmpty(note) && note.Length > 300)
             return (false, "处理说明不能超过300字");
-        await using var conn = connectionFactory.CreateConnection();
-        await conn.OpenAsync(cancellationToken);
-        await using var tx = (OracleTransaction)(await conn.BeginTransactionAsync(cancellationToken));
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
         try
         {
-            var complaint = await complaintRepository.GetByIdWithLockAsync(complaintId, conn, tx, cancellationToken);
-            if (complaint == null) { await tx.RollbackAsync(cancellationToken); return (false, "投诉不存在"); }
-            if (complaint.ProcessStatus == "DONE") { await tx.RollbackAsync(cancellationToken); return (false, "该投诉已处理"); }
+            var complaint = await complaintRepository.GetByIdWithLockAsync(complaintId, transaction, cancellationToken);
+            if (complaint == null) { await transaction.RollbackAsync(cancellationToken); return (false, "投诉不存在"); }
+            if (complaint.ProcessStatus == "DONE") { await transaction.RollbackAsync(cancellationToken); return (false, "该投诉已处理"); }
 
             string resultText = decision == "UPHELD" ? "成立" : "驳回";
             if (!string.IsNullOrEmpty(note)) resultText += "；处理说明：" + note;
@@ -86,31 +81,23 @@ public sealed class ComplaintService(
             complaint.ProcessStatus = "DONE";
             complaint.ProcessResult = resultText;
 
-            if (!await complaintRepository.UpdateAsync(complaint, conn, tx, cancellationToken))
-            { await tx.RollbackAsync(cancellationToken); return (false, "处理投诉失败"); }
+            if (!await complaintRepository.UpdateAsync(complaint, transaction, cancellationToken))
+            { await transaction.RollbackAsync(cancellationToken); return (false, "处理投诉失败"); }
 
             if (decision == "UPHELD")
             {
-                var context = await complaintRepository.GetContextByRecordIdAsync(complaint.RecordId, conn, tx, cancellationToken);
-                if (context == null) { await tx.RollbackAsync(cancellationToken); return (false, "关联的接派记录不存在"); }
-                await DeductCreditAsync(context.RunnerId, conn, tx, cancellationToken);
+                var context = await complaintRepository.GetContextByRecordIdAsync(complaint.RecordId, transaction, cancellationToken);
+                if (context == null) { await transaction.RollbackAsync(cancellationToken); return (false, "关联的接派记录不存在"); }
+                await complaintRepository.UpdateRunnerCreditAsync(
+                    context.RunnerId,
+                    -CreditPenalty,
+                    transaction,
+                    cancellationToken);
             }
 
-            await tx.CommitAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
             return (true, "投诉处理完成");
         }
-        catch { await tx.RollbackAsync(cancellationToken); throw; }
-    }
-
-    private static async Task DeductCreditAsync(
-        int runnerId, OracleConnection conn, OracleTransaction tx, CancellationToken ct)
-    {
-        await using var cmd = conn.CreateCommand();
-        cmd.Transaction = tx;
-        cmd.BindByName = true;
-        cmd.CommandText = "UPDATE APPUSER.runners SET credit_score = GREATEST(0, credit_score - :penalty) WHERE runner_id = :runnerId";
-        cmd.Parameters.Add(new OracleParameter("penalty", CreditPenalty));
-        cmd.Parameters.Add(new OracleParameter("runnerId", runnerId));
-        await cmd.ExecuteNonQueryAsync(ct);
+        catch { await transaction.RollbackAsync(cancellationToken); throw; }
     }
 }

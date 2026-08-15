@@ -1,10 +1,11 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 
 namespace CampusDelivery.Api.Repositories;
 
-public sealed class ServiceNodeRuleRepository(OracleConnectionFactory connectionFactory)
+public sealed class ServiceNodeRuleRepository(OracleConnectionFactory connectionFactory) : IServiceNodeRuleRepository
 {
     public async Task<IReadOnlyList<ServiceNodeRule>> GetAllAsync(
         CancellationToken cancellationToken = default)
@@ -148,11 +149,4 @@ public sealed class ServiceNodeRuleRepository(OracleConnectionFactory connection
             ? ServiceNodeRuleRemoveResult.Referenced
             : ServiceNodeRuleRemoveResult.NotFound;
     }
-}
-
-public enum ServiceNodeRuleRemoveResult
-{
-    Success,
-    NotFound,
-    Referenced
 }

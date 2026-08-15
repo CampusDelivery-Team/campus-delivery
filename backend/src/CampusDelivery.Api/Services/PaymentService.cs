@@ -1,16 +1,16 @@
 using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
-using Oracle.ManagedDataAccess.Client;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services;
 
 public sealed class PaymentService(
-    TaskRepository taskRepository,
-    PaymentRepository paymentRepository,
-    RefundRepository refundRepository,
-    OracleConnectionFactory connectionFactory)
+    ITaskRepository taskRepository,
+    IAssignRepository assignRepository,
+    IPaymentRepository paymentRepository,
+    IRefundRepository refundRepository,
+    IRepositoryTransactionManager transactionManager) : IPaymentService
 {
     private const string ReviewReasonMarker = "\n审核意见：";
 
@@ -23,7 +23,7 @@ public sealed class PaymentService(
         }
 
         PaymentRecord? payment = await paymentRepository.GetByTaskIdAsync(taskId, cancellationToken);
-        bool receiptConfirmed = (await taskRepository.GetStatusLogsByTaskIdAsync(taskId, cancellationToken))
+        bool receiptConfirmed = (await assignRepository.GetStatusLogsByTaskIdAsync(taskId, cancellationToken))
             .Any(log => log.StatusBefore == "WAIT_CONFIRM" && log.StatusAfter == "WAIT_CONFIRM" && log.OperatorUserId == currentUserId);
 
         return new()
@@ -68,15 +68,13 @@ public sealed class PaymentService(
             return new(false, "任务不存在或无权操作。", 0);
         }
 
-        await using OracleConnection connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using OracleTransaction transaction = (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
         try
         {
-            string? taskStatus = await taskRepository.GetTaskStatusWithLockAsync(taskId, connection, transaction, cancellationToken);
-            int? publisherUserId = await taskRepository.GetTaskPublisherUserIdAsync(taskId, connection, transaction, cancellationToken);
-            AssignRecord? assignRecord = await taskRepository.GetLatestAssignRecordWithConnectionAsync(taskId, connection, transaction, cancellationToken);
-            PaymentRecord? existing = await paymentRepository.GetByTaskIdWithLockAsync(taskId, connection, transaction, cancellationToken);
+            string? taskStatus = await assignRepository.GetTaskStatusWithLockAsync(taskId, transaction, cancellationToken);
+            int? publisherUserId = await assignRepository.GetTaskPublisherUserIdAsync(taskId, transaction, cancellationToken);
+            AssignRecord? assignRecord = await assignRepository.GetLatestAssignRecordWithLockAsync(taskId, transaction, cancellationToken);
+            PaymentRecord? existing = await paymentRepository.GetByTaskIdWithLockAsync(taskId, transaction, cancellationToken);
             bool isInitialReceiptSettlement = taskStatus == "WAIT_CONFIRM";
             bool isDeferredPayment = taskStatus == "FINISHED" && existing?.PayStatus == "UNPAID";
             if ((!isInitialReceiptSettlement && !isDeferredPayment)
@@ -87,7 +85,7 @@ public sealed class PaymentService(
                 return new(false, "只有已确认收货的任务，或已保存的待付款记录可以继续付款。", 0);
             }
 
-            if (!await taskRepository.IsReceiptConfirmedAsync(assignRecord.RecordId, currentUserId, connection, transaction, cancellationToken))
+            if (!await assignRepository.IsReceiptConfirmedAsync(assignRecord.RecordId, currentUserId, transaction, cancellationToken))
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return new(false, "请先确认收货。", 0);
@@ -110,31 +108,31 @@ public sealed class PaymentService(
             };
 
             int paymentId = existing is null
-                ? await paymentRepository.InsertAsync(payment, connection, transaction, cancellationToken)
+                ? await paymentRepository.InsertAsync(payment, transaction, cancellationToken)
                 : existing.PaymentId;
             if (existing is not null)
             {
-                await paymentRepository.UpdatePaymentAsync(paymentId, payment, connection, transaction, cancellationToken);
+                await paymentRepository.UpdatePaymentAsync(paymentId, payment, transaction, cancellationToken);
             }
 
             if (isInitialReceiptSettlement)
             {
-                Runner? runner = await taskRepository.GetRunnerWithLockAsync(assignRecord.RunnerId, connection, transaction, cancellationToken);
+                Runner? runner = await assignRepository.GetRunnerWithLockAsync(assignRecord.RunnerId, transaction, cancellationToken);
                 if (runner is null)
                 {
                     await transaction.RollbackAsync(cancellationToken);
                     return new(false, "接单跑腿员不存在。", 0);
                 }
 
-                await taskRepository.UpdateTaskStatusAsync(taskId, "FINISHED", connection, transaction, cancellationToken);
-                await taskRepository.UpdateRunnerWorkStatusAsync(assignRecord.RunnerId, "FREE", connection, transaction, cancellationToken);
-                await taskRepository.InsertTaskStatusLogAsync(new TaskStatusLog
+                await assignRepository.UpdateTaskStatusAsync(taskId, "FINISHED", transaction, cancellationToken);
+                await assignRepository.UpdateRunnerWorkStatusAsync(assignRecord.RunnerId, "FREE", transaction, cancellationToken);
+                await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
                 {
                     RecordId = assignRecord.RecordId,
                     StatusBefore = "WAIT_CONFIRM",
                     StatusAfter = "FINISHED",
                     OperatorUserId = currentUserId
-                }, connection, transaction, cancellationToken);
+                }, transaction, cancellationToken);
             }
 
             await transaction.CommitAsync(cancellationToken);
@@ -236,5 +234,3 @@ public sealed class PaymentService(
             : (value[..markerIndex], value[(markerIndex + ReviewReasonMarker.Length)..]);
     }
 }
-
-public sealed record PaymentOperationResult(bool Success, string ErrorMessage, int PaymentId);

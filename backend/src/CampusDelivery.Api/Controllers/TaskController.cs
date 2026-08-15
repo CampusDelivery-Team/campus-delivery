@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,10 +9,10 @@ namespace CampusDelivery.Api.Controllers
     [Authorize]
     public sealed class TaskController : Controller
     {
-        private readonly TaskService _taskService;
-        private readonly AssignService _assignService;
+        private readonly ITaskService _taskService;
+        private readonly IAssignService _assignService;
 
-        public TaskController(TaskService taskService, AssignService assignService)
+        public TaskController(ITaskService taskService, IAssignService assignService)
         {
             _taskService = taskService;
             _assignService = assignService;

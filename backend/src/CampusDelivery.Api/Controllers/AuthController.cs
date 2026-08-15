@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
@@ -9,10 +9,10 @@ namespace CampusDelivery.Api.Controllers
 {
     public class AuthController : Controller
     {
-        private readonly UserService _userService;
+        private readonly IUserService _userService;
 
-        // 接待员一上班，系统就会自动把 UserService 派发给它
-        public AuthController(UserService userService)
+        // 控制器只依赖用户业务接口。
+        public AuthController(IUserService userService)
         {
             _userService = userService;
         }
@@ -81,15 +81,20 @@ namespace CampusDelivery.Api.Controllers
             }
 
             // 原始密码只传给 Service；Controller 不接触密码哈希实现。
-            var (success, errorMessage) = _userService.Register(
+            UserRegistrationResult result = _userService.Register(
                 model.Username,
                 model.Phone,
                 model.Password);
 
-            if (!success)
+            if (!result.Success)
             {
-                // 注册失败，把错误信息显示在页面上（比如账号已存在）
-                ModelState.AddModelError(string.Empty, errorMessage);
+                string fieldName = result.Failure switch
+                {
+                    UserRegistrationFailure.DuplicateUsername => nameof(model.Username),
+                    UserRegistrationFailure.DuplicatePhone => nameof(model.Phone),
+                    _ => string.Empty
+                };
+                ModelState.AddModelError(fieldName, result.ErrorMessage);
                 return View(model);
             }
 

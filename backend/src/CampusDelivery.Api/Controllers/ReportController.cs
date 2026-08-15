@@ -1,12 +1,12 @@
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize(Roles = "ADMIN")]
-public sealed class ReportController(ReportService reportService) : Controller
+public sealed class ReportController(IReportService reportService) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)

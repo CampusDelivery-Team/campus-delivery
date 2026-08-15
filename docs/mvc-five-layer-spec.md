@@ -3,10 +3,10 @@
 新增模块按五层组织，并固定遵循下列调用方向：
 
 ```text
-View -> Controller -> Service -> Repository -> OracleConnectionFactory -> Oracle
+View -> Controller -> IService -> Service -> IRepository -> Repository -> OracleConnectionFactory -> Oracle
 ```
 
-Controller 只负责请求、参数绑定、调用 Service 和返回 View/Redirect；Service 负责业务规则、流程控制和中文显示转换；Repository 负责参数化 SQL 与 Oracle 读写。
+Controller 只负责请求、参数绑定、调用 Service 接口和返回 View/Redirect；Service 负责业务规则、流程控制、事务边界和中文显示转换，并且只依赖 Repository 接口；Repository 负责参数化 SQL 与 Oracle 读写。
 
 ## 当前 Node 样板
 
@@ -22,9 +22,11 @@ Presentation/Views/Node/Index.cshtml
 Controllers/NodeController.cs
 
 业务层：
+Services/Interfaces/INodeService.cs
 Services/NodeService.cs
 
 持久层：
+Repositories/Interfaces/INodeRepository.cs
 Repositories/NodeRepository.cs
 
 数据库层：

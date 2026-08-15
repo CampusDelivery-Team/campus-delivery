@@ -1,10 +1,11 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 
 namespace CampusDelivery.Api.Repositories;
 
-public sealed class NodeRepository(OracleConnectionFactory connectionFactory)
+public sealed class NodeRepository(OracleConnectionFactory connectionFactory) : INodeRepository
 {
     public async Task<IReadOnlyList<Node>> GetAllAsync(CancellationToken cancellationToken = default)
     {
@@ -197,11 +198,4 @@ public sealed class NodeRepository(OracleConnectionFactory connectionFactory)
         command.Parameters.Add(new OracleParameter("openTime", (object?)node.OpenTime ?? DBNull.Value));
         command.Parameters.Add(new OracleParameter("nodeStatus", node.NodeStatus));
     }
-}
-
-public enum NodeDeleteResult
-{
-    Success,
-    NotFound,
-    Referenced
 }

@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,9 +9,9 @@ namespace CampusDelivery.Api.Controllers;
 [Authorize]
 public sealed class RefundController : Controller
 {
-    private readonly RefundService _refundService;
+    private readonly IRefundService _refundService;
 
-    public RefundController(RefundService refundService)
+    public RefundController(IRefundService refundService)
     {
         _refundService = refundService;
     }

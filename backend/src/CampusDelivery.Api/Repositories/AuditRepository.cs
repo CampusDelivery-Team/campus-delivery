@@ -1,12 +1,13 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 using System.Data;
 
 namespace CampusDelivery.Api.Repositories;
 
-public sealed class AuditRepository(OracleConnectionFactory connectionFactory)
+public sealed class AuditRepository(OracleConnectionFactory connectionFactory) : IAuditRepository
 {
     public async Task<IReadOnlyList<AuditLogRecord>> GetRecentAuditsAsync(CancellationToken cancellationToken = default)
     {
@@ -177,10 +178,10 @@ public sealed class AuditRepository(OracleConnectionFactory connectionFactory)
 
     public async Task<int> InsertAuditLogAsync(
         AuditLogRecord record,
-        OracleConnection connection,
-        OracleTransaction transaction,
+        IRepositoryTransaction repositoryTransaction,
         CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -209,10 +210,10 @@ public sealed class AuditRepository(OracleConnectionFactory connectionFactory)
         int auditId,
         string auditObject,
         int targetId,
-        OracleConnection connection,
-        OracleTransaction transaction,
+        IRepositoryTransaction repositoryTransaction,
         CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;

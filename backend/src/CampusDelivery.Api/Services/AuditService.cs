@@ -1,21 +1,23 @@
 using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
-using Oracle.ManagedDataAccess.Client;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services;
 
 public sealed class AuditService(
-    AuditRepository auditRepository,
-    OracleConnectionFactory connectionFactory)
+    IAuditRepository auditRepository,
+    IRepositoryTransactionManager transactionManager) : IAuditService
 {
     public async Task<AuditIndexViewModel> GetIndexAsync(CancellationToken cancellationToken = default)
     {
         IReadOnlyList<AuditLogRecord> logs = await auditRepository.GetRecentAuditsAsync(cancellationToken);
         return new AuditIndexViewModel
         {
-            Logs = logs.Select(AuditLogItemViewModel.FromModel).ToList(),
+            Logs = logs.Select(record => AuditLogItemViewModel.FromModel(
+                record,
+                DisplayNameService.GetAuditObjectName(record.AuditObject),
+                DisplayNameService.GetAuditResultName(record.AuditResult))).ToList(),
             PaymentTargetCount = await auditRepository.GetTargetCountAsync("PAYMENT", cancellationToken),
             RefundTargetCount = await auditRepository.GetTargetCountAsync("REFUND", cancellationToken),
             StatusLogTargetCount = await auditRepository.GetTargetCountAsync("LOG", cancellationToken)
@@ -38,6 +40,7 @@ public sealed class AuditService(
         return new AuditCreateViewModel
         {
             AuditObject = auditObject,
+            AuditObjectDisplayName = DisplayNameService.GetAuditObjectName(auditObject),
             AuditResult = "PASS",
             Targets = targets.Select(AuditTargetViewModel.FromModel).ToList()
         };
@@ -64,9 +67,7 @@ public sealed class AuditService(
             return new AuditOperationResult(false, "请至少选择一条审计对象。");
         }
 
-        await using OracleConnection connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using OracleTransaction transaction = (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
 
         try
         {
@@ -75,7 +76,7 @@ public sealed class AuditService(
                 AuditObject = auditObject,
                 AuditResult = model.AuditResult,
                 ExceptionNote = string.IsNullOrWhiteSpace(model.ExceptionNote) ? null : model.ExceptionNote.Trim()
-            }, connection, transaction, cancellationToken);
+            }, transaction, cancellationToken);
 
             foreach (int targetId in targetIds)
             {
@@ -83,7 +84,6 @@ public sealed class AuditService(
                     auditId,
                     auditObject,
                     targetId,
-                    connection,
                     transaction,
                     cancellationToken);
             }
@@ -103,6 +103,4 @@ public sealed class AuditService(
         return string.IsNullOrWhiteSpace(auditObject) ? "PAYMENT" : auditObject.Trim().ToUpperInvariant();
     }
 }
-
-public sealed record AuditOperationResult(bool Success, string Message);
 

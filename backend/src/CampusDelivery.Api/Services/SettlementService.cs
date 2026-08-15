@@ -1,14 +1,13 @@
 using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
-using Oracle.ManagedDataAccess.Client;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services;
 
 public sealed class SettlementService(
-    SettlementRepository settlementRepository,
-    OracleConnectionFactory connectionFactory)
+    ISettlementRepository settlementRepository,
+    IRepositoryTransactionManager transactionManager) : ISettlementService
 {
     public const decimal PlatformFeeRate = 0.10m;
 
@@ -20,7 +19,7 @@ public sealed class SettlementService(
 
         return new SettlementIndexViewModel
         {
-            Settlements = settlements.Select(SettlementSummaryViewModel.FromModel).ToList(),
+            Settlements = settlements.Select(ToSummaryViewModel).ToList(),
             CandidatePaymentCount = candidateSummary.PaymentCount,
             CandidatePayAmount = candidateSummary.PayAmount,
             PlatformFeeRate = PlatformFeeRate
@@ -47,7 +46,9 @@ public sealed class SettlementService(
                     OrderTotal = total,
                     PlatformFee = fee,
                     NetIncome = total - fee,
-                    Payments = group.Select(SettlementCandidateViewModel.FromModel).ToList()
+                    Payments = group.Select(candidate => SettlementCandidateViewModel.FromModel(
+                        candidate,
+                        DisplayNameService.GetPayMethodName(candidate.PayMethod))).ToList()
                 };
             })
             .OrderByDescending(group => group.OrderTotal)
@@ -76,8 +77,10 @@ public sealed class SettlementService(
 
         return new SettlementDetailsViewModel
         {
-            Settlement = SettlementSummaryViewModel.FromModel(settlement),
-            Items = items.Select(SettlementPaymentItemViewModel.FromModel).ToList()
+            Settlement = ToSummaryViewModel(settlement),
+            Items = items.Select(item => SettlementPaymentItemViewModel.FromModel(
+                item,
+                DisplayNameService.GetPayMethodName(item.PayMethod))).ToList()
         };
     }
 
@@ -92,7 +95,7 @@ public sealed class SettlementService(
 
         return new RunnerSettlementIndexViewModel
         {
-            Settlements = settlements.Select(SettlementSummaryViewModel.FromModel).ToList(),
+            Settlements = settlements.Select(ToSummaryViewModel).ToList(),
             SettlementCount = summary.SettlementCount,
             WaitingCount = summary.WaitingCount,
             DoneCount = summary.DoneCount,
@@ -120,8 +123,10 @@ public sealed class SettlementService(
 
         return new RunnerSettlementDetailsViewModel
         {
-            Settlement = SettlementSummaryViewModel.FromModel(settlement),
-            Items = items.Select(SettlementPaymentItemViewModel.FromModel).ToList()
+            Settlement = ToSummaryViewModel(settlement),
+            Items = items.Select(item => SettlementPaymentItemViewModel.FromModel(
+                item,
+                DisplayNameService.GetPayMethodName(item.PayMethod))).ToList()
         };
     }
 
@@ -134,17 +139,13 @@ public sealed class SettlementService(
             return new SettlementOperationResult(false, "跑腿员编号无效。", null);
         }
 
-        await using OracleConnection connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using OracleTransaction transaction =
-            (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
 
         try
         {
             IReadOnlyList<SettlementCandidate> candidates =
                 await settlementRepository.GetSettlementCandidatesForRunnerWithLockAsync(
                     runnerId,
-                    connection,
                     transaction,
                     cancellationToken);
 
@@ -167,7 +168,6 @@ public sealed class SettlementService(
 
             int settlementId = await settlementRepository.InsertSettlementAsync(
                 settlement,
-                connection,
                 transaction,
                 cancellationToken);
 
@@ -176,7 +176,6 @@ public sealed class SettlementService(
                 await settlementRepository.InsertSettlementItemAsync(
                     settlementId,
                     candidate.PaymentId,
-                    connection,
                     transaction,
                     cancellationToken);
             }
@@ -216,6 +215,11 @@ public sealed class SettlementService(
         await settlementRepository.UpdateStatusAsync(settlementId, status, cancellationToken);
         return new SettlementOperationResult(true, "结算状态已更新。", settlementId);
     }
-}
 
-public sealed record SettlementOperationResult(bool Success, string Message, int? SettlementId);
+    private static SettlementSummaryViewModel ToSummaryViewModel(Settlement settlement)
+    {
+        return SettlementSummaryViewModel.FromModel(
+            settlement,
+            DisplayNameService.GetSettlementStatusName(settlement.SettlementStatus));
+    }
+}

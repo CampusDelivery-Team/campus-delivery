@@ -3,25 +3,26 @@ using System.Collections.Generic;
 using System.Data;
 using Oracle.ManagedDataAccess.Client;
 using CampusDelivery.Api.Models;
+using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Microsoft.Extensions.Configuration;
 
 namespace CampusDelivery.Api.Repositories
 {
-    public class AddressRepository
+    public sealed class AddressRepository : IAddressRepository
     {
-        private readonly string _connectionString;
+        private readonly OracleConnectionFactory _connectionFactory;
 
-        public AddressRepository(IConfiguration configuration)
+        public AddressRepository(OracleConnectionFactory connectionFactory)
         {
-            _connectionString = configuration.GetConnectionString("OracleDb")
-                ?? throw new InvalidOperationException("Connection string 'OracleDb' is missing.");
+            _connectionFactory = connectionFactory;
         }
 
         // 1. 查询某个用户的所有地址
         public List<UserAddress> GetAddressesByUserId(int userId)
         {
             var list = new List<UserAddress>();
-            using (OracleConnection conn = new OracleConnection(_connectionString))
+            using (OracleConnection conn = _connectionFactory.CreateConnection())
             {
                 conn.Open();
                 // 注意 APPUSER 前缀。且这里用 ORDER BY 让默认地址(Y)排在最上面
@@ -57,7 +58,7 @@ namespace CampusDelivery.Api.Repositories
         // 2. 新增地址
         public int InsertAddress(UserAddress address)
         {
-            using (OracleConnection conn = new OracleConnection(_connectionString))
+            using (OracleConnection conn = _connectionFactory.CreateConnection())
             {
                 conn.Open();
 
@@ -93,7 +94,7 @@ namespace CampusDelivery.Api.Repositories
         // 3. 设置默认地址 (连环操作)
         public bool SetDefaultAddress(int userId, int addressNo)
         {
-            using (OracleConnection conn = new OracleConnection(_connectionString))
+            using (OracleConnection conn = _connectionFactory.CreateConnection())
             {
                 conn.Open();
 
@@ -119,7 +120,7 @@ namespace CampusDelivery.Api.Repositories
         // 4. 获取单条地址（修改页面读取旧数据时使用）
         public UserAddress? GetAddress(int userId, int addressNo)
         {
-            using (OracleConnection conn = new OracleConnection(_connectionString))
+            using (OracleConnection conn = _connectionFactory.CreateConnection())
             {
                 conn.Open();
                 string sql = "SELECT * FROM APPUSER.user_addresses WHERE user_id = :user_id AND address_no = :address_no";
@@ -151,7 +152,7 @@ namespace CampusDelivery.Api.Repositories
         // 5. 保存修改后的地址
         public bool UpdateAddress(UserAddress address)
         {
-            using (OracleConnection conn = new OracleConnection(_connectionString))
+            using (OracleConnection conn = _connectionFactory.CreateConnection())
             {
                 conn.Open();
                 string sql = @"UPDATE APPUSER.user_addresses 
@@ -174,7 +175,7 @@ namespace CampusDelivery.Api.Repositories
         // 6. 物理删除地址
         public bool DeleteAddress(int userId, int addressNo)
         {
-            using (OracleConnection conn = new OracleConnection(_connectionString))
+            using (OracleConnection conn = _connectionFactory.CreateConnection())
             {
                 conn.Open();
                 string sql = "DELETE FROM APPUSER.user_addresses WHERE user_id = :user_id AND address_no = :address_no";

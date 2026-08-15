@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Services;
 
 namespace CampusDelivery.Api.Presentation.ViewModels;
 
@@ -108,11 +107,14 @@ public sealed class ReportRecordViewModel
 
     public string ReportStatus { get; set; } = "GENERATED";
 
-    public string ReportTypeDisplayName => DisplayNameService.GetReportTypeName(ReportType);
+    public string ReportTypeDisplayName { get; set; } = string.Empty;
 
-    public string ReportStatusDisplayName => DisplayNameService.GetReportStatusName(ReportStatus);
+    public string ReportStatusDisplayName { get; set; } = string.Empty;
 
-    public static ReportRecordViewModel FromModel(ReportRecord record)
+    public static ReportRecordViewModel FromModel(
+        ReportRecord record,
+        string reportTypeDisplayName,
+        string reportStatusDisplayName)
     {
         return new ReportRecordViewModel
         {
@@ -120,7 +122,9 @@ public sealed class ReportRecordViewModel
             ReportType = record.ReportType,
             StatPeriod = record.StatPeriod,
             GeneratedAt = record.GeneratedAt,
-            ReportStatus = record.ReportStatus
+            ReportStatus = record.ReportStatus,
+            ReportTypeDisplayName = reportTypeDisplayName,
+            ReportStatusDisplayName = reportStatusDisplayName
         };
     }
 }

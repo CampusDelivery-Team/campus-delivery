@@ -8,17 +8,17 @@
 | --- | --- | --- |
 | 表现层 | `Presentation/Views`、`Presentation/ViewModels`、`Presentation/wwwroot` | Razor 页面、表单模型、展示模型、CSS 等静态资源 |
 | 控制层 | `Controllers` | 接收请求、绑定参数、调用业务层、返回 View 或 Redirect |
-| 业务层 | `Services` | 业务规则、状态判断、显示名称转换、流程控制 |
-| 持久层 | `Repositories`、`Persistence` | SQL、Oracle 连接、数据库读写 |
+| 业务层 | `Services`、`Services/Interfaces` | 业务接口、业务规则、状态判断、显示名称转换、流程与事务边界控制 |
+| 持久层 | `Repositories`、`Repositories/Interfaces`、`Persistence` | 仓储接口、参数化 SQL、Oracle 连接与数据库读写 |
 | 数据库层 | `database/oracle` | Oracle 建表脚本和数据库对象 |
 
 调用方向固定为：
 
 ```text
-View -> Controller -> Service -> Repository -> OracleConnectionFactory -> Oracle
+View -> Controller -> IService -> Service -> IRepository -> Repository -> OracleConnectionFactory -> Oracle
 ```
 
-不允许 View 直接访问 Repository、Controller 直接写复杂 SQL、Service 返回 Razor View，或 Repository 处理页面跳转和中文展示文案。
+Controller 只注入 Service 接口，Service 只注入 Repository 接口。Oracle 类型和 SQL 只能出现在 Repository/Persistence；不允许 View 直接访问 Repository、Controller 直接写 SQL、Service 返回 Razor View，或 Repository 处理页面跳转和中文展示文案。
 
 ## 当前落地模块
 

@@ -1,12 +1,12 @@
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize(Roles = "ADMIN")]
-public sealed class AuditController(AuditService auditService) : Controller
+public sealed class AuditController(IAuditService auditService) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -30,6 +30,7 @@ public sealed class AuditController(AuditService auditService) : Controller
         {
             AuditCreateViewModel rebuilt = await auditService.BuildCreateModelAsync(model.AuditObject, cancellationToken);
             model.Targets = rebuilt.Targets;
+            model.AuditObjectDisplayName = rebuilt.AuditObjectDisplayName;
             return View(model);
         }
 
@@ -40,6 +41,7 @@ public sealed class AuditController(AuditService auditService) : Controller
         {
             AuditCreateViewModel rebuilt = await auditService.BuildCreateModelAsync(model.AuditObject, cancellationToken);
             model.Targets = rebuilt.Targets;
+            model.AuditObjectDisplayName = rebuilt.AuditObjectDisplayName;
             return View(model);
         }
 

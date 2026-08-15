@@ -1,12 +1,12 @@
 using System.Security.Claims;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize]
-public sealed class SettlementController(SettlementService settlementService) : Controller
+public sealed class SettlementController(ISettlementService settlementService) : Controller
 {
     [Authorize(Roles = "ADMIN")]
     [HttpGet]

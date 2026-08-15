@@ -1,10 +1,11 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services;
 
-public sealed class ServiceTypeService(ServiceTypeRepository serviceTypeRepository)
+public sealed class ServiceTypeService(IServiceTypeRepository serviceTypeRepository) : IServiceTypeService
 {
     public async Task<ServiceTypeIndexViewModel> GetIndexAsync(
         CancellationToken cancellationToken = default)
@@ -82,11 +83,17 @@ public sealed class ServiceTypeService(ServiceTypeRepository serviceTypeReposito
             cancellationToken);
     }
 
-    public Task<ServiceTypeDeleteResult> DeleteAsync(
+    public async Task<ServiceTypeDeleteOperationResult> DeleteAsync(
         int serviceTypeId,
         CancellationToken cancellationToken = default)
     {
-        return serviceTypeRepository.DeleteAsync(serviceTypeId, cancellationToken);
+        ServiceTypeDeleteResult result = await serviceTypeRepository.DeleteAsync(serviceTypeId, cancellationToken);
+        return result switch
+        {
+            ServiceTypeDeleteResult.Success => ServiceTypeDeleteOperationResult.Success,
+            ServiceTypeDeleteResult.Referenced => ServiceTypeDeleteOperationResult.Referenced,
+            _ => ServiceTypeDeleteOperationResult.NotFound
+        };
     }
 
     private static ServiceTypeListItemViewModel ToListItem(ServiceType serviceType)
@@ -107,11 +114,4 @@ public sealed class ServiceTypeService(ServiceTypeRepository serviceTypeReposito
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
-}
-
-public enum ServiceTypeUpdateResult
-{
-    Success,
-    NotFound,
-    DuplicateName
 }

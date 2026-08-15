@@ -1,14 +1,13 @@
 using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Persistence.Oracle;
-using CampusDelivery.Api.Repositories;
-using Oracle.ManagedDataAccess.Client;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services;
 
 public sealed class ReviewService(
-    ReviewsRepository reviewsRepository,
-    TaskRepository taskRepository,
-    OracleConnectionFactory connectionFactory)
+    IReviewRepository reviewsRepository,
+    IAssignRepository assignRepository,
+    IRepositoryTransactionManager transactionManager) : IReviewService
 {
     private const string FinishedTaskStatus = "FINISHED";
 
@@ -79,16 +78,12 @@ public sealed class ReviewService(
             return (false, validationError);
         }
 
-        await using OracleConnection connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using OracleTransaction transaction =
-            (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
 
         try
         {
-            string? taskStatus = await taskRepository.GetTaskStatusWithLockAsync(
+            string? taskStatus = await assignRepository.GetTaskStatusWithLockAsync(
                 taskId,
-                connection,
                 transaction,
                 cancellationToken);
             if (taskStatus == null)
@@ -97,9 +92,8 @@ public sealed class ReviewService(
                 return (false, "任务不存在，无法提交评价");
             }
 
-            int? publisherUserId = await taskRepository.GetTaskPublisherUserIdAsync(
+            int? publisherUserId = await assignRepository.GetTaskPublisherUserIdAsync(
                 taskId,
-                connection,
                 transaction,
                 cancellationToken);
             if (publisherUserId != currentUserId)
@@ -114,9 +108,8 @@ public sealed class ReviewService(
                 return (false, "只有已完成的任务才能评价");
             }
 
-            AssignRecord? assignRecord = await taskRepository.GetLatestAssignRecordWithConnectionAsync(
+            AssignRecord? assignRecord = await assignRepository.GetLatestAssignRecordWithLockAsync(
                 taskId,
-                connection,
                 transaction,
                 cancellationToken);
             if (assignRecord == null)
@@ -125,9 +118,8 @@ public sealed class ReviewService(
                 return (false, "该任务没有有效的接派记录，暂时无法评价");
             }
 
-            Runner? runner = await taskRepository.GetRunnerWithLockAsync(
+            Runner? runner = await assignRepository.GetRunnerWithLockAsync(
                 assignRecord.RunnerId,
-                connection,
                 transaction,
                 cancellationToken);
             if (runner == null)
@@ -138,7 +130,6 @@ public sealed class ReviewService(
 
             if (await reviewsRepository.ExistsByTaskIdAsync(
                     taskId,
-                    connection,
                     transaction,
                     cancellationToken))
             {
@@ -163,7 +154,6 @@ public sealed class ReviewService(
 
             if (!await reviewsRepository.InsertAsync(
                     review,
-                    connection,
                     transaction,
                     cancellationToken))
             {
@@ -174,7 +164,6 @@ public sealed class ReviewService(
             if (creditDelta != 0 && !await reviewsRepository.UpdateRunnerCreditAsync(
                     runner.RunnerId,
                     creditDelta,
-                    connection,
                     transaction,
                     cancellationToken))
             {
@@ -184,11 +173,6 @@ public sealed class ReviewService(
 
             await transaction.CommitAsync(cancellationToken);
             return (true, "评价提交成功");
-        }
-        catch (OracleException exception) when (exception.Number == 1)
-        {
-            await transaction.RollbackAsync(cancellationToken);
-            return (false, "该任务已经评价过，不能重复评价");
         }
         catch
         {
@@ -212,16 +196,12 @@ public sealed class ReviewService(
             return (false, validationError);
         }
 
-        await using OracleConnection connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using OracleTransaction transaction =
-            (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
 
         try
         {
             ReviewWriteContext? context = await reviewsRepository.GetWriteContextWithLockAsync(
                 reviewId,
-                connection,
                 transaction,
                 cancellationToken);
             if (context == null)
@@ -237,9 +217,8 @@ public sealed class ReviewService(
                 return (false, "只能修改自己提交的评价");
             }
 
-            Runner? runner = await taskRepository.GetRunnerWithLockAsync(
+            Runner? runner = await assignRepository.GetRunnerWithLockAsync(
                 context.RunnerId,
-                connection,
                 transaction,
                 cancellationToken);
             if (runner == null)
@@ -260,7 +239,6 @@ public sealed class ReviewService(
 
             if (!await reviewsRepository.UpdateAsync(
                     existing,
-                    connection,
                     transaction,
                     cancellationToken))
             {
@@ -271,7 +249,6 @@ public sealed class ReviewService(
             if (creditDifference != 0 && !await reviewsRepository.UpdateRunnerCreditAsync(
                     runner.RunnerId,
                     creditDifference,
-                    connection,
                     transaction,
                     cancellationToken))
             {
@@ -295,16 +272,12 @@ public sealed class ReviewService(
         bool isAdmin,
         CancellationToken cancellationToken = default)
     {
-        await using OracleConnection connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using OracleTransaction transaction =
-            (OracleTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
 
         try
         {
             ReviewWriteContext? context = await reviewsRepository.GetWriteContextWithLockAsync(
                 reviewId,
-                connection,
                 transaction,
                 cancellationToken);
             if (context == null)
@@ -320,9 +293,8 @@ public sealed class ReviewService(
                 return (false, "只能删除自己提交的评价");
             }
 
-            Runner? runner = await taskRepository.GetRunnerWithLockAsync(
+            Runner? runner = await assignRepository.GetRunnerWithLockAsync(
                 context.RunnerId,
-                connection,
                 transaction,
                 cancellationToken);
             if (runner == null)
@@ -333,7 +305,6 @@ public sealed class ReviewService(
 
             if (!await reviewsRepository.DeleteAsync(
                     reviewId,
-                    connection,
                     transaction,
                     cancellationToken))
             {
@@ -347,7 +318,6 @@ public sealed class ReviewService(
             if (rollbackCredit != 0 && !await reviewsRepository.UpdateRunnerCreditAsync(
                     runner.RunnerId,
                     rollbackCredit,
-                    connection,
                     transaction,
                     cancellationToken))
             {

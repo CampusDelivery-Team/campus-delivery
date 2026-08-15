@@ -1,10 +1,11 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services;
 
-public sealed class RunnerService(RunnerRepository runnerRepository)
+public sealed class RunnerService(IRunnerRepository runnerRepository) : IRunnerService
 {
     public async Task<RunnerIndexViewModel> GetIndexAsync(
         bool pendingOnly = false,
@@ -160,27 +161,4 @@ public sealed class RunnerService(RunnerRepository runnerRepository)
             CreditScore = runner.CreditScore
         };
     }
-}
-
-public enum RunnerApplicationResult
-{
-    Success,
-    AlreadyExists,
-    AccountUnavailable
-}
-
-public enum RunnerReviewResult
-{
-    Success,
-    NotFound,
-    AlreadyReviewed,
-    AccountUnavailable
-}
-
-public enum RunnerWorkStatusResult
-{
-    Success,
-    NotFound,
-    Busy,
-    Unavailable
 }

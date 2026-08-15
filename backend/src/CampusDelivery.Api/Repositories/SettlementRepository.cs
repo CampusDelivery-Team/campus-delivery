@@ -1,12 +1,13 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 using System.Data;
 
 namespace CampusDelivery.Api.Repositories;
 
-public sealed class SettlementRepository(OracleConnectionFactory connectionFactory)
+public sealed class SettlementRepository(OracleConnectionFactory connectionFactory) : ISettlementRepository
 {
     private const string SettlementCandidateFilterSql = """
               p.pay_status = 'PAID'
@@ -100,10 +101,10 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
 
     public async Task<IReadOnlyList<SettlementCandidate>> GetSettlementCandidatesForRunnerWithLockAsync(
         int runnerId,
-        OracleConnection connection,
-        OracleTransaction transaction,
+        IRepositoryTransaction repositoryTransaction,
         CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         return await GetSettlementCandidatesAsync(connection, transaction, runnerId, true, cancellationToken);
     }
 
@@ -310,10 +311,10 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
 
     public async Task<int> InsertSettlementAsync(
         Settlement settlement,
-        OracleConnection connection,
-        OracleTransaction transaction,
+        IRepositoryTransaction repositoryTransaction,
         CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -346,10 +347,10 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
     public async Task InsertSettlementItemAsync(
         int settlementId,
         int paymentId,
-        OracleConnection connection,
-        OracleTransaction transaction,
+        IRepositoryTransaction repositoryTransaction,
         CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;

@@ -1,9 +1,10 @@
 using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Repositories;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services;
 
-public sealed class AddressService(AddressRepository addressRepository)
+public sealed class AddressService(IAddressRepository addressRepository) : IAddressService
 {
     public List<UserAddress> GetUserAddresses(int userId)
     {

@@ -1,10 +1,11 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 
 namespace CampusDelivery.Api.Repositories;
 
-public sealed class ReviewsRepository(OracleConnectionFactory connectionFactory)
+public sealed class ReviewRepository(OracleConnectionFactory connectionFactory) : IReviewRepository
 {
     private const string ReviewProjection = """
         SELECT rv.review_id,
@@ -35,10 +36,10 @@ public sealed class ReviewsRepository(OracleConnectionFactory connectionFactory)
 
     public async Task<ReviewWriteContext?> GetWriteContextWithLockAsync(
         int reviewId,
-        OracleConnection connection,
-        OracleTransaction transaction,
+        IRepositoryTransaction repositoryTransaction,
         CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -182,10 +183,10 @@ public sealed class ReviewsRepository(OracleConnectionFactory connectionFactory)
 
     public async Task<bool> ExistsByTaskIdAsync(
         int taskId,
-        OracleConnection connection,
-        OracleTransaction transaction,
+        IRepositoryTransaction repositoryTransaction,
         CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -196,10 +197,10 @@ public sealed class ReviewsRepository(OracleConnectionFactory connectionFactory)
 
     public async Task<bool> InsertAsync(
         Review review,
-        OracleConnection connection,
-        OracleTransaction transaction,
+        IRepositoryTransaction repositoryTransaction,
         CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -230,15 +231,22 @@ public sealed class ReviewsRepository(OracleConnectionFactory connectionFactory)
         command.Parameters.Add(new OracleParameter("commentText", (object?)review.CommentText ?? DBNull.Value));
         command.Parameters.Add(new OracleParameter("reviewedAt", review.ReviewedAt));
         command.Parameters.Add(new OracleParameter("creditDelta", review.CreditDelta));
-        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+        try
+        {
+            return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+        }
+        catch (OracleException exception) when (exception.Number == 1)
+        {
+            return false;
+        }
     }
 
     public async Task<bool> UpdateAsync(
         Review review,
-        OracleConnection connection,
-        OracleTransaction transaction,
+        IRepositoryTransaction repositoryTransaction,
         CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -260,10 +268,10 @@ public sealed class ReviewsRepository(OracleConnectionFactory connectionFactory)
 
     public async Task<bool> DeleteAsync(
         int reviewId,
-        OracleConnection connection,
-        OracleTransaction transaction,
+        IRepositoryTransaction repositoryTransaction,
         CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -275,10 +283,10 @@ public sealed class ReviewsRepository(OracleConnectionFactory connectionFactory)
     public async Task<bool> UpdateRunnerCreditAsync(
         int runnerId,
         decimal creditDelta,
-        OracleConnection connection,
-        OracleTransaction transaction,
+        IRepositoryTransaction repositoryTransaction,
         CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -310,5 +318,3 @@ public sealed class ReviewsRepository(OracleConnectionFactory connectionFactory)
         };
     }
 }
-
-public sealed record ReviewWriteContext(Review Review, int RunnerId);

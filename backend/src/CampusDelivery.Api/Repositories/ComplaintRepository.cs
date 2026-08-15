@@ -1,11 +1,12 @@
 ﻿using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 using System.Data;
 
 namespace CampusDelivery.Api.Repositories;
 
-public sealed class ComplaintRepository(OracleConnectionFactory connectionFactory)
+public sealed class ComplaintRepository(OracleConnectionFactory connectionFactory) : IComplaintRepository
 {
     private const string Projection = "SELECT complaint_id, record_id, reason, process_status, process_result FROM APPUSER.complaints ";
 
@@ -21,8 +22,9 @@ public sealed class ComplaintRepository(OracleConnectionFactory connectionFactor
         return await reader.ReadAsync(cancellationToken) ? MapComplaint(reader) : null;
     }
 
-    public async Task<Complaint?> GetByIdWithLockAsync(int complaintId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<Complaint?> GetByIdWithLockAsync(int complaintId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -32,11 +34,11 @@ public sealed class ComplaintRepository(OracleConnectionFactory connectionFactor
         return await reader.ReadAsync(cancellationToken) ? MapComplaint(reader) : null;
     }
 
-    public async Task<Complaint?> GetByRecordIdAsync(int recordId, CancellationToken cancellationToken = default)
+    public async Task<Complaint?> GetByRecordIdAsync(int recordId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.BindByName = true;
         command.CommandText = Projection + " WHERE record_id = :recordId";
         command.Parameters.Add(new OracleParameter("recordId", recordId));
@@ -44,12 +46,19 @@ public sealed class ComplaintRepository(OracleConnectionFactory connectionFactor
         return await reader.ReadAsync(cancellationToken) ? MapComplaint(reader) : null;
     }
 
-    public async Task<ComplaintContext?> GetContextByRecordIdAsync(int recordId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<ComplaintContext?> GetContextByRecordIdAsync(int recordId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
-        command.CommandText = "SELECT ar.task_id, ar.runner_id, t.publisher_user_id, t.task_status, t.task_title FROM APPUSER.assign_records ar JOIN APPUSER.tasks t ON ar.task_id = t.task_id WHERE ar.record_id = :recordId";
+        command.CommandText = """
+            SELECT ar.task_id, ar.runner_id, t.publisher_user_id, t.task_status, t.task_title
+              FROM APPUSER.assign_records ar
+              JOIN APPUSER.tasks t ON ar.task_id = t.task_id
+             WHERE ar.record_id = :recordId
+             FOR UPDATE OF ar.runner_id
+            """;
         command.Parameters.Add(new OracleParameter("recordId", recordId));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken)) return null;
@@ -120,8 +129,9 @@ public sealed class ComplaintRepository(OracleConnectionFactory connectionFactor
         return Convert.ToInt32(result);
     }
 
-    public async Task<bool> InsertAsync(Complaint complaint, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<bool> InsertAsync(Complaint complaint, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -133,8 +143,9 @@ public sealed class ComplaintRepository(OracleConnectionFactory connectionFactor
         return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
     }
 
-    public async Task<bool> UpdateAsync(Complaint complaint, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateAsync(Complaint complaint, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -143,6 +154,26 @@ public sealed class ComplaintRepository(OracleConnectionFactory connectionFactor
         command.Parameters.Add(new OracleParameter("processResult", (object?)complaint.ProcessResult ?? DBNull.Value));
         command.Parameters.Add(new OracleParameter("complaintId", complaint.ComplaintId));
         return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+    }
+
+    public async Task<bool> UpdateRunnerCreditAsync(
+        int runnerId,
+        decimal creditDelta,
+        IRepositoryTransaction repositoryTransaction,
+        CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+        await using OracleCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.BindByName = true;
+        command.CommandText = """
+            UPDATE APPUSER.runners
+               SET credit_score = GREATEST(0, credit_score + :creditDelta)
+             WHERE runner_id = :runnerId
+            """;
+        command.Parameters.Add(new OracleParameter("creditDelta", creditDelta));
+        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
     private static Complaint MapComplaint(OracleDataReader reader)
@@ -157,5 +188,3 @@ public sealed class ComplaintRepository(OracleConnectionFactory connectionFactor
         };
     }
 }
-
-public sealed record ComplaintContext(int TaskId, int RunnerId, int PublisherUserId, string TaskStatus, string TaskTitle);

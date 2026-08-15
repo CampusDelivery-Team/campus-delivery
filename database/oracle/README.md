@@ -32,6 +32,16 @@ campus_runner_oracle_schema.sql
 
 `005_hash_user_passwords.sql` 会把 `users.password_hash` 扩展到 `VARCHAR2(256 CHAR)`，并将三个基础测试账号更新为 ASP.NET Core `PasswordHasher<User>` 生成的带盐哈希。如果现有库还包含其他明文密码账号，脚本会在修改数据前停止，要求先明确重置这些账号，不会在正式登录逻辑中保留明文兼容分支。
 
+### 已有账号的统一密码迁移
+
+公共联调库存在非种子账号时，不要直接修改 `005_hash_user_passwords.sql` 绕过保护检查，也不要用一份固定哈希覆盖所有人的密码。请使用：
+
+```text
+backend/tools/CampusDelivery.PasswordMigration
+```
+
+该工具会保留每个账号原来的登录密码，把旧值分别转换为随机盐 Identity 哈希。正式执行顺序为：停止账号写入、`--dry-run` 盘点、`--execute` 事务迁移、`--verify-backup` 校验 DPAPI 加密备份、`--verify-migrated` 逐账号校验原密码兼容性、再次 `--dry-run` 确认旧格式数量为零，最后启动应用做登录回归。具体命令和回滚方式见工具目录中的 `README.md`。
+
 ## 当前未提供的脚本
 
 ```text

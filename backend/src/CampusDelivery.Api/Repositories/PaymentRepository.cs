@@ -1,13 +1,14 @@
 using System.Data;
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 
 namespace CampusDelivery.Api.Repositories;
 
 /// <summary>支付表访问。payments 与任务的关系只能通过 record_id -> assign_records 建立。</summary>
-public sealed class PaymentRepository(OracleConnectionFactory connectionFactory)
+public sealed class PaymentRepository(OracleConnectionFactory connectionFactory) : IPaymentRepository
 {
     private const string PaymentProjection = """
         SELECT p.payment_id, ar.task_id, p.record_id, t.publisher_user_id, t.task_title,
@@ -32,12 +33,18 @@ public sealed class PaymentRepository(OracleConnectionFactory connectionFactory)
     }
 
     public Task<PaymentRecord?> GetByTaskIdWithLockAsync(
-        int taskId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default) =>
-        GetByTaskIdAsync(taskId, connection, transaction, cancellationToken, true);
+        int taskId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+        return GetByTaskIdAsync(taskId, connection, transaction, cancellationToken, true);
+    }
 
     public Task<PaymentRecord?> GetByIdWithLockAsync(
-        int paymentId, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default) =>
-        GetByIdAsync(paymentId, connection, transaction, true, cancellationToken);
+        int paymentId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+        return GetByIdAsync(paymentId, connection, transaction, true, cancellationToken);
+    }
 
     public async Task<IReadOnlyList<PaymentListRecord>> GetPaymentsByPublisherUserIdAsync(
         int publisherUserId, string? keyword, int offset, int pageSize, CancellationToken cancellationToken = default)
@@ -97,8 +104,9 @@ public sealed class PaymentRepository(OracleConnectionFactory connectionFactory)
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
     }
 
-    public async Task<int> InsertAsync(PaymentRecord record, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<int> InsertAsync(PaymentRecord record, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using OracleCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -121,8 +129,9 @@ public sealed class PaymentRepository(OracleConnectionFactory connectionFactory)
         return paymentId.Value is OracleDecimal value ? value.ToInt32() : Convert.ToInt32(paymentId.Value);
     }
 
-    public async Task UpdatePaymentAsync(int paymentId, PaymentRecord record, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task UpdatePaymentAsync(int paymentId, PaymentRecord record, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using OracleCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
@@ -144,8 +153,9 @@ public sealed class PaymentRepository(OracleConnectionFactory connectionFactory)
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public async Task UpdatePaymentStatusAsync(int paymentId, string payStatus, OracleConnection connection, OracleTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task UpdatePaymentStatusAsync(int paymentId, string payStatus, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using OracleCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;

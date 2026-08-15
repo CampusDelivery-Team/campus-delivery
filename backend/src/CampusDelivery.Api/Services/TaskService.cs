@@ -1,21 +1,22 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services
 {
-    public sealed class TaskService
+    public sealed class TaskService : ITaskService
     {
-        private readonly TaskRepository _taskRepository;
-        private readonly AddressRepository _addressRepository;
-        private readonly ServiceTypeRepository _serviceTypeRepository;
-        private readonly NodeRepository _nodeRepository;
+        private readonly ITaskRepository _taskRepository;
+        private readonly IAddressRepository _addressRepository;
+        private readonly IServiceTypeRepository _serviceTypeRepository;
+        private readonly INodeRepository _nodeRepository;
 
         public TaskService(
-            TaskRepository taskRepository,
-            AddressRepository addressRepository,
-            ServiceTypeRepository serviceTypeRepository,
-            NodeRepository nodeRepository)
+            ITaskRepository taskRepository,
+            IAddressRepository addressRepository,
+            IServiceTypeRepository serviceTypeRepository,
+            INodeRepository nodeRepository)
         {
             _taskRepository = taskRepository;
             _addressRepository = addressRepository;
@@ -292,20 +293,4 @@ namespace CampusDelivery.Api.Services
             return value.Trim();
         }
     }
-}
-
-public sealed class TaskOperationResult
-{
-    public TaskOperationResult(bool success, string errorMessage, int taskId = 0)
-    {
-        Success = success;
-        ErrorMessage = errorMessage;
-        TaskId = taskId;
-    }
-
-    public bool Success { get; }
-
-    public string ErrorMessage { get; }
-
-    public int TaskId { get; }
 }

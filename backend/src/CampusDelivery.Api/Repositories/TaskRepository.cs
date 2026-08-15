@@ -1,11 +1,12 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 
 namespace CampusDelivery.Api.Repositories
 {
-    public sealed partial class TaskRepository
+    public sealed class TaskRepository : ITaskRepository
     {
         private readonly OracleConnectionFactory _connectionFactory;
 
@@ -558,33 +559,4 @@ namespace CampusDelivery.Api.Repositories
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
     }
-}
-
-public sealed class TaskCreateWriteResult
-{
-    public TaskCreateWriteResult(TaskCreateResult result, int taskId = 0)
-    {
-        Result = result;
-        TaskId = taskId;
-    }
-
-    public TaskCreateResult Result { get; }
-
-    public int TaskId { get; }
-}
-
-public enum TaskCreateResult
-{
-    Success,
-    AddressNotFound,
-    ServiceTypeUnavailable,
-    NodeUnavailable,
-    RuleNotMatched
-}
-
-public enum TaskCancelResult
-{
-    Success,
-    NotFound,
-    InvalidState
 }

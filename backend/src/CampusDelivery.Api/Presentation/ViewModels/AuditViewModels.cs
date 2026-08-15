@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Services;
 
 namespace CampusDelivery.Api.Presentation.ViewModels;
 
@@ -30,7 +29,7 @@ public sealed class AuditCreateViewModel
 
     public IReadOnlyList<AuditTargetViewModel> Targets { get; set; } = Array.Empty<AuditTargetViewModel>();
 
-    public string AuditObjectDisplayName => DisplayNameService.GetAuditObjectName(AuditObject);
+    public string AuditObjectDisplayName { get; set; } = string.Empty;
 }
 
 public sealed class AuditLogItemViewModel
@@ -47,17 +46,22 @@ public sealed class AuditLogItemViewModel
 
     public int RelatedCount { get; set; }
 
-    public string AuditObjectDisplayName => DisplayNameService.GetAuditObjectName(AuditObject);
+    public string AuditObjectDisplayName { get; set; } = string.Empty;
 
-    public string AuditResultDisplayName => DisplayNameService.GetAuditResultName(AuditResult);
+    public string AuditResultDisplayName { get; set; } = string.Empty;
 
-    public static AuditLogItemViewModel FromModel(AuditLogRecord record)
+    public static AuditLogItemViewModel FromModel(
+        AuditLogRecord record,
+        string auditObjectDisplayName,
+        string auditResultDisplayName)
     {
         return new AuditLogItemViewModel
         {
             AuditId = record.AuditId,
             AuditObject = record.AuditObject,
             AuditResult = record.AuditResult,
+            AuditObjectDisplayName = auditObjectDisplayName,
+            AuditResultDisplayName = auditResultDisplayName,
             AuditedAt = record.AuditedAt,
             ExceptionNote = record.ExceptionNote,
             RelatedCount = record.RelatedCount
