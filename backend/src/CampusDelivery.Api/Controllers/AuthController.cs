@@ -80,18 +80,11 @@ namespace CampusDelivery.Api.Controllers
                 return View(model);
             }
 
-            // 把网页传来的 ViewModel 转换成底层的 User Model
-            var newUser = new CampusDelivery.Api.Models.User
-            {
-                Username = model.Username,
-                Phone = model.Phone,
-                PasswordHash = model.Password, // 根据文档，目前暂存明文
-                UserRole = "USER",             // 新注册的默认是普通用户
-                AccountStatus = "NORMAL"       // 状态正常
-            };
-
-            // 调用 Service 层的注册逻辑
-            var (success, errorMessage) = _userService.Register(newUser);
+            // 原始密码只传给 Service；Controller 不接触密码哈希实现。
+            var (success, errorMessage) = _userService.Register(
+                model.Username,
+                model.Phone,
+                model.Password);
 
             if (!success)
             {

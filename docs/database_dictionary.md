@@ -20,6 +20,7 @@
 - 主键：`user_id`
 - 作用：保存系统用户账号、角色和账号状态
 - 关键字段：`username`、`phone`、`password_hash`、`user_role`、`account_status`
+- `password_hash` 使用 `VARCHAR2(256 CHAR)`，保存 ASP.NET Core `PasswordHasher<User>` 生成的带盐哈希，不保存原始密码
 
 ### `nodes`
 

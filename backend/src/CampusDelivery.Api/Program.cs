@@ -1,7 +1,9 @@
+using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Repositories;
 using CampusDelivery.Api.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -47,6 +49,7 @@ builder.Services.AddScoped<RunnerService>();
 
 // 账户模块
 builder.Services.AddScoped<UserRepository>();
+builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<AddressRepository>();
 builder.Services.AddScoped<AddressService>();

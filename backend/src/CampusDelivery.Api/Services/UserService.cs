@@ -1,17 +1,22 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Presentation.ViewModels;
 using CampusDelivery.Api.Repositories;
+using Microsoft.AspNetCore.Identity;
 
 namespace CampusDelivery.Api.Services
 {
     public class UserService
     {
         private readonly UserRepository _userRepository;
+        private readonly IPasswordHasher<User> _passwordHasher;
 
         // 通过构造函数注入，拿到UserRepository 去查数据库
-        public UserService(UserRepository userRepository)
+        public UserService(
+            UserRepository userRepository,
+            IPasswordHasher<User> passwordHasher)
         {
             _userRepository = userRepository;
+            _passwordHasher = passwordHasher;
         }
 
         /// <summary>
@@ -29,9 +34,10 @@ namespace CampusDelivery.Api.Services
                 return (false, "账号不存在，请先注册", null);
             }
 
-            // 3. 密码比对
-            // (注意：根据 002_init_base_data.sql 脚本，目前测试账号密码暂存的是 '123456' 明文。后期如果接入了加密算法，这里应该比对 Hash 值)
-            if (user.PasswordHash != password)
+            // 3. 使用 ASP.NET Core PasswordHasher 校验带盐哈希。
+            PasswordVerificationResult verificationResult =
+                _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+            if (verificationResult == PasswordVerificationResult.Failed)
             {
                 return (false, "密码错误，请重新输入", null);
             }
@@ -47,6 +53,12 @@ namespace CampusDelivery.Api.Services
                 return (false, "该账号已注销，不能再登录", null);
             }
 
+            if (verificationResult == PasswordVerificationResult.SuccessRehashNeeded)
+            {
+                user.PasswordHash = _passwordHasher.HashPassword(user, password);
+                _userRepository.UpdatePasswordHash(user.UserId, user.PasswordHash);
+            }
+
             // 5. 校验全部通过，允许登录
             return (true, "登录成功", user);
         }
@@ -54,16 +66,29 @@ namespace CampusDelivery.Api.Services
         /// 核心业务逻辑：用户注册
         /// 返回一个包含两个元素的元组 (是否成功, 错误提示)
         /// </summary>
-        public (bool Success, string ErrorMessage) Register(User user)
+        public (bool Success, string ErrorMessage) Register(
+            string username,
+            string phone,
+            string password)
         {
             // 1. 去数据库查一下，这个账号是不是已经被别人抢注了
-            var existingUser = _userRepository.GetUserByUsername(user.Username);
+            var existingUser = _userRepository.GetUserByUsername(username);
             if (existingUser != null)
             {
                 return (false, "该账号已被注册，请更换一个账号名");
             }
 
-            // 2. 调用持久层，把新用户插进数据库
+            // 2. Service 统一生成带盐密码哈希，Repository 只保存哈希结果。
+            var user = new User
+            {
+                Username = username,
+                Phone = phone,
+                UserRole = "USER",
+                AccountStatus = "NORMAL"
+            };
+            user.PasswordHash = _passwordHasher.HashPassword(user, password);
+
+            // 3. 调用持久层，把新用户插进数据库
             bool isInserted = _userRepository.InsertUser(user);
             if (isInserted)
             {

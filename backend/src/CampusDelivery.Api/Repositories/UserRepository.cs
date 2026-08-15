@@ -79,6 +79,25 @@ namespace CampusDelivery.Api.Repositories
                 }
             }
         }
+
+        public bool UpdatePasswordHash(int userId, string passwordHash)
+        {
+            using (OracleConnection connection = new OracleConnection(_connectionString))
+            {
+                connection.Open();
+
+                const string sql = @"UPDATE APPUSER.users
+                                     SET password_hash = :passwordHash
+                                     WHERE user_id = :userId";
+                using (OracleCommand command = new OracleCommand(sql, connection))
+                {
+                    command.Parameters.Add(new OracleParameter("passwordHash", passwordHash));
+                    command.Parameters.Add(new OracleParameter("userId", userId));
+                    return command.ExecuteNonQuery() == 1;
+                }
+            }
+        }
+
         // 3. 更新用户手机号
         public bool UpdateUserPhone(int userId, string newPhone)
         {

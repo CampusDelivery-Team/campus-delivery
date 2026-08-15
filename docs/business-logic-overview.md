@@ -148,6 +148,8 @@ users / user_addresses / service_types / nodes
 
 业务规则：
 
+- 注册密码由 Service 使用 ASP.NET Core `PasswordHasher<User>` 生成带盐哈希后保存，登录使用 `VerifyHashedPassword` 校验。
+- Controller、View 和 Repository 不实现密码算法；数据库不保存原始密码。
 - 禁用账号 `account_status = 'DISABLED'` 不允许继续执行业务操作。
 - 地址只属于对应用户，不允许跨用户使用。
 - 页面显示中文名称，数据库保存英文状态代码。
