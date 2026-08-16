@@ -5,6 +5,7 @@ namespace CampusDelivery.Api.Repositories.Interfaces;
 public interface IComplaintRepository
 {
     Task<Complaint?> GetByIdAsync(int complaintId, CancellationToken cancellationToken = default);
+    Task<bool> CanCreateAsync(int recordId, int publisherUserId, CancellationToken cancellationToken = default);
     Task<Complaint?> GetByIdWithLockAsync(int complaintId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<Complaint?> GetByRecordIdAsync(int recordId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<ComplaintContext?> GetContextByRecordIdAsync(int recordId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);

@@ -16,6 +16,14 @@
             {
                 <a class="button primary" asp-controller="Review" asp-action="Create" asp-route-taskId="@Model.TaskId">评价服务</a>
             }
+            @if (Model.HasReview)
+            {
+                <a class="button" asp-controller="Review" asp-action="Index" asp-route-taskId="@Model.TaskId">查看评价</a>
+            }
+            @if (Model.CanComplain && Model.RecordId.HasValue)
+            {
+                <a class="button" asp-controller="Complaint" asp-action="Create" asp-route-recordId="@Model.RecordId">投诉服务</a>
+            }
             <a class="button" asp-action="Index">返回任务列表</a>
         </div>
     </div>

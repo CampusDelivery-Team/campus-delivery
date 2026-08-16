@@ -236,6 +236,7 @@ namespace CampusDelivery.Api.Services
                 TaskId = task.TaskId,
                 RecordId = record.RecordId,
                 CanReview = !includeAll && record.RecordId.HasValue && task.TaskStatus == "FINISHED",
+                CanComplain = !includeAll && record.RecordId.HasValue && task.TaskStatus == "FINISHED",
                 PublisherUsername = task.PublisherUsername,
                 TaskKindDisplayName = DisplayNameService.GetTaskKindName(task.TaskKind),
                 ServiceName = task.ServiceName,

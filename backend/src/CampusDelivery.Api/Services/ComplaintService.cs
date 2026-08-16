@@ -13,6 +13,12 @@ public sealed class ComplaintService(
     public async Task<Complaint?> GetByIdAsync(int complaintId, CancellationToken cancellationToken = default)
         => await complaintRepository.GetByIdAsync(complaintId, cancellationToken);
 
+    public async Task<bool> CanCreateComplaintAsync(
+        int recordId,
+        int currentUserId,
+        CancellationToken cancellationToken = default) =>
+        await complaintRepository.CanCreateAsync(recordId, currentUserId, cancellationToken);
+
     public async Task<(IReadOnlyList<Complaint> Items, int TotalCount)> GetAllPagedAsync(
         int page, int pageSize, CancellationToken cancellationToken = default)
     {

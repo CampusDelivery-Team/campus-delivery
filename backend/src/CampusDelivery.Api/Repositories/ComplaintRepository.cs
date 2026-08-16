@@ -22,6 +22,33 @@ public sealed class ComplaintRepository(OracleConnectionFactory connectionFactor
         return await reader.ReadAsync(cancellationToken) ? MapComplaint(reader) : null;
     }
 
+    public async Task<bool> CanCreateAsync(
+        int recordId,
+        int publisherUserId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT COUNT(*)
+              FROM APPUSER.assign_records ar
+              JOIN APPUSER.tasks t ON t.task_id = ar.task_id
+             WHERE ar.record_id = :recordId
+               AND t.publisher_user_id = :publisherUserId
+               AND t.task_status = 'FINISHED'
+               AND NOT EXISTS (
+                   SELECT 1
+                     FROM APPUSER.complaints c
+                    WHERE c.record_id = ar.record_id
+               )
+            """;
+        command.Parameters.Add(new OracleParameter("recordId", recordId));
+        command.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+    }
+
     public async Task<Complaint?> GetByIdWithLockAsync(int complaintId, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
         var (connection, transaction) = repositoryTransaction.GetOracle();
