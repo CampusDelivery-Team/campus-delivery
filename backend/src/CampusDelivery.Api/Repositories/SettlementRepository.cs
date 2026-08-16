@@ -128,6 +128,28 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         return await reader.ReadAsync(cancellationToken) ? MapSettlement(reader) : null;
     }
 
+    public async Task<Settlement?> GetByIdWithLockAsync(
+        int settlementId,
+        IRepositoryTransaction repositoryTransaction,
+        CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT s.settlement_id, s.runner_id, r.real_name, s.order_total,
+                   s.platform_fee, s.net_income, s.settlement_status
+              FROM APPUSER.settlements s
+              JOIN APPUSER.runners r ON r.runner_id = s.runner_id
+             WHERE s.settlement_id = :settlementId
+             FOR UPDATE OF s.settlement_status
+            """;
+        command.Parameters.Add(new OracleParameter("settlementId", settlementId));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? MapSettlement(reader) : null;
+    }
+
     public async Task<RunnerSettlementSummary> GetRunnerSettlementSummaryAsync(
         int userId,
         CancellationToken cancellationToken = default)
@@ -363,24 +385,27 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public async Task UpdateStatusAsync(
+    public async Task<bool> UpdateStatusAsync(
         int settlementId,
-        string status,
+        string currentStatus,
+        string targetStatus,
+        IRepositoryTransaction repositoryTransaction,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
+        var (connection, transaction) = repositoryTransaction.GetOracle();
         await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.BindByName = true;
         command.CommandText = """
             UPDATE APPUSER.settlements
-            SET settlement_status = :status
-            WHERE settlement_id = :settlementId
+               SET settlement_status = :targetStatus
+             WHERE settlement_id = :settlementId
+               AND settlement_status = :currentStatus
             """;
-        command.Parameters.Add(new OracleParameter("status", status));
+        command.Parameters.Add(new OracleParameter("targetStatus", targetStatus));
         command.Parameters.Add(new OracleParameter("settlementId", settlementId));
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        command.Parameters.Add(new OracleParameter("currentStatus", currentStatus));
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
     private static async Task<IReadOnlyList<SettlementCandidate>> GetSettlementCandidatesAsync(

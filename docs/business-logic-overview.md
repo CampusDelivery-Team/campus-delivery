@@ -150,8 +150,9 @@ users / user_addresses / service_types / nodes
 
 - 注册密码由 Service 使用 ASP.NET Core `PasswordHasher<User>` 生成带盐哈希后保存，登录使用 `VerifyHashedPassword` 校验。
 - Controller、View 和 Repository 不实现密码算法；数据库不保存原始密码。
-- 封禁账号 `account_status = 'BLOCKED'` 和注销账号 `account_status = 'CANCELLED'` 不允许登录；正常账号状态为 `NORMAL`。
-- 地址只属于对应用户，不允许跨用户使用。
+- 封禁账号 `account_status = 'BLOCKED'` 和注销账号 `account_status = 'CANCELLED'` 不允许登录；正常账号状态为 `NORMAL`。Cookie 每次认证时重新读取账号状态和角色，封禁后的旧登录态不能继续访问业务接口。
+- 地址只属于对应用户，不允许跨用户使用；新增地址先锁定所属用户行再分配 `address_no`，默认地址切换、删除后的默认补位均在同一事务完成。
+- 数据库函数唯一索引保证同一用户最多一条默认地址；设置不存在的地址时必须在清空原默认地址之前失败。
 - 页面显示中文名称，数据库保存英文状态代码。
 
 ### 跑腿员资料
@@ -412,7 +413,7 @@ WAITING -> ASSIGNED -> PICKED_UP -> DELIVERING -> WAIT_CONFIRM -> FINISHED
 业务规则：
 
 - 只有任务发布者可以评价，用户身份从登录 Claims 获取。
-- 只允许 `FINISHED` 任务评价，一项任务最多评价一次。
+- 只允许 `FINISHED` 且支付为 `PAID`、不存在 `APPLY/APPROVED` 活动退款的任务评价；一项任务最多评价一次。
 - 跑腿员取该任务按 `assigned_at`、`record_id` 倒序排列的最终接派记录，不接收客户端指定值。
 - 评价分数范围为 1 到 5，信誉变化依次为 `-2/-1/0/+1/+2`。
 - 评价写入、编辑或删除与信誉分调整使用同一事务，信誉分更新后不得低于 0。
@@ -466,6 +467,7 @@ runners
 - 已退款、退款中、投诉处理中或异常支付不自动进入普通结算。
 - 同一 `payment_id` 只能结算一次。
 - 结算时必须校验支付记录对应的跑腿员与结算单跑腿员一致。
+- 状态只允许 `WAITING -> DONE`、`WAITING -> BLOCKED`、`BLOCKED -> WAITING`；`DONE` 是终态，状态变更在事务内锁定结算单。
 
 ## 审计逻辑
 
@@ -517,6 +519,9 @@ runners
 
 - 报表读取历史业务数据，不反向修改业务主数据。
 - 报表如果基于审计结果生成，通过 `report_audit_items` 关联审计记录。
+- 生成时按 `yyyy-MM` 周期查询订单、支付或投诉业务数据并计算指标；报表主体和审计依据在同一事务写入。
+- 查看详情和导出时按既有表结构实时查询该周期业务明细；导出为 UTF-8 CSV，成功生成后把状态更新为 `EXPORTED`。
+- 当前 `payments`、`complaints` 没有独立业务时间字段，因此支付按任务完成时间（缺失时使用创建时间）、投诉按关联任务创建时间归入月份，页面必须说明该口径。
 - 删除报表时只删除报表和报表关联，不删除审计日志。
 
 ## 数据保留逻辑

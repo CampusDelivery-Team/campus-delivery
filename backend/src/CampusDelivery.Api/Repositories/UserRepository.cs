@@ -17,6 +17,35 @@ namespace CampusDelivery.Api.Repositories
             _connectionFactory = connectionFactory;
         }
 
+        public User? GetUserById(int userId)
+        {
+            using OracleConnection connection = _connectionFactory.CreateConnection();
+            connection.Open();
+            using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.CommandText = """
+                SELECT user_id, username, phone, password_hash, user_role, account_status
+                  FROM APPUSER.users
+                 WHERE user_id = :userId
+                """;
+            command.Parameters.Add(new OracleParameter("userId", userId));
+            using OracleDataReader reader = command.ExecuteReader();
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            return new User
+            {
+                UserId = Convert.ToInt32(reader["user_id"]),
+                Username = GetString(reader, "username"),
+                Phone = GetString(reader, "phone"),
+                PasswordHash = GetString(reader, "password_hash"),
+                UserRole = GetString(reader, "user_role"),
+                AccountStatus = GetString(reader, "account_status")
+            };
+        }
+
         // 1. 根据账号查找用户（用于登录校验，以及注册时检查账号是否已存在）
         public User? GetUserByUsername(string username)
         {

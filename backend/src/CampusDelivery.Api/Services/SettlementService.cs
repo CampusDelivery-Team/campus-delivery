@@ -163,7 +163,7 @@ public sealed class SettlementService(
                 OrderTotal = total,
                 PlatformFee = platformFee,
                 NetIncome = total - platformFee,
-                SettlementStatus = "WAITING"
+                SettlementStatus = SettlementStatusCodes.Waiting
             };
 
             int settlementId = await settlementRepository.InsertSettlementAsync(
@@ -201,19 +201,61 @@ public sealed class SettlementService(
         }
 
         status = string.IsNullOrWhiteSpace(status) ? string.Empty : status.Trim().ToUpperInvariant();
-        if (status is not ("WAITING" or "DONE" or "BLOCKED"))
+        if (!SettlementStatusCodes.IsKnown(status))
         {
             return new SettlementOperationResult(false, "结算状态无效。", settlementId);
         }
 
-        Settlement? existing = await settlementRepository.GetByIdAsync(settlementId, cancellationToken);
-        if (existing is null)
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
+        try
         {
-            return new SettlementOperationResult(false, "未找到对应的结算单。", settlementId);
-        }
+            Settlement? existing = await settlementRepository.GetByIdWithLockAsync(
+                settlementId,
+                transaction,
+                cancellationToken);
+            if (existing is null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return new SettlementOperationResult(false, "未找到对应的结算单。", settlementId);
+            }
 
-        await settlementRepository.UpdateStatusAsync(settlementId, status, cancellationToken);
-        return new SettlementOperationResult(true, "结算状态已更新。", settlementId);
+            if (existing.SettlementStatus == status)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return new SettlementOperationResult(
+                    true,
+                    $"结算单已经处于“{DisplayNameService.GetSettlementStatusName(status)}”状态，无需重复更新。",
+                    settlementId);
+            }
+
+            if (!SettlementStatusCodes.CanTransition(existing.SettlementStatus, status))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return new SettlementOperationResult(
+                    false,
+                    $"不能从“{DisplayNameService.GetSettlementStatusName(existing.SettlementStatus)}”变更为“{DisplayNameService.GetSettlementStatusName(status)}”。已结算为终态，阻断状态需先恢复为待结算。",
+                    settlementId);
+            }
+
+            if (!await settlementRepository.UpdateStatusAsync(
+                    settlementId,
+                    existing.SettlementStatus,
+                    status,
+                    transaction,
+                    cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return new SettlementOperationResult(false, "结算状态已被其他操作修改，请刷新后重试。", settlementId);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return new SettlementOperationResult(true, "结算状态已更新。", settlementId);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     private static SettlementSummaryViewModel ToSummaryViewModel(Settlement settlement)

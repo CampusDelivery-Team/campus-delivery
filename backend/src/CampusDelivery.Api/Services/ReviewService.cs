@@ -7,10 +7,10 @@ namespace CampusDelivery.Api.Services;
 public sealed class ReviewService(
     IReviewRepository reviewsRepository,
     IAssignRepository assignRepository,
+    IPaymentRepository paymentRepository,
+    IRefundRepository refundRepository,
     IRepositoryTransactionManager transactionManager) : IReviewService
 {
-    private const string FinishedTaskStatus = "FINISHED";
-
     public async Task<IReadOnlyList<Review>> GetByTaskIdAsync(
         int taskId,
         CancellationToken cancellationToken = default) =>
@@ -102,7 +102,7 @@ public sealed class ReviewService(
                 return (false, "只能评价自己发布的任务");
             }
 
-            if (!string.Equals(taskStatus, FinishedTaskStatus, StringComparison.Ordinal))
+            if (!string.Equals(taskStatus, TaskStatusCodes.Finished, StringComparison.Ordinal))
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return (false, "只有已完成的任务才能评价");
@@ -116,6 +116,32 @@ public sealed class ReviewService(
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return (false, "该任务没有有效的接派记录，暂时无法评价");
+            }
+
+            PaymentRecord? payment = await paymentRepository.GetByTaskIdWithLockAsync(
+                taskId,
+                transaction,
+                cancellationToken);
+            if (payment == null || payment.RecordId != assignRecord.RecordId)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "该任务没有与最终接派记录匹配的有效支付，暂时无法评价");
+            }
+
+            if (!string.Equals(payment.PayStatus, PaymentStatusCodes.Paid, StringComparison.Ordinal))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "任务完成付款后才能评价，待付款、失败或已退款订单不能评价");
+            }
+
+            RefundRecord? activeRefund = await refundRepository.GetActiveByPaymentIdWithLockAsync(
+                payment.PaymentId,
+                transaction,
+                cancellationToken);
+            if (activeRefund != null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return (false, "该订单正在退款处理中，暂时不能评价");
             }
 
             Runner? runner = await assignRepository.GetRunnerWithLockAsync(

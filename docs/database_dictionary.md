@@ -22,6 +22,13 @@
 - 关键字段：`username`、`phone`、`password_hash`、`user_role`、`account_status`
 - `password_hash` 使用 `VARCHAR2(256 CHAR)`，保存 ASP.NET Core `PasswordHasher<User>` 生成的带盐哈希，不保存原始密码
 
+### `user_addresses`
+
+- 联合主键：`user_id + address_no`
+- 作用：保存用户地址弱实体；地址序号只在所属用户范围内有意义
+- 函数唯一索引：`uk_user_addresses_one_default`，只对 `is_default = 'Y'` 的行索引 `user_id`，保证每个用户最多一个默认地址
+- 应用层在用户行锁和同一事务内完成地址编号分配及默认地址切换；数据库索引负责最终一致性
+
 ### `nodes`
 
 - 主键：`node_id`
@@ -33,6 +40,7 @@
 - 主键：`service_type_id`
 - 作用：保存服务类型及价格规则
 - 关键字段：`service_name`、`base_price`、`distance_rule`、`urgent_rule`、`type_status`
+- 函数唯一索引：`uk_service_types_name_ci`，对 `UPPER(TRIM(service_name))` 唯一，防止并发请求写入语义相同的名称
 
 ### `tasks`
 
@@ -61,6 +69,23 @@
 - 作用：保存任务发布者对最终有效接派服务的评分、文字反馈及系统计算后实际生效的信誉分变化
 - 关键字段：`task_id`、`record_id`、`rating`、`anonymous_flag`、`comment_text`、`reviewed_at`、`credit_delta`
 
+### `settlements`
+
+- 主键：`settlement_id`
+- 作用：保存一次结算批次及其财务结果；`settlement_payment_items` 保存该结果对应的支付明细
+- `order_total`、`platform_fee`、`net_income` 是结算生成时的财务快照，而不是用于替代支付明细的重复主数据
+- 保留快照可避免后续费率调整、退款人工处理或展示逻辑变化改写已经确认的历史结算金额
+
+## 第三范式与受控冗余说明
+
+主体业务表按实体和联系拆分，非主属性依赖各自主键。以下字段是为完整性或历史审计保留的受控冗余/快照：
+
+- `reviews.record_id` 标识实际被评价的最终接派服务；`reviews.task_id` 可经接派记录推导，但保留它是为了直接实施 `UNIQUE(task_id)` 的“一单一评”规则，并通过 `(record_id, task_id)` 复合外键防止把评价绑定到其他任务的接派记录。
+- `reviews.credit_delta` 保存考虑信誉分下限后实际生效的变化值。它可能不同于评分规则的理论变化值，编辑或删除评价时必须依靠该快照精确补差和回滚。
+- `settlements.order_total`、`platform_fee`、`net_income` 保存结算发生时的财务口径；来源支付记录仍由 `settlement_payment_items` 逐条保留，可独立复核。
+
+这些字段不作为可独立修改的重复事实：全部由 Service 在事务中计算，页面和客户端不能直接指定。该设计在保持主体第三范式的基础上，为唯一约束、跨表一致性和历史可追溯性保留最小必要快照。
+
 ## 脚本来源
 
 结构定义见：
@@ -75,10 +100,11 @@ database/oracle/campus_runner_oracle_schema.sql
 database/oracle/002_init_base_data.sql
 ```
 
-已有数据库的评价约束迁移见：
+已有数据库的完整性约束迁移见：
 
 ```text
 database/oracle/004_add_review_integrity.sql
+database/oracle/006_harden_business_integrity.sql
 ```
 
 ## 维护建议

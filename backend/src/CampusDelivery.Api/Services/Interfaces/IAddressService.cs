@@ -6,8 +6,8 @@ public interface IAddressService
 {
     List<UserAddress> GetUserAddresses(int userId);
     UserAddress? GetAddress(int userId, int addressNo);
-    (bool Success, string ErrorMessage) AddAddress(UserAddress address);
-    (bool Success, string ErrorMessage) UpdateAddress(UserAddress address);
-    bool DeleteAddress(int userId, int addressNo);
-    bool SetDefault(int userId, int addressNo);
+    Task<(bool Success, string ErrorMessage)> AddAddressAsync(UserAddress address, CancellationToken cancellationToken = default);
+    Task<(bool Success, string ErrorMessage)> UpdateAddressAsync(UserAddress address, CancellationToken cancellationToken = default);
+    Task<(bool Success, string ErrorMessage)> DeleteAddressAsync(int userId, int addressNo, CancellationToken cancellationToken = default);
+    Task<(bool Success, string ErrorMessage)> SetDefaultAsync(int userId, int addressNo, CancellationToken cancellationToken = default);
 }

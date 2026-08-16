@@ -23,6 +23,18 @@ namespace CampusDelivery.Api.Services
             _logger = logger;
         }
 
+        public UserAuthenticationState? GetAuthenticationState(int userId)
+        {
+            User? user = _userRepository.GetUserById(userId);
+            return user is null
+                ? null
+                : new UserAuthenticationState(
+                    user.UserId,
+                    user.Username,
+                    user.UserRole,
+                    user.AccountStatus);
+        }
+
         /// <summary>
         /// 核心业务逻辑：用户登录
         /// 返回一个包含三个元素的元组 (是否成功, 错误提示, 用户对象)
@@ -58,12 +70,12 @@ namespace CampusDelivery.Api.Services
             }
 
             // 4. 判断账号是否被禁用
-            if (user.AccountStatus == "BLOCKED")
+            if (user.AccountStatus == AccountStatusCodes.Blocked)
             {
                 return (false, "您的账号已被封控，请联系管理员", null);
             }
 
-            if (user.AccountStatus == "CANCELLED")
+            if (user.AccountStatus == AccountStatusCodes.Cancelled)
             {
                 return (false, "该账号已注销，不能再登录", null);
             }
@@ -104,7 +116,7 @@ namespace CampusDelivery.Api.Services
                 Username = username,
                 Phone = phone,
                 UserRole = "USER",
-                AccountStatus = "NORMAL"
+                AccountStatus = AccountStatusCodes.Normal
             };
             user.PasswordHash = _passwordHasher.HashPassword(user, password);
 
@@ -204,7 +216,7 @@ namespace CampusDelivery.Api.Services
 
             try
             {
-                return _userRepository.UpdateAccountStatus(user.UserId, "CANCELLED", "NORMAL")
+                return _userRepository.UpdateAccountStatus(user.UserId, AccountStatusCodes.Cancelled, AccountStatusCodes.Normal)
                     ? (true, string.Empty)
                     : (false, "账号状态已变化，注销失败，请刷新后重试");
             }
@@ -233,27 +245,27 @@ namespace CampusDelivery.Api.Services
                     RunnerAuditStatus = account.RunnerAuditStatus,
                     RunnerWorkStatus = account.RunnerWorkStatus
                 }).ToList(),
-                NormalCount = accounts.Count(account => account.AccountStatus == "NORMAL"),
-                BlockedCount = accounts.Count(account => account.AccountStatus == "BLOCKED"),
-                CancelledCount = accounts.Count(account => account.AccountStatus == "CANCELLED")
+                NormalCount = accounts.Count(account => account.AccountStatus == AccountStatusCodes.Normal),
+                BlockedCount = accounts.Count(account => account.AccountStatus == AccountStatusCodes.Blocked),
+                CancelledCount = accounts.Count(account => account.AccountStatus == AccountStatusCodes.Cancelled)
             };
         }
 
         public UserAccountOperationResult BlockAccount(int userId) =>
             ExecuteAccountOperation(
-                () => _userRepository.UpdateAccountStatus(userId, "BLOCKED", "NORMAL"),
+                () => _userRepository.UpdateAccountStatus(userId, AccountStatusCodes.Blocked, AccountStatusCodes.Normal),
                 "账号已封控",
                 "账号无法封控，可能已被处理或不是可管理账号");
 
         public UserAccountOperationResult UnblockAccount(int userId) =>
             ExecuteAccountOperation(
-                () => _userRepository.UpdateAccountStatus(userId, "NORMAL", "BLOCKED"),
+                () => _userRepository.UpdateAccountStatus(userId, AccountStatusCodes.Normal, AccountStatusCodes.Blocked),
                 "账号已解除封控",
                 "账号无法解除封控");
 
         public UserAccountOperationResult CancelAccount(int userId) =>
             ExecuteAccountOperation(
-                () => _userRepository.UpdateAccountStatus(userId, "CANCELLED", "NORMAL", "BLOCKED"),
+                () => _userRepository.UpdateAccountStatus(userId, AccountStatusCodes.Cancelled, AccountStatusCodes.Normal, AccountStatusCodes.Blocked),
                 "账号已注销",
                 "账号无法注销，可能已被处理或不是可管理账号");
 

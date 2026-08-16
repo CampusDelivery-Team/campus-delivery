@@ -19,13 +19,13 @@ public sealed class RefundService(
     {
         TaskDetailsRecord? details = await taskRepository.GetDetailsAsync(taskId, currentUserId, false, cancellationToken);
         PaymentRecord? payment = await paymentRepository.GetByTaskIdAsync(taskId, cancellationToken);
-        if (details is null || payment is null || payment.PayStatus != "PAID")
+        if (details is null || payment is null || payment.PayStatus != PaymentStatusCodes.Paid)
         {
             return null;
         }
 
         RefundRecord? latest = await refundRepository.GetByPaymentIdAsync(payment.PaymentId, cancellationToken);
-        if (latest?.ProcessStatus is "APPLY" or "APPROVED")
+        if (latest != null && RefundStatusCodes.IsActive(latest.ProcessStatus))
         {
             return null;
         }
@@ -56,13 +56,17 @@ public sealed class RefundService(
         await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
         try
         {
+            string? taskStatus = await assignRepository.GetTaskStatusWithLockAsync(
+                model.TaskId,
+                transaction,
+                cancellationToken);
             PaymentRecord? payment = await paymentRepository.GetByIdWithLockAsync(model.PaymentId, transaction, cancellationToken);
             if (payment is null || payment.TaskId != model.TaskId || payment.PublisherUserId != currentUserId)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return new(false, "退款申请必须关联当前用户的有效支付记录。", 0);
             }
-            if (payment.PayStatus != "PAID")
+            if (payment.PayStatus != PaymentStatusCodes.Paid)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return new(false, "只有已支付记录才能申请退款。", 0);
@@ -73,9 +77,8 @@ public sealed class RefundService(
                 return new(false, "该支付记录已有待处理或已通过的退款申请。", 0);
             }
 
-            string? taskStatus = await assignRepository.GetTaskStatusWithLockAsync(payment.TaskId, transaction, cancellationToken);
             AssignRecord? assignRecord = await assignRepository.GetLatestAssignRecordWithLockAsync(payment.TaskId, transaction, cancellationToken);
-            if (taskStatus != "FINISHED" || assignRecord is null)
+            if (taskStatus != TaskStatusCodes.Finished || assignRecord is null)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return new(false, "只有已完成且存在接单记录的任务才能申请退款。", 0);
@@ -86,15 +89,15 @@ public sealed class RefundService(
                 PaymentId = payment.PaymentId,
                 RefundAmount = payment.PayAmount,
                 RefundReason = refundReason,
-                ProcessStatus = "APPLY"
+                ProcessStatus = RefundStatusCodes.Apply
             };
             int refundId = await refundRepository.InsertAsync(refund, transaction, cancellationToken);
-            await assignRepository.UpdateTaskStatusAsync(payment.TaskId, "REFUNDING", transaction, cancellationToken);
+            await assignRepository.UpdateTaskStatusAsync(payment.TaskId, TaskStatusCodes.Refunding, transaction, cancellationToken);
             await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
             {
                 RecordId = assignRecord.RecordId,
-                StatusBefore = "FINISHED",
-                StatusAfter = "REFUNDING",
+                StatusBefore = TaskStatusCodes.Finished,
+                StatusAfter = TaskStatusCodes.Refunding,
                 OperatorUserId = currentUserId
             }, transaction, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -144,7 +147,7 @@ public sealed class RefundService(
     public async Task<RefundReviewViewModel?> GetReviewModelAsync(int refundId, CancellationToken cancellationToken = default)
     {
         RefundRecord? refund = await refundRepository.GetByIdAsync(refundId, cancellationToken);
-        if (refund?.ProcessStatus != "APPLY")
+        if (refund?.ProcessStatus != RefundStatusCodes.Apply)
         {
             return null;
         }
@@ -174,7 +177,7 @@ public sealed class RefundService(
         int adminUserId,
         CancellationToken cancellationToken = default)
     {
-        if (decision is not ("APPROVED" or "REJECTED"))
+        if (decision is not (RefundStatusCodes.Approved or RefundStatusCodes.Rejected))
         {
             return new(false, "审核结果无效。", 0);
         }
@@ -189,20 +192,50 @@ public sealed class RefundService(
             return new(false, "审核理由内容过长（中文建议不超过 33 字）。", 0);
         }
 
+        RefundRecord? refundReference = await refundRepository.GetByIdAsync(refundId, cancellationToken);
+        PaymentRecord? paymentReference = refundReference is null
+            ? null
+            : await paymentRepository.GetByIdAsync(refundReference.PaymentId, cancellationToken);
+        if (refundReference is null || paymentReference is null)
+        {
+            return new(false, "退款关联的任务或支付记录不存在。", refundId);
+        }
+
         await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
         try
         {
-            RefundRecord? refund = await refundRepository.GetByIdWithLockAsync(refundId, transaction, cancellationToken);
-            if (refund?.ProcessStatus != "APPLY")
+            string? taskStatus = await assignRepository.GetTaskStatusWithLockAsync(
+                paymentReference.TaskId,
+                transaction,
+                cancellationToken);
+            PaymentRecord? payment = await paymentRepository.GetByIdWithLockAsync(
+                paymentReference.PaymentId,
+                transaction,
+                cancellationToken);
+            RefundRecord? refund = await refundRepository.GetByIdWithLockAsync(
+                refundId,
+                transaction,
+                cancellationToken);
+            if (refund?.ProcessStatus != RefundStatusCodes.Apply)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return new(false, "只有待审核退款可以处理。", refund?.RefundId ?? 0);
             }
 
-            PaymentRecord? payment = await paymentRepository.GetByIdWithLockAsync(refund.PaymentId, transaction, cancellationToken);
-            string? taskStatus = payment is null ? null : await assignRepository.GetTaskStatusWithLockAsync(payment.TaskId, transaction, cancellationToken);
-            AssignRecord? assignRecord = payment is null ? null : await assignRepository.GetLatestAssignRecordWithLockAsync(payment.TaskId, transaction, cancellationToken);
-            if (payment is null || taskStatus != "REFUNDING" || assignRecord is null)
+            if (payment is null
+                || payment.PaymentId != refund.PaymentId
+                || payment.TaskId != paymentReference.TaskId)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return new(false, "退款关联的支付记录已变化，请刷新后重试。", refund.RefundId);
+            }
+
+            PaymentRecord lockedPayment = payment;
+            AssignRecord? assignRecord = await assignRepository.GetLatestAssignRecordWithLockAsync(
+                lockedPayment.TaskId,
+                transaction,
+                cancellationToken);
+            if (taskStatus != TaskStatusCodes.Refunding || assignRecord is null)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return new(false, "退款关联的任务或支付记录状态不正确。", refund.RefundId);
@@ -216,7 +249,7 @@ public sealed class RefundService(
                 return new(false, "退款原因和审核理由合计不能超过 300 个字符。", refund.RefundId);
             }
 
-            decimal approvedAmount = decision == "APPROVED" ? refund.RefundAmount : 0;
+            decimal approvedAmount = decision == RefundStatusCodes.Approved ? refund.RefundAmount : 0;
             await refundRepository.UpdateReviewAsync(
                 refund.RefundId,
                 decision,
@@ -224,17 +257,25 @@ public sealed class RefundService(
                 combinedReason,
                 transaction,
                 cancellationToken);
-            if (decision == "APPROVED")
+            if (decision == RefundStatusCodes.Approved)
             {
-                await paymentRepository.UpdatePaymentStatusAsync(payment.PaymentId, "REFUNDED", transaction, cancellationToken);
+                await paymentRepository.UpdatePaymentStatusAsync(
+                    lockedPayment.PaymentId,
+                    PaymentStatusCodes.Refunded,
+                    transaction,
+                    cancellationToken);
             }
 
-            await assignRepository.UpdateTaskStatusAsync(payment.TaskId, "FINISHED", transaction, cancellationToken);
+            await assignRepository.UpdateTaskStatusAsync(
+                lockedPayment.TaskId,
+                TaskStatusCodes.Finished,
+                transaction,
+                cancellationToken);
             await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
             {
                 RecordId = assignRecord.RecordId,
-                StatusBefore = "REFUNDING",
-                StatusAfter = "FINISHED",
+                StatusBefore = TaskStatusCodes.Refunding,
+                StatusAfter = TaskStatusCodes.Finished,
                 OperatorUserId = adminUserId
             }, transaction, cancellationToken);
             await transaction.CommitAsync(cancellationToken);

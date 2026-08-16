@@ -39,8 +39,10 @@ public sealed class ServiceTypeService(IServiceTypeRepository serviceTypeReposit
             TypeStatus = model.TypeStatus
         };
 
-        await serviceTypeRepository.InsertAsync(serviceType, cancellationToken);
-        return true;
+        ServiceTypeRepositoryWriteResult result = await serviceTypeRepository.InsertAsync(
+            serviceType,
+            cancellationToken);
+        return result == ServiceTypeRepositoryWriteResult.Success;
     }
 
     public async Task<ServiceTypeUpdateResult> UpdateAsync(
@@ -66,10 +68,15 @@ public sealed class ServiceTypeService(IServiceTypeRepository serviceTypeReposit
             TypeStatus = model.TypeStatus
         };
 
-        var updated = await serviceTypeRepository.UpdateAsync(serviceType, cancellationToken);
-        return updated
-            ? ServiceTypeUpdateResult.Success
-            : ServiceTypeUpdateResult.NotFound;
+        ServiceTypeRepositoryWriteResult result = await serviceTypeRepository.UpdateAsync(
+            serviceType,
+            cancellationToken);
+        return result switch
+        {
+            ServiceTypeRepositoryWriteResult.Success => ServiceTypeUpdateResult.Success,
+            ServiceTypeRepositoryWriteResult.DuplicateName => ServiceTypeUpdateResult.DuplicateName,
+            _ => ServiceTypeUpdateResult.NotFound
+        };
     }
 
     public Task<bool> UpdateStatusAsync(

@@ -4,6 +4,7 @@ namespace CampusDelivery.Api.Repositories.Interfaces;
 
 public interface IUserRepository
 {
+    User? GetUserById(int userId);
     User? GetUserByUsername(string username);
     User? GetUserByPhone(string phone);
     UserInsertWriteResult InsertUser(User user);

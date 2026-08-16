@@ -23,6 +23,7 @@ public sealed class ReportGenerateViewModel
 
     [Required]
     [StringLength(50)]
+    [RegularExpression(@"^\d{4}-(0[1-9]|1[0-2])$", ErrorMessage = "统计周期必须使用 yyyy-MM 格式")]
     public string StatPeriod { get; set; } = DateTime.Now.ToString("yyyy-MM");
 }
 
@@ -127,5 +128,35 @@ public sealed class ReportRecordViewModel
             ReportStatusDisplayName = reportStatusDisplayName
         };
     }
+}
+
+public sealed class ReportDetailsViewModel
+{
+    public ReportRecordViewModel Report { get; set; } = new();
+    public string PeriodBasisNote { get; set; } = string.Empty;
+    public IReadOnlyList<ReportMetricViewModel> Metrics { get; set; } = Array.Empty<ReportMetricViewModel>();
+    public IReadOnlyList<ReportBusinessItemViewModel> BusinessItems { get; set; } = Array.Empty<ReportBusinessItemViewModel>();
+    public IReadOnlyList<ReportAuditItemViewModel> AuditItems { get; set; } = Array.Empty<ReportAuditItemViewModel>();
+}
+
+public sealed class ReportBusinessItemViewModel
+{
+    public int BusinessId { get; set; }
+    public int TaskId { get; set; }
+    public string TaskTitle { get; set; } = string.Empty;
+    public string StatusDisplayName { get; set; } = string.Empty;
+    public string? RelatedStatusDisplayName { get; set; }
+    public decimal Amount { get; set; }
+    public DateTime OccurredAt { get; set; }
+    public string Description { get; set; } = string.Empty;
+}
+
+public sealed class ReportAuditItemViewModel
+{
+    public int AuditId { get; set; }
+    public string AuditObjectDisplayName { get; set; } = string.Empty;
+    public string AuditResultDisplayName { get; set; } = string.Empty;
+    public DateTime AuditedAt { get; set; }
+    public string? ExceptionNote { get; set; }
 }
 

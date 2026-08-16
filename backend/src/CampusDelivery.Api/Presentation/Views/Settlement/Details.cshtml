@@ -45,16 +45,31 @@
 
     <div class="ops-status-actions">
         <span class="badge @GetSettlementBadgeClass(Model.Settlement.SettlementStatus)">@Model.Settlement.SettlementStatusDisplayName</span>
-        <form asp-action="ChangeStatus" method="post">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="settlementId" value="@Model.Settlement.SettlementId" />
-            <select name="status">
-                <option value="WAITING" selected="@(Model.Settlement.SettlementStatus == "WAITING")">待结算</option>
-                <option value="DONE" selected="@(Model.Settlement.SettlementStatus == "DONE")">已结算</option>
-                <option value="BLOCKED" selected="@(Model.Settlement.SettlementStatus == "BLOCKED")">已阻断</option>
-            </select>
-            <button type="submit" class="button">更新状态</button>
-        </form>
+        @if (Model.Settlement.SettlementStatus == SettlementStatusCodes.Waiting)
+        {
+            <form asp-action="ChangeStatus" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="settlementId" value="@Model.Settlement.SettlementId" />
+                <select name="status">
+                    <option value="@SettlementStatusCodes.Done">确认已结算</option>
+                    <option value="@SettlementStatusCodes.Blocked">阻断结算</option>
+                </select>
+                <button type="submit" class="button">更新状态</button>
+            </form>
+        }
+        else if (Model.Settlement.SettlementStatus == SettlementStatusCodes.Blocked)
+        {
+            <form asp-action="ChangeStatus" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="settlementId" value="@Model.Settlement.SettlementId" />
+                <input type="hidden" name="status" value="@SettlementStatusCodes.Waiting" />
+                <button type="submit" class="button">解除阻断并恢复待结算</button>
+            </form>
+        }
+        else
+        {
+            <span class="table-secondary">已结算为终态，不能回退。</span>
+        }
     </div>
 
     <div class="table-wrap">
@@ -99,8 +114,8 @@
     {
         return status switch
         {
-            "DONE" => "success",
-            "BLOCKED" => "danger",
+            SettlementStatusCodes.Done => "success",
+            SettlementStatusCodes.Blocked => "danger",
             _ => "muted"
         };
     }

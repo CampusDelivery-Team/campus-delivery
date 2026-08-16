@@ -477,6 +477,8 @@ internal sealed class FakePaymentRepository : IPaymentRepository
 
 internal sealed class FakeRefundRepository : IRefundRepository
 {
+    public RefundRecord? ActiveRefund { get; set; }
+
     public Task<RefundRecord?> GetByIdAsync(
         int refundId,
         CancellationToken cancellationToken = default) =>
@@ -491,7 +493,7 @@ internal sealed class FakeRefundRepository : IRefundRepository
         int paymentId,
         IRepositoryTransaction transaction,
         CancellationToken cancellationToken = default) =>
-        Task.FromResult<RefundRecord?>(null);
+        Task.FromResult(ActiveRefund?.PaymentId == paymentId ? ActiveRefund : null);
 
     public Task<RefundRecord?> GetByIdWithLockAsync(
         int refundId,
@@ -527,11 +529,16 @@ internal sealed class FakeRefundRepository : IRefundRepository
 internal sealed class NotUsedAddressRepository : IAddressRepository
 {
     public List<UserAddress> GetAddressesByUserId(int userId) => throw NotUsed();
-    public int InsertAddress(UserAddress address) => throw NotUsed();
-    public bool SetDefaultAddress(int userId, int addressNo) => throw NotUsed();
     public UserAddress? GetAddress(int userId, int addressNo) => throw NotUsed();
-    public bool UpdateAddress(UserAddress address) => throw NotUsed();
-    public bool DeleteAddress(int userId, int addressNo) => throw NotUsed();
+    public Task<bool> LockUserAsync(int userId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
+    public Task<int> GetNextAddressNoAsync(int userId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
+    public Task<bool> InsertAddressAsync(UserAddress address, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
+    public Task<UserAddress?> GetAddressWithLockAsync(int userId, int addressNo, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
+    public Task<bool> UpdateAddressAsync(UserAddress address, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
+    public Task ClearDefaultAddressesAsync(int userId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
+    public Task<bool> SetDefaultAddressAsync(int userId, int addressNo, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
+    public Task<bool> DeleteAddressAsync(int userId, int addressNo, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
+    public Task<bool> SetFirstAddressAsDefaultAsync(int userId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
 
     private static InvalidOperationException NotUsed() =>
         new("该测试不应访问地址仓储。");
@@ -541,8 +548,8 @@ internal sealed class NotUsedServiceTypeRepository : IServiceTypeRepository
 {
     public Task<IReadOnlyList<ServiceType>> GetAllAsync(CancellationToken cancellationToken = default) => throw NotUsed();
     public Task<bool> ExistsByNameAsync(string serviceName, int? excludedServiceTypeId = null, CancellationToken cancellationToken = default) => throw NotUsed();
-    public Task InsertAsync(ServiceType serviceType, CancellationToken cancellationToken = default) => throw NotUsed();
-    public Task<bool> UpdateAsync(ServiceType serviceType, CancellationToken cancellationToken = default) => throw NotUsed();
+    public Task<ServiceTypeRepositoryWriteResult> InsertAsync(ServiceType serviceType, CancellationToken cancellationToken = default) => throw NotUsed();
+    public Task<ServiceTypeRepositoryWriteResult> UpdateAsync(ServiceType serviceType, CancellationToken cancellationToken = default) => throw NotUsed();
     public Task<bool> UpdateStatusAsync(int serviceTypeId, string typeStatus, CancellationToken cancellationToken = default) => throw NotUsed();
     public Task<ServiceTypeDeleteResult> DeleteAsync(int serviceTypeId, CancellationToken cancellationToken = default) => throw NotUsed();
 

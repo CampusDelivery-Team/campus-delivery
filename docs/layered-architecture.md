@@ -33,7 +33,7 @@ Controller 只注入 Service 接口，Service 只注入 Repository 接口。Orac
 | `Payment/Refund` | `payments`、`refunds` | 收货后支付、稍后付款、退款申请和审核 |
 | `Review/Complaint` | `reviews`、`complaints`、`runners` | 评价、投诉处理和信誉分联动 |
 | `Settlement` | `settlements`、`settlement_payment_items` | 候选筛选、结算生成和状态维护 |
-| `Audit/Report` | 审计表、`reports`、`report_audit_items` | 支付/退款/日志审计、统计面板和报表生成记录 |
+| `Audit/Report` | 审计表、`reports`、`report_audit_items` | 支付/退款/日志审计、按月业务统计、报表审计依据、详情和 CSV 导出 |
 
 首页 `/` 会根据访客、普通用户、跑腿员和管理员身份展示真实入口。当前业务模块均已具备 Controller、Service、Repository 和 Razor 页面；功能验收结论、数据库待测项和已知缺口见 `system-test-report.md`。
 

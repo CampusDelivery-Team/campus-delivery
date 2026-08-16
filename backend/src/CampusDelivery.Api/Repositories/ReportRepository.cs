@@ -157,14 +157,185 @@ public sealed class ReportRepository(OracleConnectionFactory connectionFactory) 
         return items;
     }
 
-    public async Task<int> InsertReportAsync(
-        ReportRecord report,
+    public async Task<ReportRecord?> GetByIdAsync(
+        int reportId,
         CancellationToken cancellationToken = default)
     {
         await using var connection = connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-
         await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT report_id, report_type, stat_period, generated_at, report_status
+              FROM APPUSER.reports
+             WHERE report_id = :reportId
+            """;
+        command.Parameters.Add(new OracleParameter("reportId", reportId));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? MapReport(reader) : null;
+    }
+
+    public async Task<IReadOnlyList<ReportBusinessItem>> GetBusinessItemsAsync(
+        string reportType,
+        DateTime periodStart,
+        DateTime periodEnd,
+        CancellationToken cancellationToken = default)
+    {
+        string sql = reportType switch
+        {
+            "ORDER" => """
+                SELECT t.task_id AS business_id,
+                       t.task_id,
+                       t.task_title,
+                       t.task_status AS primary_status,
+                       CAST(NULL AS VARCHAR2(20 CHAR)) AS secondary_status,
+                       t.task_price AS amount,
+                       t.created_at AS occurred_at,
+                       st.service_name || ' · ' || n.node_name AS description
+                  FROM APPUSER.tasks t
+                  JOIN APPUSER.service_types st ON st.service_type_id = t.service_type_id
+                  JOIN APPUSER.nodes n ON n.node_id = t.node_id
+                 WHERE t.created_at >= :periodStart
+                   AND t.created_at < :periodEnd
+                 ORDER BY t.created_at, t.task_id
+                """,
+            "PAYMENT" => """
+                SELECT p.payment_id AS business_id,
+                       ar.task_id,
+                       t.task_title,
+                       p.pay_status AS primary_status,
+                       latest_refund.process_status AS secondary_status,
+                       p.pay_amount AS amount,
+                       NVL(t.completed_at, t.created_at) AS occurred_at,
+                       p.pay_method AS description
+                  FROM APPUSER.payments p
+                  JOIN APPUSER.assign_records ar ON ar.record_id = p.record_id
+                  JOIN APPUSER.tasks t ON t.task_id = ar.task_id
+                  LEFT JOIN (
+                      SELECT payment_id, process_status,
+                             ROW_NUMBER() OVER (PARTITION BY payment_id ORDER BY refund_id DESC) AS rn
+                        FROM APPUSER.refunds
+                  ) latest_refund ON latest_refund.payment_id = p.payment_id
+                                 AND latest_refund.rn = 1
+                 WHERE NVL(t.completed_at, t.created_at) >= :periodStart
+                   AND NVL(t.completed_at, t.created_at) < :periodEnd
+                 ORDER BY occurred_at, p.payment_id
+                """,
+            "COMPLAINT" => """
+                SELECT c.complaint_id AS business_id,
+                       ar.task_id,
+                       t.task_title,
+                       c.process_status AS primary_status,
+                       CAST(NULL AS VARCHAR2(20 CHAR)) AS secondary_status,
+                       0 AS amount,
+                       t.created_at AS occurred_at,
+                       c.reason AS description
+                  FROM APPUSER.complaints c
+                  JOIN APPUSER.assign_records ar ON ar.record_id = c.record_id
+                  JOIN APPUSER.tasks t ON t.task_id = ar.task_id
+                 WHERE t.created_at >= :periodStart
+                   AND t.created_at < :periodEnd
+                 ORDER BY t.created_at, c.complaint_id
+                """,
+            _ => throw new ArgumentOutOfRangeException(nameof(reportType), reportType, "不支持的报表类型")
+        };
+
+        var items = new List<ReportBusinessItem>();
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = sql;
+        command.Parameters.Add(new OracleParameter("periodStart", periodStart));
+        command.Parameters.Add(new OracleParameter("periodEnd", periodEnd));
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(MapBusinessItem(reader));
+        }
+
+        return items;
+    }
+
+    public async Task<IReadOnlyList<int>> GetAuditIdsForReportAsync(
+        string reportType,
+        DateTime periodStart,
+        DateTime periodEnd,
+        IRepositoryTransaction repositoryTransaction,
+        CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+        var auditIds = new List<int>();
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT audit_id
+              FROM APPUSER.audit_logs
+             WHERE audited_at >= :periodStart
+               AND audited_at < :periodEnd
+               AND (
+                   (:reportType = 'ORDER' AND audit_object = 'LOG')
+                   OR (:reportType = 'PAYMENT' AND audit_object IN ('PAYMENT', 'REFUND'))
+               )
+             ORDER BY audit_id
+            """;
+        command.Parameters.Add(new OracleParameter("periodStart", periodStart));
+        command.Parameters.Add(new OracleParameter("periodEnd", periodEnd));
+        command.Parameters.Add(new OracleParameter("reportType", reportType));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            auditIds.Add(Convert.ToInt32(reader["audit_id"]));
+        }
+
+        return auditIds;
+    }
+
+    public async Task<IReadOnlyList<ReportAuditItem>> GetReportAuditItemsAsync(
+        int reportId,
+        CancellationToken cancellationToken = default)
+    {
+        var items = new List<ReportAuditItem>();
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT a.audit_id, a.audit_object, a.audit_result, a.audited_at, a.exception_note
+              FROM APPUSER.report_audit_items rai
+              JOIN APPUSER.audit_logs a ON a.audit_id = rai.audit_id
+             WHERE rai.report_id = :reportId
+             ORDER BY a.audited_at, a.audit_id
+            """;
+        command.Parameters.Add(new OracleParameter("reportId", reportId));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new ReportAuditItem
+            {
+                AuditId = Convert.ToInt32(reader["audit_id"]),
+                AuditObject = Convert.ToString(reader["audit_object"]) ?? string.Empty,
+                AuditResult = Convert.ToString(reader["audit_result"]) ?? string.Empty,
+                AuditedAt = Convert.ToDateTime(reader["audited_at"]),
+                ExceptionNote = reader["exception_note"] == DBNull.Value
+                    ? null
+                    : Convert.ToString(reader["exception_note"])
+            });
+        }
+
+        return items;
+    }
+
+    public async Task<int> InsertReportAsync(
+        ReportRecord report,
+        IRepositoryTransaction repositoryTransaction,
+        CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.BindByName = true;
         command.CommandText = """
             INSERT INTO APPUSER.reports (report_type, stat_period, generated_at, report_status)
@@ -185,6 +356,44 @@ public sealed class ReportRepository(OracleConnectionFactory connectionFactory) 
         return idParameter.Value is OracleDecimal oracleDecimal
             ? oracleDecimal.ToInt32()
             : Convert.ToInt32(idParameter.Value);
+    }
+
+    public async Task InsertReportAuditItemAsync(
+        int reportId,
+        int auditId,
+        IRepositoryTransaction repositoryTransaction,
+        CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.BindByName = true;
+        command.CommandText = """
+            INSERT INTO APPUSER.report_audit_items (report_id, audit_id)
+            VALUES (:reportId, :auditId)
+            """;
+        command.Parameters.Add(new OracleParameter("reportId", reportId));
+        command.Parameters.Add(new OracleParameter("auditId", auditId));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<bool> UpdateStatusAsync(
+        int reportId,
+        string reportStatus,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            UPDATE APPUSER.reports
+               SET report_status = :reportStatus
+             WHERE report_id = :reportId
+            """;
+        command.Parameters.Add(new OracleParameter("reportStatus", reportStatus));
+        command.Parameters.Add(new OracleParameter("reportId", reportId));
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
     private static async Task<int> GetScalarAsync(
@@ -220,4 +429,18 @@ public sealed class ReportRepository(OracleConnectionFactory connectionFactory) 
             ReportStatus = Convert.ToString(reader["report_status"]) ?? "GENERATED"
         };
     }
+
+    private static ReportBusinessItem MapBusinessItem(OracleDataReader reader) => new()
+    {
+        BusinessId = Convert.ToInt32(reader["business_id"]),
+        TaskId = Convert.ToInt32(reader["task_id"]),
+        TaskTitle = Convert.ToString(reader["task_title"]) ?? string.Empty,
+        PrimaryStatus = Convert.ToString(reader["primary_status"]) ?? string.Empty,
+        SecondaryStatus = reader["secondary_status"] == DBNull.Value
+            ? null
+            : Convert.ToString(reader["secondary_status"]),
+        Amount = Convert.ToDecimal(reader["amount"]),
+        OccurredAt = Convert.ToDateTime(reader["occurred_at"]),
+        Description = Convert.ToString(reader["description"]) ?? string.Empty
+    };
 }

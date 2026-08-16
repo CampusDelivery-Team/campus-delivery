@@ -4,12 +4,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | 1.0 |
+| 文档版本 | 1.1 |
 | 测试对象 | `CampusDelivery.Api`（ASP.NET Core MVC + Oracle） |
 | 测试人员 | 开发团队 |
 | 自动化测试时间 | 2026-08-15 |
 | 数据库系统测试时间 | 待在隔离的本地 Oracle 测试库执行后填写 |
-| 测试结论 | 21 项高价值业务自动化测试全部通过；静态质量门禁全部通过；数据库端到端用例已设计但本次未连接云端或共享数据库执行；存在 2 项业务规则缺陷和 1 项报表完整性缺口 |
+| 测试结论 | 39 项高价值业务自动化测试全部通过；静态质量门禁全部通过；本轮已修复评价支付门槛、报表生成与导出、地址事务、登录态实时校验及结算状态机；数据库端到端用例已设计但本次未连接云端或共享数据库执行 |
 
 ## 2. 测试目的
 
@@ -43,7 +43,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 
 ### 4.1 已具备能力
 
-- 新增小型 `CampusDelivery.Tests` 测试工程，仅覆盖 `AssignService`、`TaskService`、`PaymentService` 三个高价值业务服务。
+- 小型 `CampusDelivery.Tests` 测试工程覆盖 `AssignService`、`TaskService`、`PaymentService`、`ReviewService`、`AddressService`、`SettlementService` 和 `ReportService` 七个高价值业务服务。
 - 使用仓储接口测试替身隔离 Oracle，能够稳定验证 Service 的规则、事务提交/回滚和模拟行锁下的并发结果。
 - 自动检查 24 张表、全部 MVC POST 防伪令牌、五层边界、仓储层 `FOR UPDATE` 以及连接字符串外置。
 - 代码中抢单先锁定任务行和跑腿员行，再在同一事务内更新任务、跑腿员、接派记录和状态日志。
@@ -55,7 +55,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 - 本次按要求不处理云端同步，且没有可安全清理的隔离 Oracle 测试库，因此未执行会写入业务表的端到端用例。
 - MVC 接口使用 Cookie 和 Anti-forgery Token，不适合直接提交一个带固定令牌的 Postman 集合；已提供可复现的 Postman/浏览器执行说明。
 - 自动化并发测试验证的是 Service 在“事务行锁语义”下只能成功一次；真实 Oracle 的锁等待和最终表数据仍须执行 `TC029` 才能作为数据库级证明。
-- 评价、报表和结算存在已确认的规则缺口，不能客观宣称“所有功能全部通过”。
+- 评价、报表、地址和结算的本轮缺陷已通过 Service 自动化测试；真实 Oracle 事务、唯一索引及页面主链路仍须在隔离库执行，不能把 `PENDING-DB` 用例宣称为已经通过。
 
 ## 5. 测试范围与功能点
 
@@ -107,10 +107,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 `scripts/run-tests.ps1` 在测试后检查：
 
 - 建表数量不少于 12；当前为 24。
-- 所有 `[HttpPost]` Action 均有 `[ValidateAntiForgeryToken]`；当前为 45/45。
+- 所有 `[HttpPost]` Action 均有 `[ValidateAntiForgeryToken]`；当前为 46/46。
 - Controller 不引用 Repository 接口。
 - Service 中不存在 Oracle Command/Connection 或 `CommandText`。
-- Repository 中存在真实的 `FOR UPDATE` 行锁；当前检出 11 处。
+- Repository 中存在真实的 `FOR UPDATE` 行锁；当前检出 14 处。
 - `ConnectionStrings:OracleDb` 在配置文件中声明。
 
 ### 6.3 数据库手工/集成测试
@@ -143,12 +143,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 | TC006 | 登录 | 封禁或注销账号 | `BLOCKED`/`CANCELLED` 用户 | 拒绝登录并显示友好提示 | 待隔离库执行 | PENDING-DB |
 | TC007 | 权限 | 未登录访问业务页 | 访问 `/Task`、`/Address` | 跳转登录页 | 待浏览器执行 | PENDING-DB |
 | TC008 | 权限 | 普通用户访问管理页 | USER 访问 `/Audit`、`/Report` | 返回拒绝访问，不泄露数据 | 待浏览器执行 | PENDING-DB |
-| TC009 | 安全 | POST 防跨站请求伪造 | 扫描所有 POST Action | 每个 POST 均校验 Anti-forgery Token | 45/45 个 POST Action 有防伪属性 | PASS-STATIC |
+| TC009 | 安全 | POST 防跨站请求伪造 | 扫描所有 POST Action | 每个 POST 均校验 Anti-forgery Token | 46/46 个 POST Action 有防伪属性 | PASS-STATIC |
 | TC010 | 地址 | 新增普通地址 | 当前用户、合法联系人和地址 | 新增成功，仅属于当前用户 | 待隔离库执行 | PENDING-DB |
 | TC011 | 地址 | 切换默认地址 | 同一用户两条地址 | 仅一条地址为默认 | 待隔离库执行 | PENDING-DB |
 | TC012 | 地址 | 跨用户编辑/删除 | 用户 A 提交用户 B 的地址编号 | 拒绝操作，B 的地址不变 | 待隔离库执行 | PENDING-DB |
 | TC013 | 地址 | 不存在地址 ID | 不存在的 `address_no` | 返回友好失败或 404，不抛出明细异常 | 待隔离库执行 | PENDING-DB |
-| TC014 | 地址 | 同用户并发新增 | 同时提交两个新增请求 | 地址编号不冲突，两条数据均完整 | 待隔离库执行；当前 `MAX+1` 有并发风险 | PENDING-DB |
+| TC014 | 地址 | 同用户并发新增 | 同时提交两个新增请求 | 地址编号不冲突，两条数据均完整 | Service 并发回归测试通过；用户行锁后的真实 Oracle 行为仍待隔离库复核 | PASS-AUTO |
 | TC015 | 资格申请 | 普通用户申请跑腿员 | 完整真实姓名和身份信息 | 生成 `PENDING` 申请 | 待隔离库执行 | PENDING-DB |
 | TC016 | 资格申请 | 重复提交 | 已有待审核申请再次提交 | 不产生重复有效申请 | 待隔离库执行 | PENDING-DB |
 | TC017 | 资格审核 | 管理员通过/驳回 | `PENDING` 申请 | 状态正确变更；通过时用户角色同步为 RUNNER | 待隔离库执行 | PENDING-DB |
@@ -181,12 +181,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 | TC044 | 支付 | 确认后立即支付 | 确认日志、合法支付方式 | 支付 PAID，任务 FINISHED，跑腿员 FREE，写日志并提交 | 自动化测试通过 | PASS-AUTO |
 | TC045 | 支付 | 重复支付 | 已有 PAID 记录再次提交 | 拒绝，不新增或覆盖已支付记录 | 待隔离库执行 | PENDING-DB |
 | TC046 | 支付 | 已退款再次支付 | 已有 REFUNDED 记录 | 拒绝，支付仍为 REFUNDED | 自动化测试通过 | PASS-AUTO |
-| TC047 | 支付评价 | 稍后付款后尝试评价 | 任务 FINISHED、支付 UNPAID | 应禁止评价 | 当前评价服务只检查 FINISHED，规则无法保证 | KNOWN-FAIL |
+| TC047 | 支付评价 | 稍后付款后尝试评价 | 任务 FINISHED、支付 UNPAID | 应禁止评价 | 自动化验证 UNPAID/FAILED/REFUNDED 均被拒绝且事务回滚 | PASS-AUTO |
 | TC048 | 支付 | 稍后付款再补付 | FINISHED + UNPAID + 已确认 | 原记录更新为 PAID，不产生重复支付 | 待隔离库执行 | PENDING-DB |
 | TC049 | 退款 | 已支付任务申请退款 | PAID、FINISHED、有原因 | 退款 APPLY，任务 REFUNDING，写日志 | 待隔离库执行 | PENDING-DB |
 | TC050 | 退款 | 重复申请 | 已有 APPLY 或 APPROVED 退款 | 拒绝新增第二条有效退款 | 待隔离库执行 | PENDING-DB |
 | TC051 | 退款 | 管理员通过/驳回 | APPLY 退款、合法审核理由 | 审核结果、金额、支付和任务状态一致 | 待隔离库执行 | PENDING-DB |
-| TC052 | 评价 | 已支付完成后评价 | PAID、FINISHED、发布者 | 新增一次评价并调整跑腿员信誉分 | 待隔离库执行 | PENDING-DB |
+| TC052 | 评价 | 已支付完成后评价 | PAID、FINISHED、发布者 | 新增一次评价并调整跑腿员信誉分 | 自动化验证评价与信誉分在同一事务提交；真实 Oracle 待复核 | PASS-AUTO |
 | TC053 | 评价 | 重复评价 | 同一任务已有评价 | 拒绝，唯一约束不被触发为 500 | 待隔离库执行 | PENDING-DB |
 | TC054 | 评价 | 非法评分/过长评论 | 评分不在 1-5 或评论超长 | 友好校验，不写库 | 待隔离库执行 | PENDING-DB |
 | TC055 | 投诉 | 发布者投诉已完成服务 | FINISHED、有接派记录 | 生成 SUBMITTED 投诉 | 待隔离库执行 | PENDING-DB |
@@ -196,14 +196,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 | TC059 | 结算 | 生成跑腿员结算单 | PAID、FINISHED、无有效退款/未处理投诉、未结算 | 汇总金额、10% 平台费、明细同事务写入 | 待隔离库执行 | PENDING-DB |
 | TC060 | 结算 | 重复生成 | 支付已存在于结算明细 | 不重复纳入新结算单 | 待隔离库执行 | PENDING-DB |
 | TC061 | 结算 | 排除争议款 | 有待处理投诉或有效退款 | 不进入候选集合 | 待隔离库执行 | PENDING-DB |
-| TC062 | 结算状态 | 非法回退/任意跳转 | DONE -> WAITING 等 | 应按明确状态机拒绝非法迁移 | 当前服务只校验目标枚举，未限制前后状态 | KNOWN-FAIL |
+| TC062 | 结算状态 | 非法回退/任意跳转 | DONE -> WAITING 等 | 应按明确状态机拒绝非法迁移 | 3 条合法迁移和 3 条非法迁移自动化测试全部通过 | PASS-AUTO |
 | TC063 | 审计 | 创建支付/退款/日志审计 | 至少选择一个有效目标 | 主表和对应关联表同事务写入 | 待隔离库执行 | PENDING-DB |
 | TC064 | 审计 | 空选择和重复 ID | 空列表或重复 targetId | 空列表拒绝；重复 ID 去重 | 待隔离库执行 | PENDING-DB |
 | TC065 | 报表 | 查看统计面板 | 有历史任务、支付、投诉数据 | 指标、节点量和跑腿员绩效可查看 | 待隔离库执行 | PENDING-DB |
-| TC066 | 报表 | 生成三类报表记录 | ORDER/PAYMENT/COMPLAINT + 周期 | 保存 GENERATED 记录 | 待隔离库执行 | PENDING-DB |
-| TC067 | 报表 | 非法类型和超长周期 | 非法枚举、周期超过 50 字符 | 友好拒绝，不写库 | 待隔离库执行 | PENDING-DB |
-| TC068 | 报表 | 报表关联审计依据 | 基于既有审计生成报表 | 写入 report_audit_items | 当前生成接口不接收审计项，无法形成关联证据 | KNOWN-GAP |
-| TC069 | 报表 | 导出报表 | GENERATED 报表执行导出 | 产生可下载文件并更新 EXPORTED | 当前无导出 Action/Service | KNOWN-GAP |
+| TC066 | 报表 | 生成三类报表记录 | ORDER/PAYMENT/COMPLAINT + 周期 | 计算业务明细并保存 GENERATED 记录 | 有业务数据的生成与事务提交自动化测试通过；三类真实 SQL 待隔离库执行 | PASS-AUTO |
+| TC067 | 报表 | 非法类型和非法周期 | 非法枚举、非 `yyyy-MM` 周期 | 友好拒绝，不写库 | 非法周期在事务开始前被拒绝的自动化测试通过 | PASS-AUTO |
+| TC068 | 报表 | 报表关联审计依据 | 基于周期内业务和既有审计生成报表 | 写入 report_audit_items | 自动化验证主体与审计关联在同一事务写入 | PASS-AUTO |
+| TC069 | 报表 | 导出报表 | GENERATED 报表执行导出 | 产生可下载文件并更新 EXPORTED | 自动化验证 CSV 内容和 EXPORTED 状态更新 | PASS-AUTO |
 | TC070 | 异常输入 | 不存在的实体 ID | 各详情、审核、处理 Action 传极大/负数 ID | 404/友好失败，不泄露异常堆栈 | 待隔离库执行 | PENDING-DB |
 | TC071 | 异常输入 | 分页越界 | page 为负数，pageSize 为 0 或过大 | 归一到安全范围 | 待隔离库执行 | PENDING-DB |
 | TC072 | 架构 | Controller 越层检查 | 扫描 Controller 对 Repository 的引用 | 不存在 Controller 直连 Repository | 静态门禁通过 | PASS-STATIC |
@@ -217,20 +217,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 
 | 类型 | 结果 | 说明 |
 | --- | --- | --- |
-| 自动化测试 | 21/21 通过，0 失败，0 跳过 | 2026-08-15 本地实际执行 |
-| 静态质量门禁 | 5 类全部通过 | 24 张表；45/45 POST 防伪；五层边界；11 处行锁；连接配置外置 |
+| 自动化测试 | 39/39 通过，0 失败，0 跳过 | 2026-08-15 本地实际执行 |
+| 静态质量门禁 | 5 类全部通过 | 24 张表；46/46 POST 防伪；五层边界；14 处行锁；连接配置外置 |
 | 数据库系统测试 | 未执行 | 按要求不处理云端同步；没有对共享数据库写入测试数据 |
-| 已知规则问题 | 2 项 | 未付款可评价风险；结算状态可任意切换 |
-| 已知功能缺口 | 1 组 | 报表审计关联和报表导出未完整实现 |
+| 本轮已修复问题 | 5 组 | 评价支付/退款门槛、结算状态机、真实报表与导出、地址事务和并发、封禁实时生效 |
+| 仍待验证 | 数据库端到端 | Oracle 真实事务、约束迁移、浏览器 Cookie 和三类报表 SQL |
 
 自动化测试原始摘要：
 
 ```text
-已通过! - 失败: 0，通过: 21，已跳过: 0，总计: 21
+已通过! - 失败: 0，通过: 39，已跳过: 0，总计: 39
 [PASS] Schema table count: 24 (requirement: >= 12).
-[PASS] Anti-forgery coverage: 45/45 POST actions.
+[PASS] Anti-forgery coverage: 46/46 POST actions.
 [PASS] Layer boundaries: controllers use services; services contain no Oracle commands.
-[PASS] Repository row-lock statements found: 11.
+[PASS] Repository row-lock statements found: 14.
 [PASS] Oracle connection string is externally configurable via ConnectionStrings:OracleDb.
 ```
 
@@ -240,25 +240,25 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 
 当前项目已经具备“针对核心业务流程、异常情况和并发场景进行了验证”的可审查证据，且测试工程保持小而有价值，没有为凑数量引入大量 CRUD 测试。
 
-但在完成 `PENDING-DB` 用例、修复 `TC047`/`TC062`、补全或明确缩减报表验收边界前，不应对外声称“所有功能全部实现且全部通过”。
+`TC047`、`TC062` 和报表完整性缺口已修复并有自动化回归证据，但在完成 `PENDING-DB` 用例和迁移脚本预检查前，仍不应对外声称“所有数据库端到端用例全部通过”。
 
-## 10. 发现的问题及修复建议
+## 10. 已修复问题与剩余验证
 
-| 编号 | 级别 | 问题 | 影响 | 建议（本次未修改业务代码） |
+| 编号 | 原级别 | 原问题 | 修复结果 | 剩余验证 |
 | --- | --- | --- | --- | --- |
-| ISSUE-01 | 高 | `SaveUnpaidPaymentAsync` 会把任务置为 FINISHED；`ReviewService` 创建评价只检查 FINISHED，不检查支付为 PAID | 未付款任务可能评价并改变跑腿员信誉分 | 评价事务内锁定并读取支付记录，仅允许 `PAID`；增加“UNPAID 禁评”回归测试 |
-| ISSUE-02 | 中 | `SettlementService.ChangeStatusAsync` 只校验目标值属于 WAITING/DONE/BLOCKED，不校验当前状态到目标状态的迁移 | 已完成结算可能被回退，审计语义不稳定 | 定义迁移表并在事务内锁定结算单，例如 WAITING -> DONE/BLOCKED，BLOCKED -> WAITING，DONE 终态 |
-| ISSUE-03 | 中 | 报表生成仅保存 `reports` 记录，没有报表与审计关联写入，也没有导出及 EXPORTED 流程 | 报表可追溯性和“完整实现”评分不足 | 明确 MVP 只含面板/生成记录，或补充审计选择、关联事务、导出 Action 与状态更新 |
-| ISSUE-04 | 中 | 地址编号使用同用户 `MAX(address_no)+1`，新增地址和默认地址调整未形成统一事务 | 同一用户并发新增可能主键冲突；默认地址切换中断时可能不一致 | 使用可并发分配策略，默认切换放入同一仓储事务；执行 TC014 |
-| ISSUE-05 | 中 | Cookie 中账号状态/角色在签发后未看到周期性重新验证 | 管理员封禁已登录用户后，旧 Cookie 可能继续访问至过期 | 增加 Cookie `ValidatePrincipal` 或安全戳/账号状态校验，并补充封禁后会话测试 |
+| ISSUE-01 | 高 | 未付款或退款中任务可能评价 | 已修复：稍后付款不再提前置 FINISHED；评价事务同时要求 FINISHED、PAID、无活动退款 | 隔离 Oracle 执行评价/退款竞争用例 |
+| ISSUE-02 | 中 | 结算状态可任意切换 | 已修复：事务内锁定结算单并执行明确迁移表，DONE 为终态 | 隔离 Oracle 复核并发更新 |
+| ISSUE-03 | 中 | 报表只有元数据，无审计关联和导出 | 已修复：按月查询业务数据、生成指标/明细、关联审计、CSV 导出并更新 EXPORTED | 明细当前按生成周期重算，并非不可变快照；三类查询待真实 Oracle 验证 |
+| ISSUE-04 | 中 | 地址 `MAX+1` 和默认切换缺少并发/事务保护 | 已修复：先锁用户行再分配编号；默认切换、删除补位均在同一事务 | 隔离 Oracle 双会话复核；唯一默认索引需执行迁移 |
+| ISSUE-05 | 中 | 封禁后旧 Cookie 继续有效 | 已修复：Cookie `OnValidatePrincipal` 每个已认证请求重新读取账号状态和角色 | 浏览器连接隔离库验证封禁后的下一次请求被退出 |
 
 ## 11. 回归准入标准
 
 后续提交至少满足：
 
 1. `scripts/run-tests.ps1` 全部通过。
-2. 不减少 45/45 POST 防伪覆盖。
+2. 不减少 46/46 POST 防伪覆盖。
 3. 抢单、支付或退款变更必须补充事务/状态回归测试。
 4. 数据库结构变化后更新 24 表统计、数据库字典和测试 SQL。
-5. 修复 ISSUE-01 后把 `TC047` 改为自动化测试并通过；修复 ISSUE-02 后补充结算状态机测试。
+5. 评价支付/退款门槛、地址事务、结算状态机和报表生成/导出变更必须保留对应回归测试。
 6. 答辩前在隔离库完成所有主链路和 `TC029`，将结果、截图或 SQL 输出归档到 `docs/test-evidence/manual/`。

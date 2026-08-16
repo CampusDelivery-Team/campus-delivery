@@ -590,6 +590,10 @@ COMMENT ON COLUMN report_audit_items.audit_id IS '审计编号，联合主键，
    8. 常用索引
    ========================= */
 CREATE INDEX idx_user_addresses_user ON user_addresses(user_id);
+CREATE UNIQUE INDEX uk_user_addresses_one_default
+    ON user_addresses (CASE WHEN is_default = 'Y' THEN user_id END);
+CREATE UNIQUE INDEX uk_service_types_name_ci
+    ON service_types (UPPER(TRIM(service_name)));
 CREATE INDEX idx_tasks_publisher ON tasks(publisher_user_id);
 CREATE INDEX idx_tasks_service ON tasks(service_type_id);
 CREATE INDEX idx_tasks_node ON tasks(node_id);

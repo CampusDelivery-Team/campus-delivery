@@ -26,11 +26,14 @@ campus_runner_oracle_schema.sql
 003_add_account_lifecycle.sql
 004_add_review_integrity.sql
 005_hash_user_passwords.sql
+006_harden_business_integrity.sql
 ```
 
 `004_add_review_integrity.sql` 会为评价补充 `task_id`，增加“一项任务只能评价一次”的唯一约束，并通过复合外键保证评价绑定的接派记录属于同一任务。脚本执行前会检查历史数据；如果同一任务已经存在多条评价，脚本会停止并提示先处理冲突数据，不会自动删除历史评价。
 
 `005_hash_user_passwords.sql` 会把 `users.password_hash` 扩展到 `VARCHAR2(256 CHAR)`，并将三个基础测试账号更新为 ASP.NET Core `PasswordHasher<User>` 生成的带盐哈希。如果现有库还包含其他明文密码账号，脚本会在修改数据前停止，要求先明确重置这些账号，不会在正式登录逻辑中保留明文兼容分支。
+
+`006_harden_business_integrity.sql` 增加两个最终一致性保护：同一用户最多一条默认地址、服务类型名称忽略大小写和首尾空格后唯一。脚本会先检查历史重复数据；发现冲突时停止，不会自动删除或合并业务数据。
 
 ### 已有账号的统一密码迁移
 

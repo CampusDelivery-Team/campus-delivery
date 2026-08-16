@@ -21,7 +21,30 @@ public sealed class ReportController(IReportService reportService) : Controller
     {
         ReportOperationResult result = await reportService.GenerateAsync(model, cancellationToken);
         TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] = result.Message;
-        return RedirectToAction(nameof(Index));
+        return result.Success && result.ReportId.HasValue
+            ? RedirectToAction(nameof(Details), new { id = result.ReportId.Value })
+            : RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Details(int id, CancellationToken cancellationToken)
+    {
+        ReportDetailsViewModel? model = await reportService.GetDetailsAsync(id, cancellationToken);
+        return model == null ? NotFound() : View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Export(int id, CancellationToken cancellationToken)
+    {
+        ReportExportResult result = await reportService.ExportAsync(id, cancellationToken);
+        if (!result.Success || result.Content == null || result.FileName == null)
+        {
+            TempData["ErrorMessage"] = result.Message;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        return File(result.Content, "text/csv; charset=utf-8", result.FileName);
     }
 }
 

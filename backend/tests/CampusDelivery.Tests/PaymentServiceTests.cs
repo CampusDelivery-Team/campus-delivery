@@ -59,6 +59,26 @@ public sealed class PaymentServiceTests
     }
 
     [Fact]
+    public async Task SaveUnpaidPaymentAsync_KeepsTaskPendingPaymentAndReleasesRunner()
+    {
+        PaymentFixture fixture = CreateFixture(receiptConfirmed: true);
+
+        var result = await fixture.Service.SaveUnpaidPaymentAsync(
+            fixture.AssignRepository.TaskId,
+            fixture.AssignRepository.PublisherUserId,
+            "WECHAT");
+
+        Assert.True(result.Success);
+        Assert.Equal(PaymentStatusCodes.Unpaid, fixture.PaymentRepository.ExistingPayment?.PayStatus);
+        Assert.Equal(TaskStatusCodes.WaitConfirm, fixture.AssignRepository.TaskStatus);
+        Assert.Equal("FREE", fixture.AssignRepository.GetRunner(1011)?.WorkStatus);
+        Assert.DoesNotContain(
+            fixture.AssignRepository.InsertedStatusLogs,
+            log => log.StatusAfter == TaskStatusCodes.Finished);
+        Assert.True(fixture.TransactionManager.Transactions.Single().WasCommitted);
+    }
+
+    [Fact]
     public async Task SubmitPaymentAsync_WhenPaymentWasRefunded_CannotPayAgain()
     {
         PaymentFixture fixture = CreateFixture(receiptConfirmed: true);

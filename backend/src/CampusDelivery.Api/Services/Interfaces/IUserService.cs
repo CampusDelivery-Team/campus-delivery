@@ -5,6 +5,7 @@ namespace CampusDelivery.Api.Services.Interfaces;
 
 public interface IUserService
 {
+    UserAuthenticationState? GetAuthenticationState(int userId);
     (bool Success, string ErrorMessage, User? User) Login(string username, string password);
     UserRegistrationResult Register(string username, string phone, string password);
     UserViewModel? GetProfile(string username);
@@ -19,3 +20,9 @@ public interface IUserService
 }
 
 public sealed record UserAccountOperationResult(bool Success, string Message);
+
+public sealed record UserAuthenticationState(
+    int UserId,
+    string Username,
+    string UserRole,
+    string AccountStatus);

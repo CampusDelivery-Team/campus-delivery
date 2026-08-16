@@ -131,6 +131,7 @@ database/oracle/002_init_base_data.sql
 database/oracle/003_add_account_lifecycle.sql
 database/oracle/004_add_review_integrity.sql
 database/oracle/005_hash_user_passwords.sql
+database/oracle/006_harden_business_integrity.sql
 ```
 
 其中：
@@ -140,6 +141,7 @@ database/oracle/005_hash_user_passwords.sql
 - `003_add_account_lifecycle.sql`：为既有数据库补充账号生命周期状态与相关约束。
 - `004_add_review_integrity.sql`：为评价数据补充唯一性和接派关联完整性约束。
 - `005_hash_user_passwords.sql`：既有演示账号密码哈希迁移脚本。
+- `006_harden_business_integrity.sql`：为默认地址和服务类型名称增加并发下的最终唯一性保护。
 
 基础脚本不写入完整业务闭环数据；端到端测试数据应按 `docs/manual-system-test-guide.md` 在隔离测试库中通过页面操作形成。
 
@@ -165,7 +167,7 @@ dotnet build backend/CampusDelivery.sln
 
 ## 测试与质量验证
 
-项目保留一个小型测试工程，只覆盖并发抢单、任务状态机、三类任务字段、确认收货幂等和支付事务等高价值规则，不使用大量无意义 CRUD 测试凑数。
+项目保留一个小型测试工程，覆盖并发抢单、任务状态机、三类任务字段、确认收货幂等、支付/评价事务、地址并发、结算状态机和报表生成导出等高价值规则，不使用大量无意义 CRUD 测试凑数。
 
 在仓库根目录执行完整本地门禁：
 
@@ -173,4 +175,4 @@ dotnet build backend/CampusDelivery.sln
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 ```
 
-2026-08-15 的本地结果为 21/21 项自动化测试通过；同时检查到 24 张关系表、45/45 个 POST Action 有防伪令牌、11 处仓储行锁语句，且 Controller/Service 未越过五层边界。
+2026-08-15 的本地结果为 39/39 项自动化测试通过；同时检查到 24 张关系表、46/46 个 POST Action 有防伪令牌、14 处仓储行锁语句，且 Controller/Service 未越过五层边界。

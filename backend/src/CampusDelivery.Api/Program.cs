@@ -4,8 +4,10 @@ using CampusDelivery.Api.Repositories;
 using CampusDelivery.Api.Repositories.Interfaces;
 using CampusDelivery.Api.Services;
 using CampusDelivery.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -92,6 +94,40 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     {
         options.AccessDeniedPath = "/Home/AccessDenied";
         options.LoginPath = "/Auth/Login";
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            string? userIdValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdValue, out int userId) || userId <= 0)
+            {
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return;
+            }
+
+            IUserService userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
+            UserAuthenticationState? state = userService.GetAuthenticationState(userId);
+            if (state is null || state.AccountStatus != AccountStatusCodes.Normal)
+            {
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return;
+            }
+
+            string? cookieName = context.Principal?.Identity?.Name;
+            string? cookieRole = context.Principal?.FindFirstValue(ClaimTypes.Role);
+            if (cookieName != state.Username || cookieRole != state.UserRole)
+            {
+                var identity = new ClaimsIdentity(
+                    [
+                        new Claim(ClaimTypes.NameIdentifier, state.UserId.ToString()),
+                        new Claim(ClaimTypes.Name, state.Username),
+                        new Claim(ClaimTypes.Role, state.UserRole)
+                    ],
+                    CookieAuthenticationDefaults.AuthenticationScheme);
+                context.ReplacePrincipal(new ClaimsPrincipal(identity));
+                context.ShouldRenew = true;
+            }
+        };
     });
 
 var app = builder.Build();

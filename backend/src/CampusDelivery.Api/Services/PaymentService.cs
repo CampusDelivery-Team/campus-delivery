@@ -24,7 +24,9 @@ public sealed class PaymentService(
 
         PaymentRecord? payment = await paymentRepository.GetByTaskIdAsync(taskId, cancellationToken);
         bool receiptConfirmed = (await assignRepository.GetStatusLogsByTaskIdAsync(taskId, cancellationToken))
-            .Any(log => log.StatusBefore == "WAIT_CONFIRM" && log.StatusAfter == "WAIT_CONFIRM" && log.OperatorUserId == currentUserId);
+            .Any(log => log.StatusBefore == TaskStatusCodes.WaitConfirm
+                && log.StatusAfter == TaskStatusCodes.WaitConfirm
+                && log.OperatorUserId == currentUserId);
 
         return new()
         {
@@ -34,10 +36,10 @@ public sealed class PaymentService(
             TaskAmount = details.Task.TaskPrice,
             TaskStatusDisplayName = DisplayNameService.GetTaskStatusName(details.Task.TaskStatus),
             ReceiptConfirmed = receiptConfirmed,
-            CanSubmitPayment = (details.Task.TaskStatus == "WAIT_CONFIRM"
-                    || details.Task.TaskStatus == "FINISHED" && payment?.PayStatus == "UNPAID")
+            CanSubmitPayment = (details.Task.TaskStatus == TaskStatusCodes.WaitConfirm
+                    || details.Task.TaskStatus == TaskStatusCodes.Finished && payment?.PayStatus == PaymentStatusCodes.Unpaid)
                 && receiptConfirmed
-                && payment?.PayStatus is not "PAID" and not "REFUNDED",
+                && payment?.PayStatus is not PaymentStatusCodes.Paid and not PaymentStatusCodes.Refunded,
             PayMethod = payment?.PayMethod ?? "WECHAT"
         };
     }
@@ -75,8 +77,8 @@ public sealed class PaymentService(
             int? publisherUserId = await assignRepository.GetTaskPublisherUserIdAsync(taskId, transaction, cancellationToken);
             AssignRecord? assignRecord = await assignRepository.GetLatestAssignRecordWithLockAsync(taskId, transaction, cancellationToken);
             PaymentRecord? existing = await paymentRepository.GetByTaskIdWithLockAsync(taskId, transaction, cancellationToken);
-            bool isInitialReceiptSettlement = taskStatus == "WAIT_CONFIRM";
-            bool isDeferredPayment = taskStatus == "FINISHED" && existing?.PayStatus == "UNPAID";
+            bool isInitialReceiptSettlement = taskStatus == TaskStatusCodes.WaitConfirm;
+            bool isDeferredPayment = taskStatus == TaskStatusCodes.Finished && existing?.PayStatus == PaymentStatusCodes.Unpaid;
             if ((!isInitialReceiptSettlement && !isDeferredPayment)
                 || publisherUserId != currentUserId
                 || assignRecord is null)
@@ -91,7 +93,7 @@ public sealed class PaymentService(
                 return new(false, "请先确认收货。", 0);
             }
 
-            if (existing?.PayStatus is "PAID" or "REFUNDED")
+            if (existing?.PayStatus is PaymentStatusCodes.Paid or PaymentStatusCodes.Refunded)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return new(false, "该任务已经支付或退款，不能重复操作。", existing.PaymentId);
@@ -104,7 +106,7 @@ public sealed class PaymentService(
                 PayAmount = details.Task.TaskPrice,
                 PayMethod = payMethod,
                 ThirdTradeNo = null,
-                PayStatus = completePayment ? "PAID" : "UNPAID"
+                PayStatus = completePayment ? PaymentStatusCodes.Paid : PaymentStatusCodes.Unpaid
             };
 
             int paymentId = existing is null
@@ -124,15 +126,22 @@ public sealed class PaymentService(
                     return new(false, "接单跑腿员不存在。", 0);
                 }
 
-                await assignRepository.UpdateTaskStatusAsync(taskId, "FINISHED", transaction, cancellationToken);
                 await assignRepository.UpdateRunnerWorkStatusAsync(assignRecord.RunnerId, "FREE", transaction, cancellationToken);
-                await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
+                if (completePayment)
                 {
-                    RecordId = assignRecord.RecordId,
-                    StatusBefore = "WAIT_CONFIRM",
-                    StatusAfter = "FINISHED",
-                    OperatorUserId = currentUserId
-                }, transaction, cancellationToken);
+                    await assignRepository.UpdateTaskStatusAsync(
+                        taskId,
+                        TaskStatusCodes.Finished,
+                        transaction,
+                        cancellationToken);
+                    await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
+                    {
+                        RecordId = assignRecord.RecordId,
+                        StatusBefore = TaskStatusCodes.WaitConfirm,
+                        StatusAfter = TaskStatusCodes.Finished,
+                        OperatorUserId = currentUserId
+                    }, transaction, cancellationToken);
+                }
             }
 
             await transaction.CommitAsync(cancellationToken);

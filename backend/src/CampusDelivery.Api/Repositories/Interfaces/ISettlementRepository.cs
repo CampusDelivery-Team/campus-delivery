@@ -9,6 +9,7 @@ public interface ISettlementRepository
     Task<IReadOnlyList<SettlementCandidate>> GetSettlementCandidatesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SettlementCandidate>> GetSettlementCandidatesForRunnerWithLockAsync(int runnerId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<Settlement?> GetByIdAsync(int settlementId, CancellationToken cancellationToken = default);
+    Task<Settlement?> GetByIdWithLockAsync(int settlementId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<RunnerSettlementSummary> GetRunnerSettlementSummaryAsync(int userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Settlement>> GetSettlementsByRunnerUserIdAsync(int userId, CancellationToken cancellationToken = default);
     Task<Settlement?> GetByIdForRunnerUserAsync(int settlementId, int userId, CancellationToken cancellationToken = default);
@@ -16,5 +17,5 @@ public interface ISettlementRepository
     Task<IReadOnlyList<SettlementPaymentItem>> GetItemsForRunnerUserAsync(int settlementId, int userId, CancellationToken cancellationToken = default);
     Task<int> InsertSettlementAsync(Settlement settlement, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task InsertSettlementItemAsync(int settlementId, int paymentId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
-    Task UpdateStatusAsync(int settlementId, string status, CancellationToken cancellationToken = default);
+    Task<bool> UpdateStatusAsync(int settlementId, string currentStatus, string targetStatus, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
 }

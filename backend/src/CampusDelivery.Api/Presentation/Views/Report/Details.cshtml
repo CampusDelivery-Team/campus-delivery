@@ -1,0 +1,100 @@
+@model ReportDetailsViewModel
+
+@{
+    ViewData["Title"] = "报表详情";
+}
+
+<section class="panel management-panel ops-page">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">REPORT #@Model.Report.ReportId</p>
+            <h1>@Model.Report.ReportTypeDisplayName</h1>
+            <p class="section-description">统计周期：@Model.Report.StatPeriod · @Model.PeriodBasisNote</p>
+        </div>
+        <div class="tag-row">
+            <a class="button" asp-action="Index">返回报表中心</a>
+            <form asp-action="Export" asp-route-id="@Model.Report.ReportId" method="post">
+                @Html.AntiForgeryToken()
+                <button class="button primary" type="submit">导出 CSV</button>
+            </form>
+        </div>
+    </div>
+
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="task-alert task-alert--error">@error</div>
+    }
+
+    <div class="ops-metric-grid">
+        @foreach (var metric in Model.Metrics)
+        {
+            <article>
+                <span>@metric.Name</span>
+                <strong>@metric.Value</strong>
+                <small>@metric.Note</small>
+            </article>
+        }
+    </div>
+
+    <article class="ops-section-card">
+        <div class="ops-card-header">
+            <div>
+                <p class="eyebrow">BUSINESS DETAILS</p>
+                <h2>业务明细（@Model.BusinessItems.Count）</h2>
+            </div>
+            <span class="badge muted">@Model.Report.ReportStatusDisplayName</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>业务编号</th><th>任务</th><th>状态</th><th>关联状态</th><th>金额</th><th>统计时间</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                    @if (Model.BusinessItems.Count == 0)
+                    {
+                        <tr><td colspan="7" class="empty task-table__empty">该统计周期暂无业务数据。</td></tr>
+                    }
+                    else
+                    {
+                        foreach (var item in Model.BusinessItems)
+                        {
+                            <tr>
+                                <td>#@item.BusinessId</td>
+                                <td><span class="table-primary">@item.TaskTitle</span><span class="table-secondary">任务 #@item.TaskId</span></td>
+                                <td>@item.StatusDisplayName</td>
+                                <td>@(item.RelatedStatusDisplayName ?? "—")</td>
+                                <td>¥@item.Amount.ToString("F2")</td>
+                                <td>@item.OccurredAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>@item.Description</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="ops-section-card">
+        <div class="ops-card-header">
+            <div><p class="eyebrow">AUDIT EVIDENCE</p><h2>审计依据（@Model.AuditItems.Count）</h2></div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>审计编号</th><th>对象</th><th>结果</th><th>审计时间</th><th>异常说明</th></tr></thead>
+                <tbody>
+                    @if (Model.AuditItems.Count == 0)
+                    {
+                        <tr><td colspan="5" class="empty task-table__empty">该报表类型或周期暂无可关联审计记录。</td></tr>
+                    }
+                    else
+                    {
+                        foreach (var item in Model.AuditItems)
+                        {
+                            <tr><td>#@item.AuditId</td><td>@item.AuditObjectDisplayName</td><td>@item.AuditResultDisplayName</td><td>@item.AuditedAt.ToString("yyyy-MM-dd HH:mm")</td><td>@(item.ExceptionNote ?? "—")</td></tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
