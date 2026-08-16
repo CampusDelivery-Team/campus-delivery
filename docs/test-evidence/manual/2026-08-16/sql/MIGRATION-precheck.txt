@@ -1,0 +1,16 @@
+=== SESSION ===
+SP2-0640: 未连接
+=== DDL PRIVILEGES ===
+SP2-0640: 未连接
+SP2-0640: 未连接
+=== REVIEW DATA ===
+SP2-0640: 未连接
+SP2-0640: 未连接
+SP2-0640: 未连接
+=== 003 STATUS ===
+SP2-0640: 未连接
+=== 005 STATUS ===
+SP2-0640: 未连接
+=== 006 DUPLICATE PRECHECK ===
+SP2-0640: 未连接
+SP2-0640: 未连接

@@ -1,0 +1,29 @@
+
+   NODE_ID NODE_TYPE                                                    NODE_STATUS
+---------- ------------------------------------------------------------ ----------------------------------------
+        21 GATE                                                         NORMAL
+        22 STATION                                                      NORMAL
+        23 DISTRIBUTION                                                 NORMAL
+        41 GATE                                                         NORMAL
+
+已选择 4 行。
+
+
+SERVICE_TYPE_ID BASE_PRICE TYPE_STATUS
+--------------- ---------- ----------------------------------------
+             21          3 ENABLED
+             22          4 ENABLED
+             23          5 ENABLED
+
+已选择 3 行。
+
+
+SERVICE_TYPE_ID    NODE_ID
+--------------- ----------
+             22         22
+             23         21
+             23         23
+             23         41
+
+已选择 4 行。
+

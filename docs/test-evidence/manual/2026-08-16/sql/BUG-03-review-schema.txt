@@ -1,0 +1,88 @@
+
+ COLUMN_ID
+----------
+COLUMN_NAME
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+DATA_TYPE
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+NU
+--
+         1
+REVIEW_ID
+NUMBER
+N
+
+         2
+RECORD_ID
+NUMBER
+N
+
+         3
+RATING
+NUMBER
+N
+
+         4
+ANONYMOUS_FLAG
+CHAR
+N
+
+         5
+COMMENT_TEXT
+VARCHAR2
+Y
+
+         6
+REVIEWED_AT
+DATE
+N
+
+         7
+CREDIT_DELTA
+NUMBER
+N
+
+
+已选择 7 行。
+
+
+CONSTRAINT_NAME
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+CO STATUS
+-- ----------------
+CK_REVIEWS_ANONYMOUS
+C  ENABLED
+
+CK_REVIEWS_RATING
+C  ENABLED
+
+FK_REVIEWS_RECORD
+R  ENABLED
+
+PK_REVIEWS
+P  ENABLED
+
+SYS_C007879
+C  ENABLED
+
+SYS_C007880
+C  ENABLED
+
+SYS_C007881
+C  ENABLED
+
+SYS_C007882
+C  ENABLED
+
+SYS_C007883
+C  ENABLED
+
+SYS_C007884
+C  ENABLED
+
+UK_REVIEWS_RECORD
+U  ENABLED
+
+
+已选择 11 行。
+
