@@ -1,0 +1,91 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+notes: 图版页：三张真实运行截图，按档案图版格式呈现；末尾注解说明界面品牌视觉与本档案版式各自独立。
+elements:
+  - elementId: head-left
+    elementType: text
+    bounds: [48, 20, 420, 12]
+    content: {style: "$metaLabel", wrap: false, text: 济跑跑工程档案 · CAMPUS RUNNER DOSSIER}
+  - elementId: head-right
+    elementType: text
+    bounds: [512, 20, 400, 12]
+    content: {style: "$metaLabel", align: [right, top], wrap: false, text: 界面图版 · PLATES · 2026-08}
+  - elementId: head-rule
+    elementType: shape
+    bounds: [48, 40, 864, 1]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: headline
+    elementType: text
+    bounds: [48, 60, 840, 40]
+    content: {style: "$headline", fontSize: 28, wrap: false, text: 界面长什么样}
+  # 图版 01
+  - elementId: plate1
+    elementType: image
+    bounds: [48, 116, 470, 296]
+    src: media/ENV-01-home.png
+    fit: {mode: cover}
+    border: {style: solid, width: 1, color: "$ink"}
+  - elementId: plate1-cap
+    elementType: text
+    bounds: [48, 422, 470, 28]
+    content:
+      fontSize: 9.5
+      fontFamily: MiSans
+      color: "$meta"
+      lineHeight: 1.5
+      align: [left, top]
+      text: |
+        <p><span style="font-family:思源宋体; color:$ink;">图版 01</span>　首页门户 —— 按访客 / 用户 / 跑腿员 / 管理员身份展示真实入口</p>
+  # 图版 02
+  - elementId: plate2
+    elementType: image
+    bounds: [560, 116, 352, 186]
+    src: media/ENV-06-admin-home.png
+    fit: {mode: cover}
+    border: {style: solid, width: 1, color: "$ink"}
+  - elementId: plate2-cap
+    elementType: text
+    bounds: [560, 312, 352, 28]
+    content:
+      fontSize: 9.5
+      fontFamily: MiSans
+      color: "$meta"
+      lineHeight: 1.5
+      align: [left, top]
+      text: |
+        <p><span style="font-family:思源宋体; color:$ink;">图版 02</span>　管理员工作台 —— 运营、审核、结算审计入口</p>
+  # 图版 03
+  - elementId: plate3
+    elementType: image
+    bounds: [560, 352, 352, 96]
+    src: media/FLOW-20-report.png
+    fit: {mode: cover}
+    border: {style: solid, width: 1, color: "$ink"}
+  - elementId: plate3-cap
+    elementType: text
+    bounds: [560, 458, 352, 16]
+    content:
+      fontSize: 9.5
+      fontFamily: MiSans
+      color: "$meta"
+      wrap: false
+      text: |
+        <p><span style="font-family:思源宋体; color:$ink;">图版 03</span>　统计报表 —— 月度指标与节点业务量</p>
+  # 注
+  - elementId: plate-note
+    elementType: text
+    bounds: [48, 468, 470, 30]
+    content:
+      fontSize: 9.5
+      fontFamily: MiSans
+      color: "$meta"
+      lineHeight: 1.5
+      align: [left, top]
+      text: 注：系统界面采用济跑跑品牌视觉（校园蓝 / 活力青 / 订单橙）；本档案版式为答辩汇报专用，二者各自独立。
+  - elementId: folio
+    elementType: text
+    bounds: [430, 514, 100, 14]
+    content: {style: "$folio", align: [center, top], wrap: false, text: — 10 —}
