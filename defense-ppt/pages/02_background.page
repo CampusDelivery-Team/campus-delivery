@@ -1,0 +1,154 @@
+pageType: content
+background: {type: solid, color: "$bg"}
+notes: 讲清楚为什么做这个系统：校园跑腿需求真实存在但缺乏协同；三类角色形成完整业务闭环。
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 30, 500, 20]
+    content: {style: "$kicker", wrap: false, text: 01 · 项目背景与需求分析}
+  - elementId: title
+    elementType: text
+    bounds: [60, 50, 700, 42]
+    content: {style: "$pagetitle", wrap: false, text: 校园里的“最后一公里”谁来跑？}
+  - elementId: titlebar
+    elementType: shape
+    bounds: [60, 100, 56, 4]
+    shapeName: rect
+    fill: {type: gradient, gradientType: linear, angle: 0, stops: [{position: 0, color: "$primary"}, {position: 1, color: "$teal"}]}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 60, 18]
+    content: {style: "$small", align: [right, middle], wrap: false, text: 02 / 12}
+  - elementId: pain1
+    elementType: shape
+    bounds: [60, 126, 272, 118]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: pain1icon
+    elementType: icon
+    bounds: [80, 144, 28, 28]
+    iconName: "fas:boxes-stacked"
+    fill: {type: solid, color: "$primary"}
+  - elementId: pain1text
+    elementType: text
+    bounds: [80, 180, 236, 54]
+    content:
+      style: "$body"
+      fontSize: 13
+      text: |
+        <p><strong>需求分散</strong></p>
+        <p><span style="color:$subtext">快递代取、外卖分发、私人跑腿散落在各群聊，无人统一管理</span></p>
+  - elementId: pain2
+    elementType: shape
+    bounds: [344, 126, 272, 118]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: pain2icon
+    elementType: icon
+    bounds: [364, 144, 28, 28]
+    iconName: "fas:shuffle"
+    fill: {type: solid, color: "$teal"}
+  - elementId: pain2text
+    elementType: text
+    bounds: [364, 180, 236, 54]
+    content:
+      style: "$body"
+      fontSize: 13
+      text: |
+        <p><strong>缺乏协同</strong></p>
+        <p><span style="color:$subtext">发单、接单、送达、收款全靠口头约定，过程不可追溯</span></p>
+  - elementId: pain3
+    elementType: shape
+    bounds: [628, 126, 272, 118]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: pain3icon
+    elementType: icon
+    bounds: [648, 144, 28, 28]
+    iconName: "fas:shield-halved"
+    fill: {type: solid, color: "$accent"}
+  - elementId: pain3text
+    elementType: text
+    bounds: [648, 180, 236, 54]
+    content:
+      style: "$body"
+      fontSize: 13
+      text: |
+        <p><strong>信任与结算难</strong></p>
+        <p><span style="color:$subtext">酬劳纠纷无凭据，跑腿员信誉与收入结算缺乏依据</span></p>
+  - elementId: roleslabel
+    elementType: text
+    bounds: [60, 264, 300, 22]
+    content: {fontSize: 15, color: "$dark", bold: true, wrap: false, text: 三类角色，一个平台}
+  - elementId: role1
+    elementType: shape
+    bounds: [60, 292, 272, 64]
+    shapeName: roundRect
+    adjustments: [12000]
+    fill: {type: solid, color: "$lightblue"}
+  - elementId: role1text
+    elementType: text
+    bounds: [76, 300, 240, 48]
+    content:
+      fontSize: 13
+      lineHeight: 1.4
+      text: |
+        <p><span style="color:$primary"><strong>普通用户</strong></span></p>
+        <p><span style="color:$subtext">发布任务 · 支付 · 评价投诉</span></p>
+  - elementId: role2
+    elementType: shape
+    bounds: [344, 292, 272, 64]
+    shapeName: roundRect
+    adjustments: [12000]
+    fill: {type: solid, color: "#E0F5F5"}
+  - elementId: role2text
+    elementType: text
+    bounds: [360, 300, 240, 48]
+    content:
+      fontSize: 13
+      lineHeight: 1.4
+      text: |
+        <p><span style="color:$teal"><strong>跑腿员</strong></span></p>
+        <p><span style="color:$subtext">实名审核 · 接单配送 · 结算提现</span></p>
+  - elementId: role3
+    elementType: shape
+    bounds: [628, 292, 272, 64]
+    shapeName: roundRect
+    adjustments: [12000]
+    fill: {type: solid, color: "#FDF3E0"}
+  - elementId: role3text
+    elementType: text
+    bounds: [644, 300, 240, 48]
+    content:
+      fontSize: 13
+      lineHeight: 1.4
+      text: |
+        <p><span style="color:$accent"><strong>管理员</strong></span></p>
+        <p><span style="color:$subtext">派单调度 · 审核 · 审计报表</span></p>
+  - elementId: looplabel
+    elementType: text
+    bounds: [60, 378, 400, 22]
+    content: {fontSize: 15, color: "$dark", bold: true, wrap: false, text: 核心业务闭环}
+  - elementId: flowbg
+    elementType: shape
+    bounds: [60, 408, 840, 84]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: flowtext
+    elementType: text
+    bounds: [80, 424, 800, 52]
+    content:
+      fontSize: 15
+      color: "$text"
+      align: [center, middle]
+      text: |
+        <p><strong>发布任务 → 派单/抢单 → 配送送达 → 确认收货 → 支付 → 评价/投诉 →（退款）→ 结算 → 审计</strong></p>
+        <p style="margin-top:6px"><span style="font-size:12px; color:$subtext">每个环节都有数据库状态记录，全程可追溯、可审计</span></p>

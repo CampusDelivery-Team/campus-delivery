@@ -1,0 +1,157 @@
+pageType: content
+background: {type: solid, color: "$bg"}
+notes: 核心业务逻辑第一页：任务状态机。重点讲状态迁移规则和并发控制：FOR UPDATE 行锁 + 状态前置校验 + 唯一约束兜底。
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 30, 500, 20]
+    content: {style: "$kicker", wrap: false, text: 05 · 核心业务逻辑 ①}
+  - elementId: title
+    elementType: text
+    bounds: [60, 50, 700, 42]
+    content: {style: "$pagetitle", wrap: false, text: 任务全生命周期状态机}
+  - elementId: titlebar
+    elementType: shape
+    bounds: [60, 100, 56, 4]
+    shapeName: rect
+    fill: {type: gradient, gradientType: linear, angle: 0, stops: [{position: 0, color: "$primary"}, {position: 1, color: "$teal"}]}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 60, 18]
+    content: {style: "$small", align: [right, middle], wrap: false, text: 06 / 12}
+  - elementId: st1
+    elementType: shape
+    bounds: [60, 150, 146, 54]
+    shapeName: roundRect
+    adjustments: [14000]
+    fill: {type: solid, color: "$lightblue"}
+  - elementId: st1t
+    elementType: text
+    bounds: [60, 150, 146, 54]
+    content: {fontSize: 14, color: "$primary", bold: true, align: [center, middle], wrap: false, text: 待接单 WAITING}
+  - elementId: ar1
+    elementType: icon
+    bounds: [212, 165, 24, 24]
+    iconName: "fas:arrow-right"
+    fill: {type: solid, color: "$subtext"}
+  - elementId: st2
+    elementType: shape
+    bounds: [242, 150, 146, 54]
+    shapeName: roundRect
+    adjustments: [14000]
+    fill: {type: solid, color: "$lightblue"}
+  - elementId: st2t
+    elementType: text
+    bounds: [242, 150, 146, 54]
+    content: {fontSize: 14, color: "$primary", bold: true, align: [center, middle], wrap: false, text: 已接派 ASSIGNED}
+  - elementId: ar2
+    elementType: icon
+    bounds: [394, 165, 24, 24]
+    iconName: "fas:arrow-right"
+    fill: {type: solid, color: "$subtext"}
+  - elementId: st3
+    elementType: shape
+    bounds: [424, 150, 146, 54]
+    shapeName: roundRect
+    adjustments: [14000]
+    fill: {type: solid, color: "$lightblue"}
+  - elementId: st3t
+    elementType: text
+    bounds: [424, 150, 146, 54]
+    content: {fontSize: 14, color: "$primary", bold: true, align: [center, middle], wrap: false, text: 配送中 DELIVERING}
+  - elementId: ar3
+    elementType: icon
+    bounds: [576, 165, 24, 24]
+    iconName: "fas:arrow-right"
+    fill: {type: solid, color: "$subtext"}
+  - elementId: st4
+    elementType: shape
+    bounds: [606, 150, 146, 54]
+    shapeName: roundRect
+    adjustments: [14000]
+    fill: {type: solid, color: "#E0F5F5"}
+  - elementId: st4t
+    elementType: text
+    bounds: [606, 150, 146, 54]
+    content: {fontSize: 14, color: "$teal", bold: true, align: [center, middle], wrap: false, text: 已完成 FINISHED}
+  - elementId: ar4
+    elementType: icon
+    bounds: [758, 165, 24, 24]
+    iconName: "fas:arrow-right"
+    fill: {type: solid, color: "$subtext"}
+  - elementId: st5
+    elementType: shape
+    bounds: [788, 150, 112, 54]
+    shapeName: roundRect
+    adjustments: [14000]
+    fill: {type: gradient, gradientType: linear, angle: 45, stops: [{position: 0, color: "#0B4FB3"}, {position: 1, color: "#00A6A6"}]}
+  - elementId: st5t
+    elementType: text
+    bounds: [788, 150, 112, 54]
+    content: {fontSize: 14, color: "$white", bold: true, align: [center, middle], wrap: false, text: 已支付 PAID}
+  - elementId: stcancel
+    elementType: shape
+    bounds: [60, 222, 146, 40]
+    shapeName: roundRect
+    adjustments: [14000]
+    fill: {type: solid, color: "$white"}
+    border: {style: dash, width: 1.5, color: "$subtext"}
+  - elementId: stcancelt
+    elementType: text
+    bounds: [60, 222, 146, 40]
+    content: {fontSize: 13, color: "$subtext", bold: true, align: [center, middle], wrap: false, text: 已取消 CANCELLED}
+  - elementId: cancelnote
+    elementType: text
+    bounds: [222, 226, 460, 32]
+    content:
+      fontSize: 12.5
+      color: "$subtext"
+      align: [left, middle]
+      wrap: false
+      text: 仅"待接单"状态、且仅发布人本人可取消（SQL 层面 WHERE 双条件保证）
+  - elementId: rulecard
+    elementType: shape
+    bounds: [60, 292, 404, 216]
+    shapeName: roundRect
+    adjustments: [7000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: ruletitle
+    elementType: text
+    bounds: [82, 308, 360, 22]
+    content: {style: "$cardtitle", fontSize: 15, wrap: false, text: 状态迁移的业务规则}
+  - elementId: rulebody
+    elementType: text
+    bounds: [82, 338, 364, 160]
+    content:
+      style: "$body"
+      fontSize: 13
+      lineHeight: 1.6
+      text: |
+        <p>· 接单后生成 assign_records，记录接派人</p>
+        <p>· 送达 → 收货确认 → 才能进入支付环节</p>
+        <p>· 只有<strong>已完成 + 已支付 + 无在途退款</strong>的任务才能评价</p>
+        <p>· 每次状态变化写入 task_status_logs，全程可追溯</p>
+  - elementId: lockcard
+    elementType: shape
+    bounds: [496, 292, 404, 216]
+    shapeName: roundRect
+    adjustments: [7000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: locktitle
+    elementType: text
+    bounds: [518, 308, 360, 22]
+    content: {style: "$cardtitle", fontSize: 15, wrap: false, text: 并发控制：两人同时抢一单怎么办？}
+  - elementId: lockbody
+    elementType: text
+    bounds: [518, 338, 364, 160]
+    content:
+      style: "$body"
+      fontSize: 13
+      lineHeight: 1.6
+      text: |
+        <p>· 接单事务内 <span style="color:$primary"><strong>SELECT … FOR UPDATE</strong></span> 锁定任务行</p>
+        <p>· 更新时带状态前置条件（WHERE task_status = 'WAITING'），受影响行数为 0 即失败</p>
+        <p>· 数据库唯一约束兜底，杜绝超卖</p>
+        <p>· 全程显式事务，异常自动回滚</p>

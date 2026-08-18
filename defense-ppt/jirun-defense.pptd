@@ -1,0 +1,64 @@
+version: v2
+title: 济跑跑 JiRun 校园跑腿系统 · 答辩汇报
+size: [960, 540]
+theme:
+  colors:
+    primary: "#0B4FB3"
+    teal: "#00A6A6"
+    accent: "#F59E0B"
+    dark: "#0B1F3A"
+    bg: "#F5F8FC"
+    text: "#102033"
+    subtext: "#64748B"
+    border: "#DCE7F5"
+    white: "#FFFFFF"
+    lightblue: "#E8F0FB"
+  textStyles:
+    pagetitle:
+      fontSize: 30
+      color: "$dark"
+      bold: true
+    kicker:
+      fontSize: 13
+      color: "$teal"
+      bold: true
+      letterSpacing: 2
+    body:
+      fontSize: 14
+      color: "$text"
+      lineHeight: 1.55
+    small:
+      fontSize: 12
+      color: "$subtext"
+      lineHeight: 1.4
+    cardtitle:
+      fontSize: 16
+      color: "$dark"
+      bold: true
+  tableStyles:
+    default:
+      firstRowStyle:
+        fill: {type: solid, color: "$primary"}
+        color: "#FFFFFF"
+        bold: true
+        fontSize: 13
+      bodyStyles:
+        - {fill: {type: solid, color: "#FFFFFF"}}
+        - {fill: {type: solid, color: "$bg"}}
+      cellStyle:
+        fontSize: 13
+        color: "$text"
+        border: {style: solid, width: 1, color: "$border"}
+pages:
+  - pages/01_cover.page
+  - pages/02_background.page
+  - pages/03_features.page
+  - pages/04_architecture.page
+  - pages/05_database.page
+  - pages/06_lifecycle.page
+  - pages/07_credit.page
+  - pages/08_ui.page
+  - pages/09_engineering.page
+  - pages/10_testing.page
+  - pages/11_team.page
+  - pages/12_summary.page

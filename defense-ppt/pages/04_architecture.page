@@ -1,0 +1,141 @@
+pageType: content
+background: {type: solid, color: "$bg"}
+notes: 强调五层结构与接口隔离：Controller 只依赖 Service 接口，绝不直连数据库；事务由统一的 TransactionManager 管理。
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 30, 500, 20]
+    content: {style: "$kicker", wrap: false, text: 03 · 总体设计}
+  - elementId: title
+    elementType: text
+    bounds: [60, 50, 700, 42]
+    content: {style: "$pagetitle", wrap: false, text: MVC 五层架构：每层只跟下一层说话}
+  - elementId: titlebar
+    elementType: shape
+    bounds: [60, 100, 56, 4]
+    shapeName: rect
+    fill: {type: gradient, gradientType: linear, angle: 0, stops: [{position: 0, color: "$primary"}, {position: 1, color: "$teal"}]}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 60, 18]
+    content: {style: "$small", align: [right, middle], wrap: false, text: 04 / 12}
+  - elementId: layer1
+    elementType: shape
+    bounds: [60, 132, 420, 62]
+    shapeName: roundRect
+    adjustments: [10000]
+    fill: {type: solid, color: "$lightblue"}
+  - elementId: layer1text
+    elementType: text
+    bounds: [84, 138, 380, 50]
+    content:
+      fontSize: 14
+      lineHeight: 1.35
+      text: |
+        <p><span style="color:$primary"><strong>① View 视图层</strong></span></p>
+        <p><span style="font-size:12px; color:$subtext">55 个 Razor 页面，只负责渲染与表单提交</span></p>
+  - elementId: arrow1
+    elementType: icon
+    bounds: [258, 196, 24, 18]
+    iconName: "fas:arrow-down"
+    fill: {type: solid, color: "$subtext"}
+  - elementId: layer2
+    elementType: shape
+    bounds: [60, 216, 420, 62]
+    shapeName: roundRect
+    adjustments: [10000]
+    fill: {type: solid, color: "$lightblue"}
+  - elementId: layer2text
+    elementType: text
+    bounds: [84, 222, 380, 50]
+    content:
+      fontSize: 14
+      lineHeight: 1.35
+      text: |
+        <p><span style="color:$primary"><strong>② Controller 控制层</strong></span></p>
+        <p><span style="font-size:12px; color:$subtext">16 个控制器：参数校验、权限拦截、调用 Service</span></p>
+  - elementId: arrow2
+    elementType: icon
+    bounds: [258, 280, 24, 18]
+    iconName: "fas:arrow-down"
+    fill: {type: solid, color: "$subtext"}
+  - elementId: layer3
+    elementType: shape
+    bounds: [60, 300, 420, 62]
+    shapeName: roundRect
+    adjustments: [10000]
+    fill: {type: solid, color: "#E0F5F5"}
+  - elementId: layer3text
+    elementType: text
+    bounds: [84, 306, 380, 50]
+    content:
+      fontSize: 14
+      lineHeight: 1.35
+      text: |
+        <p><span style="color:$teal"><strong>③ Service 业务逻辑层</strong></span></p>
+        <p><span style="font-size:12px; color:$subtext">业务规则、状态机、事务编排的核心所在</span></p>
+  - elementId: arrow3
+    elementType: icon
+    bounds: [258, 364, 24, 18]
+    iconName: "fas:arrow-down"
+    fill: {type: solid, color: "$subtext"}
+  - elementId: layer4
+    elementType: shape
+    bounds: [60, 384, 420, 62]
+    shapeName: roundRect
+    adjustments: [10000]
+    fill: {type: solid, color: "#FDF3E0"}
+  - elementId: layer4text
+    elementType: text
+    bounds: [84, 390, 380, 50]
+    content:
+      fontSize: 14
+      lineHeight: 1.35
+      text: |
+        <p><span style="color:$accent"><strong>④ Repository 数据访问层</strong></span></p>
+        <p><span style="font-size:12px; color:$subtext">唯一接触 SQL 的层，全部参数化查询</span></p>
+  - elementId: arrow4
+    elementType: icon
+    bounds: [258, 448, 24, 18]
+    iconName: "fas:arrow-down"
+    fill: {type: solid, color: "$subtext"}
+  - elementId: layer5
+    elementType: shape
+    bounds: [60, 468, 420, 46]
+    shapeName: roundRect
+    adjustments: [10000]
+    fill: {type: gradient, gradientType: linear, angle: 0, stops: [{position: 0, color: "#0B4FB3"}, {position: 1, color: "#00A6A6"}]}
+  - elementId: layer5text
+    elementType: text
+    bounds: [84, 472, 380, 38]
+    content:
+      fontSize: 14
+      color: "$white"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>⑤ Oracle 数据库（19c · 云端共享）</strong></p>
+  - elementId: rulescard
+    elementType: shape
+    bounds: [516, 132, 384, 382]
+    shapeName: roundRect
+    adjustments: [6000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: rulestitle
+    elementType: text
+    bounds: [540, 152, 340, 24]
+    content: {style: "$cardtitle", wrap: false, text: 架构纪律（答辩要点）}
+  - elementId: rules
+    elementType: text
+    bounds: [540, 186, 340, 316]
+    content:
+      style: "$body"
+      fontSize: 13.5
+      lineHeight: 1.6
+      text: |
+        <p><span style="color:$teal"><strong>✓</strong></span> <strong>接口隔离</strong>：Service / Repository 均定义接口，依赖注入装配</p>
+        <p style="margin-top:10px"><span style="color:$teal"><strong>✓</strong></span> <strong>零越层调用</strong>：Controller 不引用任何 Repository 或 SQL（全量代码扫描验证）</p>
+        <p style="margin-top:10px"><span style="color:$teal"><strong>✓</strong></span> <strong>统一事务</strong>：IRepositoryTransactionManager 管理跨表写入，失败整体回滚</p>
+        <p style="margin-top:10px"><span style="color:$teal"><strong>✓</strong></span> <strong>按钮不碰库</strong>：页面提交 → 控制器 → 服务 → 仓储，事件与 SQL 完全隔离</p>
+        <p style="margin-top:10px"><span style="color:$teal"><strong>✓</strong></span> <strong>五层文档</strong>：mvc-five-layer-spec.md / layered-architecture.md 固化约定</p>

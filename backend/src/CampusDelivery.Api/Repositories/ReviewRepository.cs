@@ -84,7 +84,7 @@ public sealed class ReviewRepository(OracleConnectionFactory connectionFactory) 
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.BindByName = true;
-        command.CommandText = ReviewProjection + """
+        command.CommandText = ReviewProjection + " " + """
              WHERE rv.task_id = :taskId
              ORDER BY rv.reviewed_at DESC, rv.review_id DESC
              """;
@@ -109,7 +109,7 @@ public sealed class ReviewRepository(OracleConnectionFactory connectionFactory) 
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.BindByName = true;
-        command.CommandText = ReviewProjection + """
+        command.CommandText = ReviewProjection + " " + """
              ORDER BY rv.reviewed_at DESC, rv.review_id DESC
              OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
              """;
@@ -145,7 +145,7 @@ public sealed class ReviewRepository(OracleConnectionFactory connectionFactory) 
         await connection.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.BindByName = true;
-        command.CommandText = ReviewProjection + """
+        command.CommandText = ReviewProjection + " " + """
              WHERE t.publisher_user_id = :publisherUserId
              ORDER BY rv.reviewed_at DESC, rv.review_id DESC
              OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY

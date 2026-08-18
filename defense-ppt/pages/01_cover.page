@@ -1,0 +1,72 @@
+pageType: cover
+background:
+  type: gradient
+  gradientType: linear
+  angle: 120
+  stops:
+    - {position: 0, color: "#0B1F3A"}
+    - {position: 1, color: "#0B4FB3"}
+notes: 开场：各位老师好，我们组的项目是济跑跑——面向校园场景的中转分发与跑腿服务管理系统。
+elements:
+  - elementId: hero
+    elementType: image
+    bounds: [520, 90, 380, 360]
+    src: media/jirun-hero-campus.png
+    cropShape: {shapeName: roundRect, adjustments: [8000]}
+    fit: {mode: cover}
+    shadow: {blur: 18, color: "#00000066", offset: [0, 8]}
+  - elementId: logo
+    elementType: image
+    bounds: [70, 96, 64, 64]
+    src: media/jirun-mark-512.png
+    fit: {mode: contain}
+  - elementId: kicker
+    elementType: text
+    bounds: [150, 100, 340, 24]
+    content:
+      fontSize: 14
+      color: "#00A6A6"
+      bold: true
+      letterSpacing: 3
+      wrap: false
+      align: [left, middle]
+      text: 数据库课程设计 · 答辩汇报
+  - elementId: title
+    elementType: text
+    bounds: [66, 180, 520, 120]
+    content:
+      align: [left, top]
+      text: |
+        <p><span style="font-size:56px; color:#FFFFFF;"><strong>济跑跑 JiRun</strong></span></p>
+        <p style="margin-top:10px"><span style="font-size:22px; color:#DCE7F5;">校园中转分发与跑腿服务管理系统</span></p>
+  - elementId: slogan
+    elementType: text
+    bounds: [70, 316, 420, 28]
+    content:
+      fontSize: 16
+      color: "#F59E0B"
+      bold: true
+      wrap: false
+      text: 校内需求，一路送达
+  - elementId: divider
+    elementType: shape
+    bounds: [70, 358, 72, 4]
+    shapeName: rect
+    fill:
+      type: gradient
+      gradientType: linear
+      angle: 0
+      stops:
+        - {position: 0, color: "#0B4FB3"}
+        - {position: 1, color: "#00A6A6"}
+  - elementId: meta
+    elementType: text
+    bounds: [70, 380, 430, 80]
+    content:
+      fontSize: 13
+      color: "#B8C7DE"
+      lineHeight: 1.7
+      text: |
+        <p>课程名称：《数据库系统》课程设计</p>
+        <p>小组成员：成员A · 成员B · 成员C · 成员D（答辩前替换）</p>
+        <p>汇报日期：2026 年 8 月</p>

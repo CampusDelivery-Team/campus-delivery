@@ -1,0 +1,63 @@
+pageType: final
+background:
+  type: gradient
+  gradientType: linear
+  angle: 120
+  stops:
+    - {position: 0, color: "#0B1F3A"}
+    - {position: 1, color: "#0B4FB3"}
+notes: 收尾：重申工作量与设计要点，一句话总结，留出提问时间。
+elements:
+  - elementId: logo
+    elementType: image
+    bounds: [440, 70, 80, 80]
+    src: media/jirun-mark-512.png
+    fit: {mode: contain}
+  - elementId: title
+    elementType: text
+    bounds: [130, 170, 700, 60]
+    content:
+      fontSize: 36
+      color: "$white"
+      bold: true
+      align: [center, middle]
+      wrap: false
+      text: 总结与展望
+  - elementId: stats
+    elementType: text
+    bounds: [130, 244, 700, 36]
+    content:
+      fontSize: 16
+      color: "#DCE7F5"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p style="text-align:center"><strong>24</strong> 张表 · <strong>84</strong> 个端点 · <strong>五层</strong> MVC · <strong>39</strong> 项测试 · 完整业务闭环</p>
+  - elementId: outlookcard
+    elementType: shape
+    bounds: [190, 306, 580, 130]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "#FFFFFF14"}
+  - elementId: outlook
+    elementType: text
+    bounds: [226, 322, 508, 100]
+    content:
+      fontSize: 14
+      color: "#DCE7F5"
+      lineHeight: 1.7
+      text: |
+        <p><span style="color:#F59E0B"><strong>展望</strong></span></p>
+        <p>· 消息通知：任务状态实时推送给发单方与跑腿员</p>
+        <p>· 智能派单：按跑腿员位置、负载与信誉分自动撮合</p>
+        <p>· 移动端：小程序 / App 形态覆盖更多使用场景</p>
+  - elementId: slogan
+    elementType: text
+    bounds: [130, 458, 700, 30]
+    content:
+      fontSize: 17
+      color: "#F59E0B"
+      bold: true
+      align: [center, middle]
+      wrap: false
+      text: 校内需求，一路送达 —— 感谢聆听，请老师批评指正

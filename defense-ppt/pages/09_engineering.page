@@ -1,0 +1,117 @@
+pageType: content
+background: {type: solid, color: "$bg"}
+notes: 鲁棒性与扩展性：连接串三级配置链；安全清单逐条可讲：认证、会话校验、授权、防伪、参数化、错误页、密码哈希。
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 30, 500, 20]
+    content: {style: "$kicker", wrap: false, text: 08 · 工程质量}
+  - elementId: title
+    elementType: text
+    bounds: [60, 50, 700, 42]
+    content: {style: "$pagetitle", wrap: false, text: 鲁棒性与安全性设计}
+  - elementId: titlebar
+    elementType: shape
+    bounds: [60, 100, 56, 4]
+    shapeName: rect
+    fill: {type: gradient, gradientType: linear, angle: 0, stops: [{position: 0, color: "$primary"}, {position: 1, color: "$teal"}]}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 60, 18]
+    content: {style: "$small", align: [right, middle], wrap: false, text: 09 / 12}
+  - elementId: cfglabel
+    elementType: text
+    bounds: [60, 126, 500, 22]
+    content: {fontSize: 15, color: "$dark", bold: true, wrap: false, text: 连接串三级配置链（改库不改代码）}
+  - elementId: cfg1
+    elementType: shape
+    bounds: [60, 158, 272, 96]
+    shapeName: roundRect
+    adjustments: [9000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: cfg1t
+    elementType: text
+    bounds: [78, 170, 236, 74]
+    content:
+      fontSize: 12.5
+      lineHeight: 1.5
+      text: |
+        <p><span style="color:$primary"><strong>① appsettings.json</strong></span></p>
+        <p><span style="color:$subtext">入库但留空占位，定义配置结构</span></p>
+  - elementId: cfgar1
+    elementType: icon
+    bounds: [338, 194, 22, 22]
+    iconName: "fas:arrow-right"
+    fill: {type: solid, color: "$subtext"}
+  - elementId: cfg2
+    elementType: shape
+    bounds: [366, 158, 272, 96]
+    shapeName: roundRect
+    adjustments: [9000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: cfg2t
+    elementType: text
+    bounds: [384, 170, 236, 74]
+    content:
+      fontSize: 12.5
+      lineHeight: 1.5
+      text: |
+        <p><span style="color:$teal"><strong>② appsettings.Local.json</strong></span></p>
+        <p><span style="color:$subtext">本地开发用，已 gitignore 不入库</span></p>
+  - elementId: cfgar2
+    elementType: icon
+    bounds: [644, 194, 22, 22]
+    iconName: "fas:arrow-right"
+    fill: {type: solid, color: "$subtext"}
+  - elementId: cfg3
+    elementType: shape
+    bounds: [672, 158, 228, 96]
+    shapeName: roundRect
+    adjustments: [9000]
+    fill: {type: gradient, gradientType: linear, angle: 45, stops: [{position: 0, color: "#0B4FB3"}, {position: 1, color: "#00A6A6"}]}
+  - elementId: cfg3t
+    elementType: text
+    bounds: [690, 170, 196, 74]
+    content:
+      fontSize: 12.5
+      lineHeight: 1.5
+      text: |
+        <p><span style="color:#FFFFFF"><strong>③ 环境变量覆盖</strong></span></p>
+        <p><span style="color:#DCE7F5">服务器注入真实连接串</span></p>
+  - elementId: seccard
+    elementType: shape
+    bounds: [60, 282, 840, 226]
+    shapeName: roundRect
+    adjustments: [6000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: sectitle
+    elementType: text
+    bounds: [84, 300, 400, 24]
+    content: {style: "$cardtitle", wrap: false, text: 安全清单（逐条可验证）}
+  - elementId: secleft
+    elementType: text
+    bounds: [84, 334, 390, 160]
+    content:
+      style: "$body"
+      fontSize: 13.5
+      lineHeight: 1.7
+      text: |
+        <p><span style="color:$teal"><strong>✓</strong></span> Cookie 认证 + 每次请求校验账号状态</p>
+        <p><span style="color:$teal"><strong>✓</strong></span> 角色授权 [Authorize(Roles=…)]，管理页隔离</p>
+        <p><span style="color:$teal"><strong>✓</strong></span> 全站 POST 防伪令牌（AntiForgery）</p>
+        <p><span style="color:$teal"><strong>✓</strong></span> 全部 SQL 参数化，杜绝注入</p>
+  - elementId: secright
+    elementType: text
+    bounds: [510, 334, 366, 160]
+    content:
+      style: "$body"
+      fontSize: 13.5
+      lineHeight: 1.7
+      text: |
+        <p><span style="color:$teal"><strong>✓</strong></span> 统一错误页，不向浏览器泄露堆栈和 SQL</p>
+        <p><span style="color:$teal"><strong>✓</strong></span> 密码 PBKDF2 加盐哈希存储，附旧格式迁移工具</p>
+        <p><span style="color:$teal"><strong>✓</strong></span> 账号停用即时生效（会话校验时强制登出）</p>
+        <p><span style="color:$teal"><strong>✓</strong></span> SSH 隧道访问数据库，1521 端口不公网暴露</p>

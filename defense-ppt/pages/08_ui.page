@@ -1,0 +1,63 @@
+pageType: content
+background: {type: solid, color: "$bg"}
+notes: 界面页：展示首页首屏和运营后台视觉，讲统一布局、角色化导航、操作反馈、品牌配色。
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 30, 500, 20]
+    content: {style: "$kicker", wrap: false, text: 07 · 用户界面设计}
+  - elementId: title
+    elementType: text
+    bounds: [60, 50, 700, 42]
+    content: {style: "$pagetitle", wrap: false, text: 界面：轻快、可信、清爽、有校园感}
+  - elementId: titlebar
+    elementType: shape
+    bounds: [60, 100, 56, 4]
+    shapeName: rect
+    fill: {type: gradient, gradientType: linear, angle: 0, stops: [{position: 0, color: "$primary"}, {position: 1, color: "$teal"}]}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 60, 18]
+    content: {style: "$small", align: [right, middle], wrap: false, text: 08 / 12}
+  - elementId: img1
+    elementType: image
+    bounds: [60, 130, 400, 250]
+    src: media/jirun-hero-campus.png
+    cropShape: {shapeName: roundRect, adjustments: [6000]}
+    fit: {mode: cover}
+    shadow: {blur: 12, color: "#00000033", offset: [0, 5]}
+  - elementId: img1cap
+    elementType: text
+    bounds: [60, 388, 400, 20]
+    content: {style: "$small", align: [center, middle], wrap: false, text: 首页首屏：产品定位 + 校园路线视觉}
+  - elementId: img2
+    elementType: image
+    bounds: [60, 416, 400, 92]
+    src: media/jirun-brand-sheet.png
+    cropShape: {shapeName: roundRect, adjustments: [10000]}
+    fit: {mode: cover}
+    shadow: {blur: 8, color: "#00000026", offset: [0, 4]}
+  - elementId: uicard
+    elementType: shape
+    bounds: [500, 130, 400, 378]
+    shapeName: roundRect
+    adjustments: [6000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: uicardtitle
+    elementType: text
+    bounds: [524, 150, 350, 24]
+    content: {style: "$cardtitle", wrap: false, text: 设计要点}
+  - elementId: uicardbody
+    elementType: text
+    bounds: [524, 184, 352, 310]
+    content:
+      style: "$body"
+      fontSize: 13.5
+      lineHeight: 1.62
+      text: |
+        <p><span style="color:$teal"><strong>✓</strong></span> <strong>品牌配色体系</strong>：校园蓝 #0B4FB3、活力青 #00A6A6、订单橙 #F59E0B，按钮统一蓝青渐变</p>
+        <p style="margin-top:9px"><span style="color:$teal"><strong>✓</strong></span> <strong>角色化导航</strong>：普通用户 / 跑腿员 / 管理员登录后看到各自工作流入口</p>
+        <p style="margin-top:9px"><span style="color:$teal"><strong>✓</strong></span> <strong>操作有回音</strong>：每次提交都有成功 / 失败提示（TempData 消息条）</p>
+        <p style="margin-top:9px"><span style="color:$teal"><strong>✓</strong></span> <strong>统一组件</strong>：表格、表单、状态标签、分页器全站同一风格</p>
+        <p style="margin-top:9px"><span style="color:$teal"><strong>✓</strong></span> <strong>后台克制清爽</strong>：信息密度优先，不堆砌装饰</p>

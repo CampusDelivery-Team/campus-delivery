@@ -1,0 +1,106 @@
+pageType: content
+background: {type: solid, color: "$bg"}
+notes: 数据库设计是评分重点：24 表全部有主键、31 个外键、141 个检查约束；用任务明细拆表论证 3NF；讲 reviews 的复合外键设计。
+elements:
+  - elementId: kicker
+    elementType: text
+    bounds: [60, 30, 500, 20]
+    content: {style: "$kicker", wrap: false, text: 04 · 数据库设计}
+  - elementId: title
+    elementType: text
+    bounds: [60, 50, 700, 42]
+    content: {style: "$pagetitle", wrap: false, text: 24 张表 · 满足第三范式 · 约束完备}
+  - elementId: titlebar
+    elementType: shape
+    bounds: [60, 100, 56, 4]
+    shapeName: rect
+    fill: {type: gradient, gradientType: linear, angle: 0, stops: [{position: 0, color: "$primary"}, {position: 1, color: "$teal"}]}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 60, 18]
+    content: {style: "$small", align: [right, middle], wrap: false, text: 05 / 12}
+  - elementId: leftcard
+    elementType: shape
+    bounds: [60, 126, 404, 172]
+    shapeName: roundRect
+    adjustments: [7000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: lefttitle
+    elementType: text
+    bounds: [82, 142, 360, 22]
+    content: {style: "$cardtitle", fontSize: 15, wrap: false, text: 完整性约束（线上实测统计）}
+  - elementId: leftbody
+    elementType: text
+    bounds: [82, 172, 364, 116]
+    content:
+      style: "$body"
+      fontSize: 13.5
+      lineHeight: 1.65
+      text: |
+        <p>主键 <span style="color:$primary"><strong>24</strong></span> 个 —— 每张表一个，无一缺失</p>
+        <p>外键 <span style="color:$primary"><strong>31</strong></span> 个 —— 引用关系全覆盖</p>
+        <p>检查约束 <span style="color:$primary"><strong>141</strong></span> 个 —— 枚举、取值范围入库即校验</p>
+        <p>唯一约束 <span style="color:$primary"><strong>7</strong></span> 个 —— 如"一任务一评价"</p>
+  - elementId: rightcard
+    elementType: shape
+    bounds: [496, 126, 404, 172]
+    shapeName: roundRect
+    adjustments: [7000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: righttitle
+    elementType: text
+    bounds: [518, 142, 360, 22]
+    content: {style: "$cardtitle", fontSize: 15, wrap: false, text: 命名与规范}
+  - elementId: rightbody
+    elementType: text
+    bounds: [518, 172, 364, 116]
+    content:
+      style: "$body"
+      fontSize: 13.5
+      lineHeight: 1.65
+      text: |
+        <p>表名：单数 snake_case（tasks / assign_records）</p>
+        <p>约束前缀：<span style="color:$primary"><strong>PK_ / FK_ / UK_ / CK_</strong></span></p>
+        <p>状态字段：英文枚举（WAITING / PAID …）+ 检查约束兜底</p>
+        <p>金额、时间、布尔标志语义统一，见数据字典文档</p>
+  - elementId: fnfcard
+    elementType: shape
+    bounds: [60, 316, 840, 92]
+    shapeName: roundRect
+    adjustments: [7000]
+    fill: {type: solid, color: "$lightblue"}
+  - elementId: fnftitle
+    elementType: text
+    bounds: [82, 330, 500, 22]
+    content: {fontSize: 15, color: "$primary", bold: true, wrap: false, text: 第三范式论证：任务明细的拆表决策}
+  - elementId: fnfbody
+    elementType: text
+    bounds: [82, 356, 800, 44]
+    content:
+      fontSize: 13
+      color: "$text"
+      lineHeight: 1.5
+      text: |
+        <p>若把餐饮、快递、私人三类任务的专有字段全部塞进 tasks 宽表，将产生大量可空列与冗余。拆为 food_delivery_details / express_pickup_details / private_task_details 三张明细表后，所有非主属性只依赖本表主键，无部分依赖、无传递依赖。</p>
+  - elementId: fkcard
+    elementType: shape
+    bounds: [60, 424, 840, 84]
+    shapeName: roundRect
+    adjustments: [7000]
+    fill: {type: solid, color: "$white"}
+    border: {style: solid, width: 1, color: "$border"}
+  - elementId: fktitle
+    elementType: text
+    bounds: [82, 438, 500, 22]
+    content: {fontSize: 15, color: "$accent", bold: true, wrap: false, text: 设计亮点：reviews 的复合外键}
+  - elementId: fkbody
+    elementType: text
+    bounds: [82, 462, 800, 40]
+    content:
+      fontSize: 13
+      color: "$text"
+      lineHeight: 1.5
+      text: |
+        <p>reviews 通过 <strong>(record_id, task_id) 复合外键</strong>绑定"同一任务的真实接派记录"，配合 UK_REVIEWS_TASK 唯一约束，从数据库层面保证"一项任务最多一条评价"，而不是只靠应用代码自觉。</p>
