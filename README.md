@@ -116,6 +116,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 | `docs/environment-guide.md` | 本地环境、SSH 隧道、共享库和 HTTPS 部署 |
 | `docs/layered-architecture.md` | 五层架构、目录职责、命名和数据显示规则 |
 | `docs/business-logic-overview.md` | 完整业务流程及必须遵守的状态、事务和完整性规则 |
+| `docs/设计调整说明.md` | 原设计与当前实现的调整依据、建议修正项和扩展边界 |
 | `database/oracle/README.md` | 数据库脚本、执行顺序和迁移状态 |
 | `docs/database_dictionary.md` | 24 张业务表字段字典 |
 | `docs/system-test-report.md` | 当前测试结论与剩余验收边界 |

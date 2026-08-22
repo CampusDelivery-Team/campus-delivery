@@ -2,9 +2,9 @@
 
 ## 1. 使用范围
 
-本指南用于执行 `system-test-report.md` 中标记为 `PENDING-DB` 的用例。它面向 ASP.NET Core MVC 页面和 Oracle 数据库，重点验证真实事务、行锁、权限、主业务闭环和异常输入。
+本指南用于首次执行或重新执行 `system-test-report.md` 中的 `PASS-DB` 数据库用例。它面向 ASP.NET Core MVC 页面和 Oracle 数据库，重点验证真实事务、行锁、权限、主业务闭环和异常输入。2026-08-22 的共享库实际结果见 `test-evidence/manual/2026-08-22-shared-e2e.md`。
 
-不要在共享生产库或未获授权的云端库执行本指南。应使用可以重建、可以清理的隔离 Oracle 测试库。
+不要在生产库或未获授权的云端库执行本指南。优先使用可以重建、可以清理的隔离 Oracle 测试库；若数据库负责人明确授权共享测试库，应使用唯一标识的专用账号和业务记录，不修改团队既有数据。
 
 ## 2. 执行前准备
 
@@ -161,10 +161,10 @@ ORDER BY runner_id;
 | 退款 | APPLY | 重复申请 | 拒绝第二条有效申请 |
 | 退款 | APPROVED/REJECTED | 重复审核 | 拒绝，结果不变 |
 | 评价 | 非 FINISHED | 提交评价 | 拒绝 |
-| 评价 | UNPAID + FINISHED | 提交评价 | 当前已知缺陷，应记录 FAIL，不得改写为 PASS |
+| 评价 | UNPAID + WAIT_CONFIRM | 提交评价 | 拒绝，不写评价或调整信誉分 |
 | 投诉 | 非 FINISHED | 提交投诉 | 拒绝 |
 | 投诉 | DONE | 再次处理 | 拒绝，不重复扣信誉分 |
-| 结算 | DONE | 回退 WAITING | 当前已知缺陷，应记录 FAIL |
+| 结算 | DONE | 回退 WAITING | 拒绝，保持 DONE |
 
 ## 7. 异常输入与越权测试
 
