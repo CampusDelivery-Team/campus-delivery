@@ -1,26 +1,34 @@
-# Oracle 脚本
+# Oracle 数据库脚本
 
-## 标准建表脚本
+本文是数据库脚本、执行顺序和共享库迁移状态的唯一权威说明。字段字典见 `docs/database_dictionary.md`。
+
+## 脚本清单
+
+| 脚本 | 用途 |
+| --- | --- |
+| `campus_runner_oracle_schema.sql` | 创建 24 张业务表、序列、约束和索引；包含 DROP/重建逻辑 |
+| `002_init_base_data.sql` | 插入基础账号、节点、服务类型和服务节点规则 |
+| `003_add_account_lifecycle.sql` | 统一账号生命周期状态 |
+| `004_add_review_integrity.sql` | 增加评价任务列、任务唯一约束和复合外键 |
+| `005_hash_user_passwords.sql` | 扩展密码字段并迁移基础账号 Identity 哈希 |
+| `006_harden_business_integrity.sql` | 增加单默认地址和服务名称唯一索引 |
+
+## 新建或重建数据库
+
+只在空库、专用开发库，或经数据库负责人确认需要重建时执行：
 
 ```text
-campus_runner_oracle_schema.sql
+1. campus_runner_oracle_schema.sql
+2. 002_init_base_data.sql
 ```
 
-该脚本包含 24 张业务表。当前公共联调数据库服务名为 `orclpdb1`。
+`campus_runner_oracle_schema.sql` 已包含当前完整结构。它会删除并重建业务表，禁止直接在共享库执行。
 
-注意：`campus_runner_oracle_schema.sql` 包含 `DROP TABLE` 和重建表逻辑，只用于初始化空库、重建开发库，或经数据库负责人确认后的重建操作。不要在公共联调库中随意执行。
+基础数据脚本不写入完整任务、支付、退款、评价、投诉、结算或审计闭环数据。需要端到端验收时，应使用隔离库通过页面形成数据；仓库目前不提供 `003_init_test_data.sql`。
 
-## 基础数据脚本
+## 升级已有数据库
 
-```text
-002_init_base_data.sql
-```
-
-该脚本插入基础运行数据，不插入完整演示测试数据。
-
-## 已有数据库迁移
-
-现有数据库按顺序执行：
+已有旧结构数据库在备份和预检查后按顺序执行：
 
 ```text
 003_add_account_lifecycle.sql
@@ -29,40 +37,37 @@ campus_runner_oracle_schema.sql
 006_harden_business_integrity.sql
 ```
 
-`004_add_review_integrity.sql` 会为评价补充 `task_id`，增加“一项任务只能评价一次”的唯一约束，并通过复合外键保证评价绑定的接派记录属于同一任务。脚本执行前会检查历史数据；如果同一任务已经存在多条评价，脚本会停止并提示先处理冲突数据，不会自动删除历史评价。
+脚本中的数据冲突检查失败时，应先分析并修复历史数据，不得通过删除约束或跳过检查强行继续。
 
-`005_hash_user_passwords.sql` 会把 `users.password_hash` 扩展到 `VARCHAR2(256 CHAR)`，并将三个基础测试账号更新为 ASP.NET Core `PasswordHasher<User>` 生成的带盐哈希。如果现有库还包含其他明文密码账号，脚本会在修改数据前停止，要求先明确重置这些账号，不会在正式登录逻辑中保留明文兼容分支。
+## 共享库当前状态
 
-`006_harden_business_integrity.sql` 增加两个最终一致性保护：同一用户最多一条默认地址、服务类型名称忽略大小写和首尾空格后唯一。脚本会先检查历史重复数据；发现冲突时停止，不会自动删除或合并业务数据。
+2026-08-22 通过 SSH 隧道和应用成员账号完成只读核验：
 
-### 已有账号的统一密码迁移
+- `APPUSER` 拥有 24 张业务表和 14 个序列；
+- `CK_USERS_STATUS` 已启用并验证；
+- `REVIEWS.TASK_ID` 为非空，`UK_REVIEWS_TASK`、`FK_REVIEWS_RECORD_TASK` 和相关索引有效；
+- 31 个账号全部使用 ASP.NET Core Identity 格式密码哈希；
+- `UK_USER_ADDRESSES_ONE_DEFAULT`、`UK_SERVICE_TYPES_NAME_CI` 均为有效唯一索引；
+- 重复默认地址、重复服务名称、评价任务空值和评价接派关系异常均为 0。
 
-公共联调库存在非种子账号时，不要直接修改 `005_hash_user_passwords.sql` 绕过保护检查，也不要用一份固定哈希覆盖所有人的密码。请使用：
+因此 `003` 至 `006` 已完成，不再属于当前迁移待办。
+
+## 密码迁移工具
+
+如果数据库包含脚本无法安全处理的历史密码，使用：
 
 ```text
 backend/tools/CampusDelivery.PasswordMigration
 ```
 
-该工具会保留每个账号原来的登录密码，把旧值分别转换为随机盐 Identity 哈希。正式执行顺序为：停止账号写入、`--dry-run` 盘点、`--execute` 事务迁移、`--verify-backup` 校验 DPAPI 加密备份、`--verify-migrated` 逐账号校验原密码兼容性、再次 `--dry-run` 确认旧格式数量为零，最后启动应用做登录回归。具体命令和回滚方式见工具目录中的 `README.md`。
+工具支持只读盘点、事务迁移、DPAPI 加密备份、迁移后校验和恢复。具体命令见该工具目录的 `README.md`。正式执行前必须暂停账号写入并保存可验证备份。
 
-## 当前未提供的脚本
+## 连接和权限
 
-```text
-003_init_test_data.sql
-```
+公共联调库使用 Oracle 19c，Service Name 为 `orclpdb1`。本地通过 SSH 隧道连接 `127.0.0.1:15210/orclpdb1`；完整配置和安全边界见 `docs/environment-guide.md`。
 
-如后续需要完整业务演示数据，应按上述命名新增，并在文档中补充执行顺序。
+真实账号、密码和私钥不得写入 SQL、配置、文档或提交记录。普通结构查看优先使用只读账号；DDL、迁移和共享库写入需要数据库负责人明确授权。
 
-## 中英文规则
+## 数据值约定
 
-数据库字段值存英文代码，例如：
-
-```text
-NORMAL
-CLOSED
-GATE
-STATION
-DISTRIBUTION
-```
-
-MVC 页面展示时由 Service 或 ViewModel 转换为中文。
+数据库状态和枚举统一保存英文代码。Repository 原样读写英文值，Service/ViewModel 准备中文显示名称，Razor View 只负责展示。详细分层规则见 `docs/layered-architecture.md`。

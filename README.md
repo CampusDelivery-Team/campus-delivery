@@ -45,6 +45,14 @@ http://localhost:5227/Node
 http://localhost:5227/Database/Status
 ```
 
+公开演示入口：
+
+```text
+https://47.116.60.57/
+```
+
+公网使用 HTTPS 默认端口 443；应用内部端口 5227 不直接对公网开放。
+
 ## 当前已落地模块与页面
 
 | 地址 | 说明 |
@@ -75,89 +83,13 @@ http://localhost:5227/Database/Status
 
 首页和导航根据访客、普通用户、跑腿员和管理员身份展示真实入口。任务发布、抢单/派单、配送、收货支付、退款、评价、投诉、结算、审计和统计报表均已有 Controller、Service、Repository 和 Razor 页面。当前验收边界与已知问题以 `docs/system-test-report.md` 为准。
 
-## 数据库连接
+## 数据库与环境
 
-当前公共联调数据库使用 Oracle 19c，服务名为：
+公共联调库使用 Oracle 19c，Service Name 为 `orclpdb1`。本地通过 SSH 隧道连接 `127.0.0.1:15210/orclpdb1`，真实账号、密码和私钥不进入版本控制。
 
-```text
-orclpdb1
-```
+2026-08-22 已实时确认共享库包含 24 张业务表，`003` 至 `006` 迁移全部生效，31 个账号均使用 Identity 密码哈希，默认地址、服务名称和评价关系完整性检查无异常。
 
-开发人员本地连接云服务器 Oracle 时，应先建立 SSH 隧道，然后使用：
-
-```text
-Host: 127.0.0.1
-Port: 15210
-Service Name: orclpdb1
-User: 由服务器负责人提供
-Password: 由服务器负责人提供
-```
-
-本地后端连接串示例：
-
-```text
-User Id=<database_user>;Password=<database_password>;Data Source=localhost:15210/orclpdb1;
-```
-
-本地运行前可通过环境变量覆盖连接串：
-
-```powershell
-$env:ConnectionStrings__OracleDb="User Id=<database_user>;Password=<database_password>;Data Source=localhost:15210/orclpdb1;"
-dotnet run --project backend/src/CampusDelivery.Api/CampusDelivery.Api.csproj
-```
-
-仓库支持可选的 `appsettings.Local.json` 本地覆盖文件，适合个人本机调试使用；该文件已被 `.gitignore` 忽略，不要提交真实凭据。
-
-数据库账号和密码不写入 GitHub 文档、README、代码或提交记录。
-
-## 数据库账号说明
-
-当前数据库账号按用途区分：
-
-| 账号 | 用途 | 是否默认提供给开发人员 |
-| --- | --- | --- |
-| `APPUSER` | 服务器后端运行账号，也是当前业务表拥有者 | 否 |
-| `APPREAD` | 只读账号，用于查看表结构、字段和基础数据 | 是，只读查询场景按需提供 |
-
-普通开发人员如只需要查看表结构和查询基础数据，使用 `APPREAD`。需要调试新增、修改、删除等写入逻辑的同学，应单独向服务器负责人说明用途后再提供相应账号。
-
-## 数据库脚本
-
-当前数据库脚本包括：
-
-```text
-database/oracle/campus_runner_oracle_schema.sql
-database/oracle/002_init_base_data.sql
-database/oracle/003_add_account_lifecycle.sql
-database/oracle/004_add_review_integrity.sql
-database/oracle/005_hash_user_passwords.sql
-database/oracle/006_harden_business_integrity.sql
-```
-
-其中：
-
-- `campus_runner_oracle_schema.sql`：建表脚本，包含 `DROP TABLE` 和重建表逻辑，只用于初始化空库或确认需要重建时执行。
-- `002_init_base_data.sql`：基础运行数据脚本，插入管理员、普通用户、跑腿员、节点、服务类型和服务节点规则。
-- `003_add_account_lifecycle.sql`：为既有数据库补充账号生命周期状态与相关约束。
-- `004_add_review_integrity.sql`：为评价数据补充唯一性和接派关联完整性约束。
-- `005_hash_user_passwords.sql`：既有演示账号密码哈希迁移脚本。
-- `006_harden_business_integrity.sql`：为默认地址和服务类型名称增加并发下的最终唯一性保护。
-
-基础脚本不写入完整业务闭环数据；端到端测试数据应按 `docs/manual-system-test-guide.md` 在隔离测试库中通过页面操作形成。
-
-## 数据显示规则
-
-数据库保存英文代码，页面显示中文名称。例如：
-
-| 数据库存储 | 页面显示 |
-| --- | --- |
-| `GATE` | 校门 |
-| `STATION` | 驿站 |
-| `DISTRIBUTION` | 分发点 |
-| `NORMAL` | 正常 |
-| `CLOSED` | 关闭 |
-
-Repository 只读写英文代码；Service/ViewModel 负责准备中文显示字段；Razor View 只展示中文字段。
+连接配置、SSH 隧道、HTTPS 部署和权限边界统一见 `docs/environment-guide.md`；脚本执行顺序见 `database/oracle/README.md`；字段字典见 `docs/database_dictionary.md`。
 
 ## 构建检查
 
@@ -175,4 +107,18 @@ dotnet build backend/CampusDelivery.sln
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 ```
 
-2026-08-15 的本地结果为 39/39 项自动化测试通过；同时检查到 24 张关系表、46/46 个 POST Action 有防伪令牌、14 处仓储行锁语句，且 Controller/Service 未越过五层边界。
+2026-08-22 的 Release 结果为 39/39 项自动化测试通过；同时检查到 24 张关系表、46/46 个 POST Action 有防伪令牌、14 处仓储行锁语句，且 Controller/Service 未越过五层边界。
+
+## 文档入口
+
+| 文档 | 用途 |
+| --- | --- |
+| `docs/environment-guide.md` | 本地环境、SSH 隧道、共享库和 HTTPS 部署 |
+| `docs/layered-architecture.md` | 五层架构、目录职责、命名和数据显示规则 |
+| `docs/business-logic-overview.md` | 完整业务流程及必须遵守的状态、事务和完整性规则 |
+| `database/oracle/README.md` | 数据库脚本、执行顺序和迁移状态 |
+| `docs/database_dictionary.md` | 24 张业务表字段字典 |
+| `docs/system-test-report.md` | 当前测试结论与剩余验收边界 |
+| `docs/manual-system-test-guide.md` | 数据库端到端手工验收步骤 |
+
+`docs/test-evidence/` 保存带日期的历史测试证据和原始输出，不作为当前环境配置说明。
