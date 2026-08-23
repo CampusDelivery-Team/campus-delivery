@@ -100,7 +100,42 @@ public sealed class AssignService(
                 task.AddressNo,
                 cancellationToken);
             var logs = await assignRepository.GetStatusLogsByTaskIdAsync(task.TaskId, cancellationToken);
+            var details = await assignRepository.GetActiveTaskDetailsAsync(
+                task.TaskId,
+                runner.RunnerId,
+                cancellationToken);
             bool receiptConfirmed = logs.Any(log => IsReceiptConfirmationLog(log, task.PublisherUserId));
+
+            var detailFields = new List<TaskDetailFieldViewModel>();
+            void AddDetail(string label, string? value)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    detailFields.Add(new TaskDetailFieldViewModel { Label = label, Value = value });
+                }
+            }
+
+            if (details?.Task.TaskKind == "FOOD")
+            {
+                AddDetail("商家名称", details.MerchantName);
+                AddDetail("平台订单号", details.PlatformOrderNo);
+                AddDetail("取餐备注", details.FoodPickupNote);
+            }
+            else if (details?.Task.TaskKind == "EXPRESS")
+            {
+                AddDetail("快递公司", details.ExpressCompany);
+                AddDetail("物流单号", details.WaybillNo);
+                AddDetail("取件码", details.PickupCode);
+                AddDetail("取件备注", details.ExpressPickupNote);
+            }
+            else if (details?.Task.TaskKind == "PRIVATE")
+            {
+                AddDetail("物品类别", details.ItemCategory);
+                AddDetail("取货地点", details.PickupLocation);
+                AddDetail("送达地点", details.DeliveryLocation);
+                AddDetail("期望完成时间", details.ExpectedFinishAt?.ToString("yyyy-MM-dd HH:mm"));
+                AddDetail("任务描述", details.PrivateDescription);
+            }
 
             viewModel.ActiveTasks.Add(new MyTaskItemViewModel
             {
@@ -120,6 +155,7 @@ public sealed class AssignService(
                 ContactPhone = contactPhone,
                 AssignedAt = assign.AssignedAt,
                 ReceiptConfirmed = receiptConfirmed,
+                DetailFields = detailFields,
 
                 Logs = logs.Select(log => new TaskStatusLogViewModel
                 {

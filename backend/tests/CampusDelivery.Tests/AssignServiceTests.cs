@@ -1,4 +1,5 @@
 using CampusDelivery.Api.Models;
+using CampusDelivery.Api.Presentation.ViewModels;
 using CampusDelivery.Api.Services;
 
 namespace CampusDelivery.Tests;
@@ -69,6 +70,39 @@ public sealed class AssignServiceTests
         Assert.False(second);
         Assert.True(repository.ReceiptConfirmed);
         Assert.Single(repository.InsertedStatusLogs);
+    }
+
+    [Fact]
+    public async Task GetMyTasksAsync_ForExpressTask_IncludesPickupCodeAndRequirements()
+    {
+        var repository = CreateAssignedRepository();
+        repository.ActiveTasks.Add(new CampusTask
+        {
+            TaskId = repository.TaskId,
+            PublisherUserId = repository.PublisherUserId,
+            ServiceTypeId = 21,
+            AddressNo = 1,
+            NodeId = 23,
+            TaskTitle = "帮我取快递",
+            TaskPrice = 6m,
+            TaskStatus = "ASSIGNED"
+        });
+        repository.ActiveTaskDetails = new TaskDetailsRecord
+        {
+            Task = new TaskRecord { TaskId = repository.TaskId, TaskKind = "EXPRESS" },
+            ExpressCompany = "顺丰",
+            WaybillNo = "SF123456",
+            PickupCode = "8-2-301",
+            ExpressPickupNote = "易碎，请轻拿轻放"
+        };
+        var service = new AssignService(repository, new FakeRepositoryTransactionManager());
+
+        MyTasksViewModel? result = await service.GetMyTasksAsync(11, 1, 20);
+
+        MyTaskItemViewModel task = Assert.Single(Assert.IsType<MyTasksViewModel>(result).ActiveTasks);
+        Assert.Contains(task.DetailFields, field => field.Label == "取件码" && field.Value == "8-2-301");
+        Assert.Contains(task.DetailFields, field => field.Label == "物流单号" && field.Value == "SF123456");
+        Assert.Contains(task.DetailFields, field => field.Label == "取件备注" && field.Value == "易碎，请轻拿轻放");
     }
 
     private static FakeAssignRepository CreateAssignedRepository()

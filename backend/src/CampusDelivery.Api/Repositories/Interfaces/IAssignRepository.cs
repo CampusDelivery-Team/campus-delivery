@@ -9,6 +9,7 @@ public interface IAssignRepository
     Task<Runner?> GetRunnerByUserIdAsync(int userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CampusTask>> GetActiveTasksByRunnerIdAsync(int runnerId, int offset, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetActiveTaskCountByRunnerIdAsync(int runnerId, CancellationToken cancellationToken = default);
+    Task<TaskDetailsRecord?> GetActiveTaskDetailsAsync(int taskId, int runnerId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CampusTask>> GetTasksWaitingForReceiptAsync(int publisherUserId, int offset, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetTasksWaitingForReceiptCountAsync(int publisherUserId, CancellationToken cancellationToken = default);
     Task<string?> GetTaskStatusWithLockAsync(int taskId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);

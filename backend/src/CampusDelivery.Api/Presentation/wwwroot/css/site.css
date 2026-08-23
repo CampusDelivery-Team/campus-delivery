@@ -2295,6 +2295,43 @@ button:disabled {
     padding-left: 16px;
 }
 
+.task-card__business-details {
+    background: #fff9e8;
+    border: 1px solid #f0d98a;
+    border-radius: 6px;
+    margin: 0 0 20px;
+    padding: 14px 16px;
+}
+
+.task-card__business-details h3 {
+    color: #765600;
+    font-size: 14px;
+    margin: 0 0 10px;
+}
+
+.task-card__business-details dl {
+    display: grid;
+    gap: 8px 20px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+}
+
+.task-card__business-details dl div {
+    min-width: 0;
+}
+
+.task-card__business-details dt {
+    color: #7b6a37;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.task-card__business-details dd {
+    color: #2c2616;
+    margin: 2px 0 0;
+    overflow-wrap: anywhere;
+}
+
 .task-card__footer {
     background: #f8fbff;
     border: 1px solid #e3eefd;
@@ -2427,6 +2464,10 @@ button:disabled {
     }
 
     .task-card__details {
+        grid-template-columns: 1fr;
+    }
+
+    .task-card__business-details dl {
         grid-template-columns: 1fr;
     }
 

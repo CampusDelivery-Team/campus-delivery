@@ -101,6 +101,10 @@ internal sealed class FakeAssignRepository : IAssignRepository
 
     public bool ReceiptConfirmed { get; set; }
 
+    public List<CampusTask> ActiveTasks { get; } = [];
+
+    public TaskDetailsRecord? ActiveTaskDetails { get; set; }
+
     public List<AssignRecord> InsertedAssignRecords { get; } = [];
 
     public List<TaskStatusLog> InsertedStatusLogs { get; } = [];
@@ -294,12 +298,18 @@ internal sealed class FakeAssignRepository : IAssignRepository
         int offset,
         int pageSize,
         CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<CampusTask>>([]);
+        Task.FromResult<IReadOnlyList<CampusTask>>(ActiveTasks.Skip(offset).Take(pageSize).ToList());
 
     public Task<int> GetActiveTaskCountByRunnerIdAsync(
         int runnerId,
         CancellationToken cancellationToken = default) =>
-        Task.FromResult(0);
+        Task.FromResult(ActiveTasks.Count);
+
+    public Task<TaskDetailsRecord?> GetActiveTaskDetailsAsync(
+        int taskId,
+        int runnerId,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(taskId == TaskId && GetRunner(runnerId) is not null ? ActiveTaskDetails : null);
 
     public Task<IReadOnlyList<CampusTask>> GetTasksWaitingForReceiptAsync(
         int publisherUserId,

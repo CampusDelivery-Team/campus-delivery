@@ -26,6 +26,7 @@ public sealed class MyTaskItemViewModel
     public string ContactPhone { get; set; } = string.Empty;
     public DateTime AssignedAt { get; set; }
     public bool ReceiptConfirmed { get; set; }
+    public List<TaskDetailFieldViewModel> DetailFields { get; set; } = new();
     public List<TaskStatusLogViewModel> Logs { get; set; } = new();
 }
 

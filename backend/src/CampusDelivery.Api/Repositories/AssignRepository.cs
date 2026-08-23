@@ -142,6 +142,79 @@ public sealed class AssignRepository(OracleConnectionFactory connectionFactory) 
         return Convert.ToInt32(result);
     }
 
+    public async Task<TaskDetailsRecord?> GetActiveTaskDetailsAsync(
+        int taskId,
+        int runnerId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT CASE WHEN f.task_id IS NOT NULL THEN 'FOOD'
+                        WHEN e.task_id IS NOT NULL THEN 'EXPRESS'
+                        WHEN p.task_id IS NOT NULL THEN 'PRIVATE'
+                        ELSE 'UNKNOWN' END AS task_kind,
+                   f.merchant_name, f.platform_order_no, f.pickup_note AS food_pickup_note,
+                   e.express_company, e.waybill_no, e.pickup_code,
+                   e.pickup_note AS express_pickup_note,
+                   p.item_category, p.pickup_location, p.delivery_location,
+                   p.expected_finish_at, p.description AS private_description
+            FROM APPUSER.tasks t
+            JOIN (
+                SELECT task_id, runner_id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY task_id
+                           ORDER BY assigned_at DESC, record_id DESC
+                       ) AS rn
+                FROM APPUSER.assign_records
+            ) ar ON ar.task_id = t.task_id AND ar.rn = 1
+            LEFT JOIN APPUSER.food_delivery_details f
+                   ON f.task_id = t.task_id AND f.detail_no = 1
+            LEFT JOIN APPUSER.express_pickup_details e
+                   ON e.task_id = t.task_id AND e.detail_no = 1
+            LEFT JOIN APPUSER.private_task_details p
+                   ON p.task_id = t.task_id AND p.detail_no = 1
+            WHERE t.task_id = :taskId
+              AND ar.runner_id = :runnerId
+              AND t.task_status IN ('ASSIGNED', 'PICKED_UP', 'DELIVERING', 'WAIT_CONFIRM')
+            """;
+        command.Parameters.Add(new OracleParameter("taskId", taskId));
+        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        string? Optional(string name) => reader[name] == DBNull.Value ? null : Convert.ToString(reader[name]);
+        return new TaskDetailsRecord
+        {
+            Task = new TaskRecord
+            {
+                TaskId = taskId,
+                TaskKind = Convert.ToString(reader["task_kind"]) ?? "UNKNOWN"
+            },
+            MerchantName = Optional("merchant_name"),
+            PlatformOrderNo = Optional("platform_order_no"),
+            FoodPickupNote = Optional("food_pickup_note"),
+            ExpressCompany = Optional("express_company"),
+            WaybillNo = Optional("waybill_no"),
+            PickupCode = Optional("pickup_code"),
+            ExpressPickupNote = Optional("express_pickup_note"),
+            ItemCategory = Optional("item_category"),
+            PickupLocation = Optional("pickup_location"),
+            DeliveryLocation = Optional("delivery_location"),
+            ExpectedFinishAt = reader["expected_finish_at"] == DBNull.Value
+                ? null
+                : Convert.ToDateTime(reader["expected_finish_at"]),
+            PrivateDescription = Optional("private_description")
+        };
+    }
+
 
     public async Task<IReadOnlyList<CampusTask>> GetTasksWaitingForReceiptAsync(
         int publisherUserId,

@@ -59,6 +59,22 @@
                         </div>
                     </div>
 
+                    @if (task.DetailFields.Count > 0)
+                    {
+                        <section class="task-card__business-details" aria-label="取件与配送要求">
+                            <h3>取件与配送要求</h3>
+                            <dl>
+                                @foreach (var field in task.DetailFields)
+                                {
+                                    <div>
+                                        <dt>@field.Label</dt>
+                                        <dd>@field.Value</dd>
+                                    </div>
+                                }
+                            </dl>
+                        </section>
+                    }
+
                     <div class="task-card__footer">
                         <div class="actions">
                             @if (task.TaskStatus == "ASSIGNED")

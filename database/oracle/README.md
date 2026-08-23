@@ -12,6 +12,7 @@
 | `004_add_review_integrity.sql` | 增加评价任务列、任务唯一约束和复合外键 |
 | `005_hash_user_passwords.sql` | 扩展密码字段并迁移基础账号 Identity 哈希 |
 | `006_harden_business_integrity.sql` | 增加单默认地址和服务名称唯一索引 |
+| `007_restore_required_service_node_rules.sql` | 幂等恢复三类基础服务所需的服务节点绑定 |
 
 ## 新建或重建数据库
 
@@ -35,6 +36,7 @@
 004_add_review_integrity.sql
 005_hash_user_passwords.sql
 006_harden_business_integrity.sql
+007_restore_required_service_node_rules.sql
 ```
 
 脚本中的数据冲突检查失败时，应先分析并修复历史数据，不得通过删除约束或跳过检查强行继续。
@@ -51,6 +53,8 @@
 - 重复默认地址、重复服务名称、评价任务空值和评价接派关系异常均为 0。
 
 因此 `003` 至 `006` 已完成，不再属于当前迁移待办。
+
+`007_restore_required_service_node_rules.sql` 是针对基础绑定数据漂移的补丁；各环境执行后应确认四条基础绑定均存在。未取得共享库写权限前，不得把“脚本已加入仓库”等同于“共享库已完成迁移”。
 
 ## 密码迁移工具
 
