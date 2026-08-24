@@ -1,124 +1,327 @@
-using CampusDelivery.Api.Services;
+using System.Security.Claims;
+using CampusDelivery.Api.Presentation.ViewModels;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
-namespace CampusDelivery.Api.Controllers;
-
-[Authorize]
-public sealed class TaskController(AssignService assignService) : Controller
+namespace CampusDelivery.Api.Controllers
 {
-    private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
-
-    [HttpGet]
-    public async Task<IActionResult> Index(int page = 1, int size = 5, CancellationToken cancellationToken = default)
+    [Authorize]
+    public sealed class TaskController : Controller
     {
-        var viewModel = await assignService.GetTaskHallAsync(CurrentUserId, page, size, cancellationToken);
-        return View(viewModel);
-    }
+        private readonly ITaskService _taskService;
+        private readonly IAssignService _assignService;
+        private readonly IReviewService _reviewService;
+        private readonly IComplaintService _complaintService;
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Grab(int taskId, CancellationToken cancellationToken)
-    {
-        bool success = await assignService.GrabTaskAsync(taskId, CurrentUserId, cancellationToken);
-        if (success)
+        public TaskController(
+            ITaskService taskService,
+            IAssignService assignService,
+            IReviewService reviewService,
+            IComplaintService complaintService)
         {
-            TempData["SuccessMessage"] = "抢单成功，已为您分配该配送任务。";
+            _taskService = taskService;
+            _assignService = assignService;
+            _reviewService = reviewService;
+            _complaintService = complaintService;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Index(CancellationToken cancellationToken)
+        {
+            int? currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            TaskIndexViewModel model = await _taskService.GetIndexAsync(
+                currentUserId.Value,
+                User.IsInRole("ADMIN"),
+                cancellationToken);
+            return View(model);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Create(CancellationToken cancellationToken)
+        {
+            int? currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            TaskCreateViewModel model = await _taskService.BuildCreateModelAsync(
+                currentUserId.Value,
+                cancellationToken);
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(
+            TaskCreateViewModel model,
+            CancellationToken cancellationToken)
+        {
+            int? currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                await _taskService.PopulateCreateOptionsAsync(model, currentUserId.Value, cancellationToken);
+                return View(model);
+            }
+
+            TaskOperationResult result = await _taskService.CreateAsync(
+                currentUserId.Value,
+                model,
+                cancellationToken);
+            if (!result.Success)
+            {
+                ModelState.AddModelError(string.Empty, result.ErrorMessage);
+                await _taskService.PopulateCreateOptionsAsync(model, currentUserId.Value, cancellationToken);
+                return View(model);
+            }
+
+            TempData["TaskMessage"] = $"任务发布成功，任务编号 #{result.TaskId}，当前状态为待接单";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Cancel(int id, CancellationToken cancellationToken)
+        {
+            int? currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            TempData["TaskMessage"] = await _taskService.CancelAsync(
+                id,
+                currentUserId.Value,
+                cancellationToken);
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Details(int id, CancellationToken cancellationToken)
+        {
+            int? currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            TaskDetailsViewModel? model = await _taskService.GetDetailsAsync(
+                id,
+                currentUserId.Value,
+                User.IsInRole("ADMIN"),
+                cancellationToken);
+            if (model == null)
+            {
+                return NotFound();
+            }
+
+            if (model.RecordId.HasValue && !User.IsInRole("ADMIN"))
+            {
+                model.HasReview = (await _reviewService.GetByTaskIdAsync(id, cancellationToken)).Count > 0;
+                model.CanReview = model.CanReview && !model.HasReview;
+                model.CanComplain = model.CanComplain && await _complaintService.CanCreateComplaintAsync(
+                    model.RecordId.Value,
+                    currentUserId.Value,
+                    cancellationToken);
+            }
+
+            return View(model);
+        }
+
+        [Authorize(Roles = "RUNNER")]
+        [HttpGet]
+        public async Task<IActionResult> Hall(
+            int page = 1,
+            int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            int? currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            TaskHallViewModel model = await _assignService.GetTaskHallAsync(
+                currentUserId.Value,
+                page,
+                pageSize,
+                cancellationToken);
+            return View(model);
+        }
+
+        [Authorize(Roles = "RUNNER")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Grab(int taskId, CancellationToken cancellationToken)
+        {
+            int? currentUserId = GetCurrentUserId();
+            bool success = currentUserId.HasValue && await _assignService.GrabTaskAsync(
+                taskId,
+                currentUserId.Value,
+                cancellationToken);
+
+            TempData[success ? "SuccessMessage" : "ErrorMessage"] = success
+                ? "接单成功，请前往配送工作台处理任务。"
+                : "接单失败。不能接自己发布的任务；任务也可能已被接走，或您的账号当前不可接单。";
+            return RedirectToAction(nameof(Hall));
+        }
+
+        [Authorize(Roles = "RUNNER")]
+        [HttpGet]
+        public async Task<IActionResult> MyTasks(
+            int page = 1,
+            int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            int? currentUserId = GetCurrentUserId();
+            MyTasksViewModel? model = currentUserId.HasValue
+                ? await _assignService.GetMyTasksAsync(currentUserId.Value, page, pageSize, cancellationToken)
+                : null;
+            return model == null ? Forbid() : View(model);
+        }
+
+        [Authorize(Roles = "RUNNER")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateStatus(
+            int taskId,
+            string targetStatus,
+            CancellationToken cancellationToken)
+        {
+            int? currentUserId = GetCurrentUserId();
+            bool success = currentUserId.HasValue && await _assignService.UpdateStatusAsync(
+                taskId,
+                targetStatus,
+                currentUserId.Value,
+                cancellationToken);
+
+            TempData[success ? "SuccessMessage" : "ErrorMessage"] = success
+                ? "任务状态已更新。"
+                : "状态更新失败，请刷新页面后重试。";
             return RedirectToAction(nameof(MyTasks));
         }
 
-        TempData["ErrorMessage"] = "抢单失败，请检查跑腿员资质、工作状态或任务状态。";
-        return RedirectToAction(nameof(Index));
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> MyTasks(int page = 1, int size = 5, CancellationToken cancellationToken = default)
-    {
-        var viewModel = await assignService.GetMyTasksAsync(CurrentUserId, page, size, cancellationToken);
-        if (viewModel == null)
+        [HttpGet]
+        public async Task<IActionResult> Receipt(
+            int page = 1,
+            int pageSize = 10,
+            CancellationToken cancellationToken = default)
         {
-            TempData["ErrorMessage"] = "您没有审核通过的跑腿员账号，无法查看工作台。";
-            return RedirectToAction("Index", "Home");
+            int? currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            ReceiptTasksViewModel model = await _assignService.GetReceiptTasksAsync(
+                currentUserId.Value,
+                page,
+                pageSize,
+                cancellationToken);
+            return View(model);
         }
 
-        return View(viewModel);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateStatus(int taskId, string targetStatus, CancellationToken cancellationToken)
-    {
-        bool success = await assignService.UpdateStatusAsync(taskId, targetStatus, CurrentUserId, cancellationToken);
-        if (success)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConfirmReceipt(int taskId, CancellationToken cancellationToken)
         {
-            TempData["SuccessMessage"] = $"订单状态已更新为【{DisplayNameService.GetTaskStatusName(targetStatus)}】。";
-        }
-        else
-        {
-            TempData["ErrorMessage"] = "状态更新失败，请检查当前任务状态和操作权限。";
-        }
+            int? currentUserId = GetCurrentUserId();
+            bool success = currentUserId.HasValue && await _assignService.ConfirmReceiptAsync(
+                taskId,
+                currentUserId.Value,
+                cancellationToken);
 
-        return RedirectToAction(nameof(MyTasks));
-    }
+            if (success)
+            {
+                TempData["SuccessMessage"] = "已确认收货，请立即完成收货后支付。";
+                return RedirectToAction("Confirm", "Payment", new { taskId });
+            }
 
-    [HttpGet]
-    public async Task<IActionResult> Receipt(int page = 1, int size = 5, CancellationToken cancellationToken = default)
-    {
-        var viewModel = await assignService.GetReceiptTasksAsync(CurrentUserId, page, size, cancellationToken);
-        return View(viewModel);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ConfirmReceipt(int taskId, CancellationToken cancellationToken)
-    {
-        bool success = await assignService.ConfirmReceiptAsync(taskId, CurrentUserId, cancellationToken);
-        if (success)
-        {
-            TempData["SuccessMessage"] = "确认收货成功，订单可以进入收货后支付。";
-        }
-        else
-        {
-            TempData["ErrorMessage"] = "确认收货失败，请检查订单状态或发布者身份。";
+            TempData["ErrorMessage"] = "确认收货失败，请确认任务状态和发布人身份。";
+            return RedirectToAction(nameof(Receipt));
         }
 
-        return RedirectToAction(nameof(Receipt));
-    }
+        [Authorize(Roles = "ADMIN")]
+        [HttpGet]
+        public async Task<IActionResult> AdminConsole(
+            int taskPage = 1,
+            int runnerPage = 1,
+            int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            AdminAssignViewModel model = await _assignService.GetAdminConsoleAsync(
+                taskPage,
+                runnerPage,
+                pageSize,
+                cancellationToken);
+            return View(model);
+        }
 
-    [HttpGet]
-    [Authorize(Roles = "ADMIN")]
-    public async Task<IActionResult> AdminConsole(
-        int taskPage = 1,
-        int runnerPage = 1,
-        int size = 5,
-        CancellationToken cancellationToken = default)
-    {
-        var viewModel = await assignService.GetAdminConsoleAsync(taskPage, runnerPage, size, cancellationToken);
-        return View(viewModel);
-    }
+        [Authorize(Roles = "ADMIN")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdminAssign(
+            int taskId,
+            int runnerId,
+            CancellationToken cancellationToken)
+        {
+            int? currentUserId = GetCurrentUserId();
+            bool success = currentUserId.HasValue && await _assignService.AssignTaskAsync(
+                taskId,
+                runnerId,
+                currentUserId.Value,
+                cancellationToken);
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    [Authorize(Roles = "ADMIN")]
-    public async Task<IActionResult> AdminAssign(int taskId, int runnerId, CancellationToken cancellationToken)
-    {
-        bool success = await assignService.AssignTaskAsync(taskId, runnerId, CurrentUserId, cancellationToken);
-        TempData[success ? "SuccessMessage" : "ErrorMessage"] = success
-            ? "指派成功，订单已分配给跑腿员。"
-            : "指派失败，请检查跑腿员工作状态或任务状态。";
-        return RedirectToAction(nameof(AdminConsole));
-    }
+            TempData[success ? "SuccessMessage" : "ErrorMessage"] = success
+                ? "任务指派成功。"
+                : "任务指派失败，请检查任务和跑腿员状态；发布者不能承接自己的任务。";
+            return RedirectToAction(nameof(AdminConsole));
+        }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    [Authorize(Roles = "ADMIN")]
-    public async Task<IActionResult> AdminReassign(int taskId, int runnerId, string? reason, CancellationToken cancellationToken)
-    {
-        bool success = await assignService.ReassignTaskAsync(taskId, runnerId, reason, CurrentUserId, cancellationToken);
-        TempData[success ? "SuccessMessage" : "ErrorMessage"] = success
-            ? "重派成功，订单已重新分配。"
-            : "重派失败，请检查新跑腿员工作状态、原接派记录或任务状态。";
-        return RedirectToAction(nameof(AdminConsole));
+        [Authorize(Roles = "ADMIN")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdminReassign(
+            int taskId,
+            int runnerId,
+            string? reason,
+            CancellationToken cancellationToken)
+        {
+            int? currentUserId = GetCurrentUserId();
+            bool success = currentUserId.HasValue && await _assignService.ReassignTaskAsync(
+                taskId,
+                runnerId,
+                reason,
+                currentUserId.Value,
+                cancellationToken);
+
+            TempData[success ? "SuccessMessage" : "ErrorMessage"] = success
+                ? "任务重派成功。"
+                : "任务重派失败，请检查任务状态和新跑腿员状态；发布者不能承接自己的任务。";
+            return RedirectToAction(nameof(AdminConsole));
+        }
+
+        private int? GetCurrentUserId()
+        {
+            string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int parsedUserId;
+            if (int.TryParse(userId, out parsedUserId))
+            {
+                return parsedUserId;
+            }
+
+            return null;
+        }
     }
 }

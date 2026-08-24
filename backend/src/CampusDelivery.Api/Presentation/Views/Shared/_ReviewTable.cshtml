@@ -1,0 +1,58 @@
+@model IReadOnlyList<ReviewListItemViewModel>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>编号</th>
+                <th>任务</th>
+                <th>接派记录</th>
+                <th>评分</th>
+                <th>匿名</th>
+                <th>评价内容</th>
+                <th>信用变动</th>
+                <th>时间</th>
+                @if (Model.Any(item => item.CanManage))
+                {
+                    <th>操作</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="@(Model.Any(item => item.CanManage) ? 9 : 8)">暂无评价记录</td></tr>
+            }
+            else
+            {
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>#@item.ReviewId</td>
+                        <td><a asp-controller="Task" asp-action="Details" asp-route-id="@item.TaskId">#@item.TaskId</a></td>
+                        <td>#@item.RecordId</td>
+                        <td>@item.RatingDisplayName</td>
+                        <td>@item.AnonymousDisplayName</td>
+                        <td>@(item.CommentText ?? "-")</td>
+                        <td>@item.CreditDeltaDisplayName</td>
+                        <td>@item.ReviewedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        @if (Model.Any(review => review.CanManage))
+                        {
+                            <td>
+                                @if (item.CanManage)
+                                {
+                                    <a class="button" asp-action="Edit" asp-route-id="@item.ReviewId">编辑</a>
+                                    <form asp-action="Delete" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@item.ReviewId" />
+                                        <button type="submit" class="button">删除</button>
+                                    </form>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>

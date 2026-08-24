@@ -1,131 +1,224 @@
+using System.Security.Claims;
 using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Presentation.ViewModels;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System;
 
 namespace CampusDelivery.Api.Controllers;
 
-[Authorize]  
-public class ReviewController : Controller
+[Authorize]
+public sealed class ReviewController(IReviewService reviewService) : Controller
 {
-    private readonly ReviewService _reviewService;
-
-    public ReviewController(ReviewService reviewService)
-    {
-        _reviewService = reviewService;
-    }
-
-    //普通用户操作
-
-    // 查看某个报告的所有评价
     [HttpGet]
-    public IActionResult Index(int reportId)
+    public async Task<IActionResult> Index(int taskId, CancellationToken cancellationToken)
     {
-        var reviews = _reviewService.GetReviewsByReportId(reportId);
-        return View(reviews);
-    }
-
-    //显示添加评价页面
-    [HttpGet]
-    public IActionResult Create(int reportId)
-    {
-        var model = new Review
+        if (taskId <= 0)
         {
-            ReportID = reportId,
-            Reviewed_at = DateTime.Now
-        };
-        return View(model);
+            return BadRequest();
+        }
+
+        int? currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        IReadOnlyList<Review> reviews = await reviewService.GetByTaskIdAsync(taskId, cancellationToken);
+        bool isAdmin = User.IsInRole("ADMIN");
+        var items = reviews
+            .Select(review => ReviewListItemViewModel.FromModel(
+                review,
+                isAdmin || review.PublisherUserId == currentUserId.Value))
+            .ToList();
+        ViewBag.TaskId = taskId;
+        return View(items);
     }
 
-    // 提交添加评价
+    [HttpGet]
+    public IActionResult Create(int taskId)
+    {
+        if (taskId <= 0)
+        {
+            return BadRequest();
+        }
+
+        return View(new ReviewCreateViewModel { TaskId = taskId });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Create(Review review)
+    public async Task<IActionResult> Create(
+        ReviewCreateViewModel model,
+        CancellationToken cancellationToken)
     {
+        int? currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
         if (!ModelState.IsValid)
         {
-            return View(review);
+            return View(model);
         }
 
-        var (success, error) = _reviewService.AddReview(review);
-        if (success)
+        var (success, message) = await reviewService.CreateReviewAsync(
+            model.TaskId,
+            model.Rating!.Value,
+            model.AnonymousFlag,
+            model.CommentText,
+            currentUserId.Value,
+            cancellationToken);
+        if (!success)
         {
-            TempData["SuccessMessage"] = "评价提交成功";
-            return RedirectToAction(nameof(Index), new { reportId = review.ReportID });
+            ModelState.AddModelError(string.Empty, message);
+            return View(model);
         }
 
-        ModelState.AddModelError(string.Empty, error);
-        return View(review);
+        TempData["SuccessMessage"] = message;
+        return RedirectToAction(nameof(MyReviews));
     }
 
-    //管理员专用操作
+    [HttpGet]
+    public async Task<IActionResult> MyReviews(
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        int? currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
 
-    // 管理员查看所有评价（分页）
+        var (items, total) = await reviewService.GetMyReviewsAsync(
+            currentUserId.Value,
+            page,
+            pageSize,
+            cancellationToken);
+        var viewItems = items
+            .Select(review => ReviewListItemViewModel.FromModel(review, canManage: true))
+            .ToList();
+        SetPaginationViewData(page, pageSize, total, defaultPageSize: 10);
+        return View(viewItems);
+    }
+
     [Authorize(Roles = "ADMIN")]
     [HttpGet]
-    public IActionResult All(int page = 1, int size = 20)
+    public async Task<IActionResult> All(
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var reviews = _reviewService.GetAllReviews(page, size);
-        var total = _reviewService.GetTotalCount();
-
-        ViewBag.Total = total;
-        ViewBag.Page = page;
-        ViewBag.Size = size;
-        return View(reviews);
+        var (items, total) = await reviewService.GetAllPagedAsync(
+            page,
+            pageSize,
+            cancellationToken);
+        var viewItems = items
+            .Select(review => ReviewListItemViewModel.FromModel(review, canManage: true))
+            .ToList();
+        SetPaginationViewData(page, pageSize, total, defaultPageSize: 20);
+        return View(viewItems);
     }
 
-    // 管理员删除评价
-    [Authorize(Roles = "ADMIN")]
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public IActionResult Delete(int id)
-    {
-        var (success, error) = _reviewService.DeleteReview(id);
-        if (success)
-        {
-            TempData["SuccessMessage"] = "评价已删除";
-        }
-        else
-        {
-            TempData["ErrorMessage"] = error;
-        }
-        return RedirectToAction(nameof(All));
-    }
-
-    // 管理员编辑评价页面
-    [Authorize(Roles = "ADMIN")]
     [HttpGet]
-    public IActionResult Edit(int id)
+    public async Task<IActionResult> Edit(int id, CancellationToken cancellationToken)
     {
-        var review = _reviewService.GetReviewById(id);
+        int? currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        Review? review = await reviewService.GetEditableReviewAsync(
+            id,
+            currentUserId.Value,
+            User.IsInRole("ADMIN"),
+            cancellationToken);
         if (review == null)
         {
-            return NotFound();
+            TempData["ErrorMessage"] = "评价不存在或你没有权限修改该评价";
+            return RedirectToReviewList();
         }
-        return View(review);
+
+        return View(ReviewEditViewModel.FromModel(review));
     }
 
-    // 提交编辑评价
-
-    [Authorize(Roles = "ADMIN")]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Edit(Review review)
+    public async Task<IActionResult> Edit(
+        ReviewEditViewModel model,
+        CancellationToken cancellationToken)
     {
+        int? currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
         if (!ModelState.IsValid)
         {
-            return View(review);
+            return View(model);
         }
 
-        var (success, error) = _reviewService.UpdateReview(review);
-        if (success)
+        bool isAdmin = User.IsInRole("ADMIN");
+        var (success, message) = await reviewService.UpdateReviewAsync(
+            model.ReviewId,
+            model.Rating!.Value,
+            model.AnonymousFlag,
+            model.CommentText,
+            currentUserId.Value,
+            isAdmin,
+            cancellationToken);
+        if (!success)
         {
-            TempData["SuccessMessage"] = "评价已更新";
-            return RedirectToAction(nameof(All));
+            ModelState.AddModelError(string.Empty, message);
+            return View(model);
         }
 
-        ModelState.AddModelError(string.Empty, error);
-        return View(review);
+        TempData["SuccessMessage"] = message;
+        return RedirectToReviewList();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        int? currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var (success, message) = await reviewService.DeleteReviewAsync(
+            id,
+            currentUserId.Value,
+            User.IsInRole("ADMIN"),
+            cancellationToken);
+        TempData[success ? "SuccessMessage" : "ErrorMessage"] = message;
+        return RedirectToReviewList();
+    }
+
+    private int? GetCurrentUserId()
+    {
+        string? value = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(value, out int userId) && userId > 0 ? userId : null;
+    }
+
+    private IActionResult RedirectToReviewList() => User.IsInRole("ADMIN")
+        ? RedirectToAction(nameof(All))
+        : RedirectToAction(nameof(MyReviews));
+
+    private void SetPaginationViewData(int page, int pageSize, int total, int defaultPageSize)
+    {
+        page = Math.Max(1, page);
+        pageSize = pageSize is >= 1 and <= 50 ? pageSize : defaultPageSize;
+        int totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+
+        ViewBag.Total = total;
+        ViewBag.Page = Math.Min(page, totalPages);
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalPages = totalPages;
     }
 }

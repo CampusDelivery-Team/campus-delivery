@@ -1,0 +1,46 @@
+@model PaymentConfirmViewModel
+
+@{
+    ViewData["Title"] = "收货后支付";
+}
+
+<section class="application-shell">
+    <header class="application-heading">
+        <p class="eyebrow">收货后支付</p>
+        <h1>@Model.TaskTitle</h1>
+        <p>任务 #@Model.TaskId · @Model.TaskStatusDisplayName</p>
+    </header>
+
+    <form asp-action="Confirm" method="post" class="application-form">
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+        <input type="hidden" asp-for="TaskId" />
+        <input type="hidden" asp-for="RecordId" />
+
+        <div class="profile-info-grid">
+            <div><span>任务金额</span><strong>¥@Model.TaskAmount.ToString("F2")</strong></div>
+            <div><span>接派记录</span><strong>#@Model.RecordId</strong></div>
+            <div><span>收货确认</span><strong>@(Model.ReceiptConfirmed ? "已确认" : "未确认")</strong></div>
+        </div>
+
+        <div class="application-field">
+            <label asp-for="PayMethod"></label>
+            <select asp-for="PayMethod">
+                <option value="WECHAT">微信</option>
+                <option value="ALIPAY">支付宝</option>
+                <option value="CASH">现金</option>
+            </select>
+            <span asp-validation-for="PayMethod" class="validation-message"></span>
+        </div>
+
+        <div class="application-actions">
+            <button type="submit" name="submitAction" value="PAY" class="button primary" disabled="@(Model.CanSubmitPayment ? null : "disabled")">确认付款</button>
+            <button type="submit" name="submitAction" value="LATER" class="button" disabled="@(Model.CanSubmitPayment ? null : "disabled")">稍后付款</button>
+            <a class="button" asp-action="Status">查看支付记录</a>
+        </div>
+    </form>
+
+    @if (!Model.CanSubmitPayment)
+    {
+        <div class="inline-notice error" style="margin-top: 1rem;">当前任务不满足支付条件，或已经完成支付。</div>
+    }
+</section>

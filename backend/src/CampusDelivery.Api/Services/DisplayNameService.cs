@@ -60,7 +60,7 @@ public static class DisplayNameService
         return value switch
         {
             "NORMAL" => "正常",
-            "BLOCKED" => "已封控",
+            "BLOCKED" => "已封禁",
             "CANCELLED" => "已注销",
             _ => value
         };
@@ -70,27 +70,142 @@ public static class DisplayNameService
     {
         return value switch
         {
-            "CREATED" => "草稿创建",
-            "PAID" => "已付款",
+            "CREATED" => "已创建",
             "WAITING" => "待接单",
-            "ASSIGNED" => "已分配",
+            "ASSIGNED" => "已接单",
             "PICKED_UP" => "已取件",
             "DELIVERING" => "配送中",
-            "WAIT_CONFIRM" => "待确认收货",
+            "WAIT_CONFIRM" => "待确认",
             "FINISHED" => "已完成",
             "CANCELLED" => "已取消",
             "REFUNDING" => "退款中",
+            "PAID" => "已支付",
             _ => value
         };
     }
 
-    public static string GetAssignOperationTypeName(string value)
+    public static string GetPayMethodName(string value)
     {
         return value switch
         {
-            "SELF" => "跑腿员抢单",
-            "ADMIN" => "管理员指派",
-            "REASSIGN" => "异常重派",
+            "WECHAT" => "微信",
+            "ALIPAY" => "支付宝",
+            "CASH" => "现金",
+            _ => value
+        };
+    }
+
+    public static string GetPayStatusName(string value)
+    {
+        return value switch
+        {
+            "UNPAID" => "待付款",
+            "PAID" => "已支付",
+            "FAILED" => "支付异常",
+            "REFUNDED" => "已退款",
+            _ => value
+        };
+    }
+
+    public static string GetRefundStatusName(string value)
+    {
+        return value switch
+        {
+            "APPLY" => "待审核",
+            "PENDING" => "待审核",
+            "APPROVED" => "退款成功",
+            "REJECTED" => "退款失败",
+            "DONE" => "已完成",
+            _ => value
+        };
+    }
+
+    public static string GetRefundProcessStatusName(string value)
+    {
+        return GetRefundStatusName(value);
+    }
+
+    public static string GetUrgentFlagName(string value)
+    {
+        return value switch
+        {
+            "Y" => "加急",
+            "N" => "普通",
+            _ => value
+        };
+    }
+
+    public static string GetTaskKindName(string value)
+    {
+        return value switch
+        {
+            "FOOD" => "外卖分发",
+            "EXPRESS" => "快递代取",
+            "PRIVATE" => "私人跑腿",
+            _ => value
+        };
+    }
+
+    public static string GetComplaintStatusName(string value)
+    {
+        return value switch
+        {
+            "SUBMITTED" => "待处理",
+            "PROCESSING" => "处理中",
+            "DONE" => "已处理",
+            _ => value
+        };
+    }
+
+    public static string GetSettlementStatusName(string value)
+    {
+        return value switch
+        {
+            "WAITING" => "待结算",
+            "DONE" => "已结算",
+            "BLOCKED" => "已阻断",
+            _ => value
+        };
+    }
+
+    public static string GetAuditObjectName(string value)
+    {
+        return value switch
+        {
+            "LOG" => "状态日志",
+            "PAYMENT" => "支付记录",
+            "REFUND" => "退款记录",
+            _ => value
+        };
+    }
+
+    public static string GetAuditResultName(string value)
+    {
+        return value switch
+        {
+            "PASS" => "通过",
+            "ABNORMAL" => "异常",
+            _ => value
+        };
+    }
+
+    public static string GetReportTypeName(string value)
+    {
+        return value switch
+        {
+            "ORDER" => "订单报表",
+            "PAYMENT" => "支付报表",
+            "COMPLAINT" => "投诉报表",
+            _ => value
+        };
+    }
+
+    public static string GetReportStatusName(string value)
+    {
+        return value switch
+        {
+            "GENERATED" => "已生成",
+            "EXPORTED" => "已导出",
             _ => value
         };
     }

@@ -1,0 +1,81 @@
+@model RefundAdminListViewModel
+
+@{
+    ViewData["Title"] = "退款管理";
+}
+
+<section class="panel management-panel">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">售后管理</p>
+            <h1>退款列表</h1>
+        </div>
+        <span class="badge">共 @Model.TotalCount 条</span>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="inline-notice success">@success</div>
+    }
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="inline-notice error">@error</div>
+    }
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>退款编号</th>
+                    <th>任务标题</th>
+                    <th>退款金额</th>
+                    <th>退款状态</th>
+                    <th>申请原因</th>
+                    <th>审核理由</th>
+                    <th>核定金额</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Refunds.Count == 0)
+                {
+                    <tr><td colspan="8" class="empty task-table__empty">暂无退款记录</td></tr>
+                }
+                else
+                {
+                    foreach (var refund in Model.Refunds)
+                    {
+                        <tr>
+                            <td>#@refund.RefundId</td>
+                            <td>@refund.TaskTitle</td>
+                            <td>¥@refund.RefundAmount.ToString("F2")</td>
+                            <td>@refund.RefundStatusDisplayName</td>
+                            <td>@(string.IsNullOrWhiteSpace(refund.RefundReason) ? "—" : refund.RefundReason)</td>
+                            <td>@(string.IsNullOrWhiteSpace(refund.ReviewReason) ? "—" : refund.ReviewReason)</td>
+                            <td>@(refund.ApprovedAmount.HasValue ? $"¥{refund.ApprovedAmount.Value:F2}" : "—")</td>
+                            <td>
+                                @if (refund.RefundStatus == "APPLY")
+                                {
+                                    <a class="button primary task-button--small" asp-action="Review" asp-route-refundId="@refund.RefundId">审核</a>
+                                }
+                                else
+                                {
+                                    <span class="task-status-text">已处理</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="pagination">
+            <a asp-action="AdminIndex" asp-route-page="@(Model.PageNumber - 1)" asp-route-pageSize="@Model.PageSize" class="@(Model.PageNumber <= 1 ? "disabled" : "")">上一页</a>
+            <span>第 @Model.PageNumber / @Model.TotalPages 页</span>
+            <a asp-action="AdminIndex" asp-route-page="@(Model.PageNumber + 1)" asp-route-pageSize="@Model.PageSize" class="@(Model.PageNumber >= Model.TotalPages ? "disabled" : "")">下一页</a>
+        </nav>
+    }
+</section>

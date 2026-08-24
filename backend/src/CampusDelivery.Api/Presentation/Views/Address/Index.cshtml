@@ -17,6 +17,10 @@
     {
         <div class="profile-notice" role="status">@TempData["SuccessMessage"]</div>
     }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="task-alert task-alert--error" role="alert">@TempData["ErrorMessage"]</div>
+    }
 
     @if (Model.Any())
     {

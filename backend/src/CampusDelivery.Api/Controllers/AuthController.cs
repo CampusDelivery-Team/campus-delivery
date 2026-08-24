@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
@@ -9,10 +9,10 @@ namespace CampusDelivery.Api.Controllers
 {
     public class AuthController : Controller
     {
-        private readonly UserService _userService;
+        private readonly IUserService _userService;
 
-        // 接待员一上班，系统就会自动把 UserService 派发给它
-        public AuthController(UserService userService)
+        // 控制器只依赖用户业务接口。
+        public AuthController(IUserService userService)
         {
             _userService = userService;
         }
@@ -80,23 +80,21 @@ namespace CampusDelivery.Api.Controllers
                 return View(model);
             }
 
-            // 把网页传来的 ViewModel 转换成底层的 User Model
-            var newUser = new CampusDelivery.Api.Models.User
-            {
-                Username = model.Username,
-                Phone = model.Phone,
-                PasswordHash = model.Password, // 根据文档，目前暂存明文
-                UserRole = "USER",             // 新注册的默认是普通用户
-                AccountStatus = "NORMAL"       // 状态正常
-            };
+            // 原始密码只传给 Service；Controller 不接触密码哈希实现。
+            UserRegistrationResult result = _userService.Register(
+                model.Username,
+                model.Phone,
+                model.Password);
 
-            // 调用 Service 层的注册逻辑
-            var (success, errorMessage) = _userService.Register(newUser);
-
-            if (!success)
+            if (!result.Success)
             {
-                // 注册失败，把错误信息显示在页面上（比如账号已存在）
-                ModelState.AddModelError(string.Empty, errorMessage);
+                string fieldName = result.Failure switch
+                {
+                    UserRegistrationFailure.DuplicateUsername => nameof(model.Username),
+                    UserRegistrationFailure.DuplicatePhone => nameof(model.Phone),
+                    _ => string.Empty
+                };
+                ModelState.AddModelError(fieldName, result.ErrorMessage);
                 return View(model);
             }
 

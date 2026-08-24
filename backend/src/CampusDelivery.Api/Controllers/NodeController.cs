@@ -1,13 +1,12 @@
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize(Roles = "ADMIN")]
-public sealed class NodeController(NodeService nodeService) : Controller
+public sealed class NodeController(INodeService nodeService) : Controller
 {
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
@@ -115,8 +114,8 @@ public sealed class NodeController(NodeService nodeService) : Controller
         var result = await nodeService.DeleteAsync(id, cancellationToken);
         TempData["NodeMessage"] = result switch
         {
-            NodeDeleteResult.Success => "节点已删除",
-            NodeDeleteResult.Referenced => "该节点已有任务记录，不能删除；可先关闭节点",
+            NodeDeleteOperationResult.Success => "节点已删除",
+            NodeDeleteOperationResult.Referenced => "该节点已有任务记录，不能删除；可先关闭节点",
             _ => "节点不存在或已被删除"
         };
         return RedirectToAction(nameof(Index));

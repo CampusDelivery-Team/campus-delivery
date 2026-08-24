@@ -1,13 +1,13 @@
 using System.Security.Claims;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize]
-public sealed class RunnerController(RunnerService runnerService) : Controller
+public sealed class RunnerController(IRunnerService runnerService) : Controller
 {
     [Authorize(Roles = "ADMIN")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)

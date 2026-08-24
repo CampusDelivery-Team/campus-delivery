@@ -1,0 +1,123 @@
+@model SettlementDetailsViewModel
+
+@{
+    ViewData["Title"] = "结算详情";
+}
+
+<section class="panel management-panel ops-page">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">SETTLEMENT DETAILS</p>
+            <h1>结算单 #@Model.Settlement.SettlementId</h1>
+            <p class="section-description">查看结算金额构成和本次结算关联的支付记录。</p>
+        </div>
+        <a class="button" asp-action="Index">返回结算列表</a>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="task-alert task-alert--success">@success</div>
+    }
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="task-alert task-alert--error">@error</div>
+    }
+
+    <div class="ops-detail-hero">
+        <div>
+            <span>跑腿员</span>
+            <strong>@Model.Settlement.RunnerName</strong>
+            <small>#@Model.Settlement.RunnerId</small>
+        </div>
+        <div>
+            <span>订单总额</span>
+            <strong>¥@Model.Settlement.OrderTotal.ToString("F2")</strong>
+        </div>
+        <div>
+            <span>平台抽成</span>
+            <strong>¥@Model.Settlement.PlatformFee.ToString("F2")</strong>
+        </div>
+        <div>
+            <span>净收入</span>
+            <strong>¥@Model.Settlement.NetIncome.ToString("F2")</strong>
+        </div>
+    </div>
+
+    <div class="ops-status-actions">
+        <span class="badge @GetSettlementBadgeClass(Model.Settlement.SettlementStatus)">@Model.Settlement.SettlementStatusDisplayName</span>
+        @if (Model.Settlement.SettlementStatus == SettlementStatusCodes.Waiting)
+        {
+            <form asp-action="ChangeStatus" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="settlementId" value="@Model.Settlement.SettlementId" />
+                <select name="status">
+                    <option value="@SettlementStatusCodes.Done">确认已结算</option>
+                    <option value="@SettlementStatusCodes.Blocked">阻断结算</option>
+                </select>
+                <button type="submit" class="button">更新状态</button>
+            </form>
+        }
+        else if (Model.Settlement.SettlementStatus == SettlementStatusCodes.Blocked)
+        {
+            <form asp-action="ChangeStatus" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="settlementId" value="@Model.Settlement.SettlementId" />
+                <input type="hidden" name="status" value="@SettlementStatusCodes.Waiting" />
+                <button type="submit" class="button">解除阻断并恢复待结算</button>
+            </form>
+        }
+        else
+        {
+            <span class="table-secondary">已结算为终态，不能回退。</span>
+        }
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>支付编号</th>
+                    <th>任务</th>
+                    <th>接派记录</th>
+                    <th>支付方式</th>
+                    <th>支付金额</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr><td colspan="5" class="empty task-table__empty">该结算单暂无明细。</td></tr>
+                }
+                else
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>#@item.PaymentId</td>
+                            <td>
+                                <span class="table-primary">@item.TaskTitle</span>
+                                <span class="table-secondary">任务 #@item.TaskId</span>
+                            </td>
+                            <td>#@item.RecordId</td>
+                            <td>@item.PayMethodDisplayName</td>
+                            <td class="task-price">¥@item.PayAmount.ToString("F2")</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@functions {
+    private static string GetSettlementBadgeClass(string status)
+    {
+        return status switch
+        {
+            SettlementStatusCodes.Done => "success",
+            SettlementStatusCodes.Blocked => "danger",
+            _ => "muted"
+        };
+    }
+}
+

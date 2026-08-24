@@ -1,0 +1,186 @@
+@model ReportDashboardViewModel
+
+@{
+    ViewData["Title"] = "统计报表";
+}
+
+<section class="panel management-panel ops-page">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">REPORTS</p>
+            <h1>统计报表</h1>
+            <p class="section-description">实时汇总任务、支付、投诉、结算和跑腿员绩效；生成报表会保存周期、审计依据并提供业务明细导出。</p>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="task-alert task-alert--success">@success</div>
+    }
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="task-alert task-alert--error">@error</div>
+    }
+
+    <div class="ops-metric-grid">
+        @foreach (var metric in Model.Metrics)
+        {
+            <article>
+                <span>@metric.Name</span>
+                <strong>@metric.Value</strong>
+                <small>@metric.Note</small>
+            </article>
+        }
+    </div>
+
+    <form asp-action="Generate" method="post" class="ops-report-generator">
+        @Html.AntiForgeryToken()
+        <div>
+            <p class="eyebrow">GENERATE</p>
+            <h2>生成业务报表</h2>
+            <p>系统将按月份查询业务数据、计算指标，并把适用的审计记录写入报表明细。</p>
+        </div>
+        <label>
+            <span>报表类型</span>
+            <select asp-for="GenerateForm.ReportType" name="ReportType">
+                <option value="ORDER">订单报表</option>
+                <option value="PAYMENT">支付报表</option>
+                <option value="COMPLAINT">投诉报表</option>
+            </select>
+        </label>
+        <label>
+            <span>统计周期</span>
+            <input asp-for="GenerateForm.StatPeriod" name="StatPeriod" type="month" placeholder="例如 2026-08" maxlength="50" />
+        </label>
+        <button type="submit" class="button primary">生成报表</button>
+    </form>
+
+    <div class="ops-two-column">
+        <article class="ops-section-card">
+            <div class="ops-card-header">
+                <div>
+                    <p class="eyebrow">NODE LOAD</p>
+                    <h2>节点业务量</h2>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>节点</th>
+                            <th>任务数</th>
+                            <th>已完成</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.NodeVolumes.Count == 0)
+                        {
+                            <tr><td colspan="3" class="empty task-table__empty">暂无节点数据。</td></tr>
+                        }
+                        else
+                        {
+                            foreach (var item in Model.NodeVolumes)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="table-primary">@item.NodeName</span>
+                                        <span class="table-secondary">节点 #@item.NodeId</span>
+                                    </td>
+                                    <td>@item.TaskCount</td>
+                                    <td>@item.FinishedTaskCount</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="ops-section-card">
+            <div class="ops-card-header">
+                <div>
+                    <p class="eyebrow">RUNNER PERFORMANCE</p>
+                    <h2>跑腿员绩效</h2>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>跑腿员</th>
+                            <th>完成单</th>
+                            <th>支付金额</th>
+                            <th>已结算收入</th>
+                            <th>信誉分</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.RunnerPerformances.Count == 0)
+                        {
+                            <tr><td colspan="5" class="empty task-table__empty">暂无跑腿员绩效数据。</td></tr>
+                        }
+                        else
+                        {
+                            foreach (var item in Model.RunnerPerformances)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="table-primary">@item.RunnerName</span>
+                                        <span class="table-secondary">跑腿员 #@item.RunnerId</span>
+                                    </td>
+                                    <td>@item.FinishedTaskCount</td>
+                                    <td>¥@item.PaidAmount.ToString("F2")</td>
+                                    <td class="task-price">¥@item.SettledIncome.ToString("F2")</td>
+                                    <td>@item.CreditScore.ToString("F0")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </div>
+
+    <article class="ops-section-card">
+        <div class="ops-card-header">
+            <div>
+                <p class="eyebrow">REPORT HISTORY</p>
+                <h2>报表生成记录</h2>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>报表编号</th>
+                        <th>类型</th>
+                        <th>统计周期</th>
+                        <th>状态</th>
+                        <th>生成时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.RecentReports.Count == 0)
+                    {
+                        <tr><td colspan="6" class="empty task-table__empty">暂无报表生成记录。</td></tr>
+                    }
+                    else
+                    {
+                        foreach (var item in Model.RecentReports)
+                        {
+                            <tr>
+                                <td>#@item.ReportId</td>
+                                <td>@item.ReportTypeDisplayName</td>
+                                <td>@item.StatPeriod</td>
+                                <td><span class="badge muted">@item.ReportStatusDisplayName</span></td>
+                                <td>@item.GeneratedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td><a class="button" asp-action="Details" asp-route-id="@item.ReportId">查看报表</a></td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>

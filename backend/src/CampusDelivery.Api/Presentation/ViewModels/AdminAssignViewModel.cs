@@ -16,6 +16,7 @@ public sealed class AdminAssignViewModel
 public sealed class AdminTaskItemViewModel
 {
     public int TaskId { get; set; }
+    public int PublisherUserId { get; set; }
     public string TaskTitle { get; set; } = string.Empty;
     public decimal TaskPrice { get; set; }
     public string ServiceTypeName { get; set; } = string.Empty;
@@ -25,6 +26,7 @@ public sealed class AdminTaskItemViewModel
 public sealed class AdminRunnerItemViewModel
 {
     public int RunnerId { get; set; }
+    public int UserId { get; set; }
     public string RealName { get; set; } = string.Empty;
     public decimal CreditScore { get; set; }
 }

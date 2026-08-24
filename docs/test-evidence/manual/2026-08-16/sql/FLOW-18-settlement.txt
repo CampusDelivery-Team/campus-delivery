@@ -1,0 +1,16 @@
+
+SETTLEMENT_ID  RUNNER_ID ORDER_TOTAL PLATFORM_FEE NET_INCOME SETTLEMENT_STATUS
+------------- ---------- ----------- ------------ ---------- ----------------------------------------
+            1        261        3.94          .39       3.55 WAITING
+
+已选择 1 行。
+
+
+SETTLEMENT_ID PAYMENT_ID
+------------- ----------
+            1         41
+            1         42
+            1         43
+
+已选择 3 行。
+

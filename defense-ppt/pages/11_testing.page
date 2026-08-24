@@ -1,0 +1,135 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+notes: 验证页：左侧验证记录三线表，右侧一张完整缺陷单；最后念诚实声明——未执行的用例不宣称通过。
+elements:
+  - elementId: head-left
+    elementType: text
+    bounds: [48, 20, 420, 12]
+    content: {style: "$metaLabel", wrap: false, text: 济跑跑工程档案 · CAMPUS RUNNER DOSSIER}
+  - elementId: head-right
+    elementType: text
+    bounds: [512, 20, 400, 12]
+    content: {style: "$metaLabel", align: [right, top], wrap: false, text: 验证 · VERIFICATION · 2026-08}
+  - elementId: head-rule
+    elementType: shape
+    bounds: [48, 40, 864, 1]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: headline
+    elementType: text
+    bounds: [48, 60, 840, 40]
+    content: {style: "$headline", fontSize: 28, wrap: false, text: 我们测了什么，还欠什么}
+  # 左：验证记录表
+  - elementId: ver-label
+    elementType: text
+    bounds: [48, 116, 300, 12]
+    content: {style: "$metaLabel", wrap: false, text: 表三 · 验证记录（2026-08-15 实测）}
+  - elementId: ver-table
+    elementType: table
+    bounds: [48, 138, 460, 220]
+    columnWidths: [0.40, 0.28, 0.32]
+    rowHeights: [0.17, 0.166, 0.166, 0.166, 0.166, 0.166]
+    style:
+      cellStyle:
+        fontSize: 10.5
+        fontFamily: MiSans
+        color: "$ink"
+        align: [left, middle]
+        border: null
+      firstRowStyle:
+        bold: true
+        fontSize: 10
+        color: "$meta"
+        border: [{style: solid, width: 1.5, color: "$ink"}, null, {style: solid, width: 1, color: "$ink"}, null]
+      lastRowStyle:
+        border: [null, null, {style: solid, width: 1.5, color: "$ink"}, null]
+    rows:
+      - - text: 　验证项
+        - text: 结果
+        - text: 　证据
+      - - text: 　自动化业务测试
+        - text: |
+            <p><span style="font-family:思源宋体; font-size:13px;">39 / 39</span></p>
+        - text: 　本地实际执行
+      - - text: 　静态质量门禁
+        - text: |
+            <p><span style="font-family:思源宋体; font-size:13px;">5 类</span></p>
+        - text: 　run-tests.ps1
+      - - text: 　POST 防伪令牌
+        - text: |
+            <p><span style="font-family:思源宋体; font-size:13px;">46 / 46</span></p>
+        - text: 　逐一扫描
+      - - text: 　FOR UPDATE 行锁
+        - text: |
+            <p><span style="font-family:思源宋体; font-size:13px;">14 处</span></p>
+        - text: 　仓储层检出
+      - - text: 　关系表数量
+        - text: |
+            <p><span style="font-family:思源宋体; font-size:13px;">24 张</span></p>
+        - text: 　要求 ≥ 12
+  - elementId: ver-note
+    elementType: text
+    bounds: [48, 372, 460, 48]
+    content:
+      fontSize: 10.5
+      fontFamily: MiSans
+      color: "$ink"
+      lineHeight: 1.6
+      align: [left, top]
+      text: 测试工程只覆盖高价值规则：并发抢单、状态机、确认幂等、支付评价事务、结算状态机与报表导出，不以 CRUD 测试凑数。
+  # 右：缺陷单
+  - elementId: bug-label
+    elementType: text
+    bounds: [560, 116, 352, 12]
+    content: {style: "$metaLabel", wrap: false, text: 单据 · 缺陷闭环示例}
+  - elementId: bug-box
+    elementType: shape
+    bounds: [560, 138, 352, 236]
+    shapeName: rect
+    border: {style: solid, width: 1, color: "$ink"}
+  - elementId: bug-no
+    elementType: text
+    bounds: [580, 152, 312, 16]
+    content: {fontSize: 11.5, fontFamily: MiSans, bold: true, color: "$crimson", wrap: false, text: 缺陷单 BUG-20260816-03}
+  - elementId: bug-rule1
+    elementType: shape
+    bounds: [580, 178, 312, 1]
+    shapeName: rect
+    fill: {type: solid, color: "$hairline"}
+  - elementId: bug-body
+    elementType: text
+    bounds: [580, 190, 312, 168]
+    content:
+      fontSize: 10
+      fontFamily: MiSans
+      color: "$ink"
+      lineHeight: 1.65
+      align: [left, top]
+      text: |
+        <p><span style="color:$meta;">现象</span>　评价列表三处页面 500，ORA-00933</p>
+        <p style="margin-top:7px"><span style="color:$meta;">根因</span>　C# 多行 raw string 首尾换行不计入，SQL 子句粘连缺分隔符</p>
+        <p style="margin-top:7px"><span style="color:$meta;">修复</span>　按仓储既有写法补显式空格分隔</p>
+        <p style="margin-top:7px"><span style="color:$meta;">回归</span>　共享 19c 库复现并验证修复，39 项自动化测试全部通过</p>
+  # 诚实声明
+  - elementId: honest-rule
+    elementType: shape
+    bounds: [48, 440, 864, 1]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: honest-note
+    elementType: text
+    bounds: [48, 454, 864, 32]
+    content:
+      fontSize: 10.5
+      fontFamily: MiSans
+      color: "$ink"
+      lineHeight: 1.55
+      align: [left, top]
+      text: |
+        <p>有一点要说清楚：手工验收的结论分四级记录，PASS、PASS-READONLY、PARTIAL、PENDING-DB，截图和 SQL 一一对应。没执行的用例就标待执行，不计入通过率。</p>
+  - elementId: folio
+    elementType: text
+    bounds: [430, 514, 100, 14]
+    content: {style: "$folio", align: [center, top], wrap: false, text: — 11 —}

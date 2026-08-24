@@ -1,0 +1,89 @@
+@model TaskHallViewModel
+
+@{
+    ViewData["Title"] = "任务大厅";
+    bool canGrab = Model.ActiveRunnerId.HasValue && Model.ActiveRunnerStatus == "FREE";
+}
+
+<section class="panel task-page">
+    <div class="section-header task-page__header">
+        <div>
+            <p class="eyebrow">任务调度</p>
+            <h1>任务大厅</h1>
+            <p class="section-description">查看当前待接单任务，并按紧急程度和发布时间排列。</p>
+        </div>
+        <a class="button" asp-action="MyTasks">配送工作台</a>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="task-alert task-alert--success">@success</div>
+    }
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="task-alert task-alert--error">@error</div>
+    }
+
+    @if (!Model.ActiveRunnerId.HasValue)
+    {
+        <div class="inline-notice error">当前账号没有已通过审核的跑腿员资格。</div>
+    }
+    else if (!canGrab)
+    {
+        <div class="inline-notice">当前工作状态不是“可接单”，暂时不能抢单。</div>
+    }
+
+    <div class="task-card-list">
+        @if (Model.Tasks.Count == 0)
+        {
+            <div class="task-empty-card">
+                <h3>暂时没有待接单任务</h3>
+                <p>稍后刷新任务大厅即可查看新任务。</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var task in Model.Tasks)
+            {
+                <article class="task-card">
+                    <div class="task-card__header">
+                        <div>
+                            <span class="badge task-badge--service">@task.ServiceTypeName</span>
+                            @if (task.UrgentFlag == "Y")
+                            {
+                                <span class="badge audit-pending">加急</span>
+                            }
+                            <strong class="task-card__title">@task.TaskTitle</strong>
+                            <span class="task-card__number">单号: #@task.TaskId</span>
+                        </div>
+                        <span class="task-price">¥@task.TaskPrice.ToString("F2")</span>
+                    </div>
+                    <div class="task-card__details">
+                        <div>
+                            <p><strong>交接节点：</strong>@task.NodeName</p>
+                            <p><strong>送达区域：</strong>@task.AddressDisplay</p>
+                        </div>
+                        <p><strong>发布时间：</strong>@task.CreatedAt.ToString("yyyy-MM-dd HH:mm")</p>
+                    </div>
+                    <div class="task-card__footer">
+                        <span class="badge audit-pending">@task.TaskStatusDisplayName</span>
+                        @if (task.IsPublishedByCurrentUser)
+                        {
+                            <span class="task-status-text">自己发布的任务不能接单</span>
+                        }
+                        else
+                        {
+                            <form asp-action="Grab" method="post" class="task-inline-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="taskId" value="@task.TaskId" />
+                                <button type="submit" class="button primary" disabled="@(!canGrab)">接单</button>
+                            </form>
+                        }
+                    </div>
+                </article>
+            }
+        }
+    </div>
+
+    <partial name="_TaskPagination" model="@(new TaskPaginationViewModel { ActionName = "Hall", PageNumber = Model.PageNumber, TotalPages = Model.TotalPages, PageSize = Model.PageSize })" />
+</section>

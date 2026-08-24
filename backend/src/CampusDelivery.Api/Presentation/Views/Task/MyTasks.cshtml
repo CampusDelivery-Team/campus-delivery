@@ -26,7 +26,7 @@
     {
         <div class="task-empty-card">
             <h3>当前没有正在配送中的订单</h3>
-            <p>可以前往 <a asp-action="Index">任务大厅</a> 查看待接单任务。</p>
+            <p>可以前往 <a asp-action="Hall">任务大厅</a> 查看待接单任务。</p>
         </div>
     }
     else
@@ -58,6 +58,22 @@
                             <p><strong>联系电话：</strong>@task.ContactPhone</p>
                         </div>
                     </div>
+
+                    @if (task.DetailFields.Count > 0)
+                    {
+                        <section class="task-card__business-details" aria-label="取件与配送要求">
+                            <h3>取件与配送要求</h3>
+                            <dl>
+                                @foreach (var field in task.DetailFields)
+                                {
+                                    <div>
+                                        <dt>@field.Label</dt>
+                                        <dd>@field.Value</dd>
+                                    </div>
+                                }
+                            </dl>
+                        </section>
+                    }
 
                     <div class="task-card__footer">
                         <div class="actions">

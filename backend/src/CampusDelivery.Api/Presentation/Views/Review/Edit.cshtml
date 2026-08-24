@@ -6,16 +6,15 @@
 
 <section class="application-shell">
     <header class="application-heading">
-        <p class="eyebrow">管理后台</p>
+        <p class="eyebrow">用户反馈</p>
         <h1>编辑评价 #@Model.ReviewId</h1>
-        <p>修改评价内容，注意信用变动会直接影响用户信誉分。</p>
+        <p>修改评分后，系统会自动按新旧评分差值调整跑腿员信誉分。</p>
     </header>
 
     <form asp-action="Edit" method="post" class="application-form">
         <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
 
         <input type="hidden" asp-for="ReviewId" />
-        <input type="hidden" asp-for="ReportId" />
 
         <div class="application-field">
             <label asp-for="Rating"></label>
@@ -41,19 +40,13 @@
 
         <div class="application-field">
             <label asp-for="CommentText"></label>
-            <textarea asp-for="CommentText" rows="4" maxlength="500"></textarea>
+            <textarea asp-for="CommentText" rows="4" maxlength="300"></textarea>
             <span asp-validation-for="CommentText" class="validation-message"></span>
-        </div>
-
-        <div class="application-field">
-            <label asp-for="CreditDelta"></label>
-            <input asp-for="CreditDelta" type="number" />
-            <span asp-validation-for="CreditDelta" class="validation-message"></span>
         </div>
 
         <div class="application-actions">
             <button type="submit" class="button primary">保存修改</button>
-            <a class="button" asp-action="All">返回列表</a>
+            <a class="button" asp-action="@(User.IsInRole("ADMIN") ? "All" : "MyReviews")">返回列表</a>
         </div>
     </form>
 </section>

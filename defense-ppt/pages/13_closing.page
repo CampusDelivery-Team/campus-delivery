@@ -1,0 +1,81 @@
+pageType: final
+background:
+  type: solid
+  color: "$ink"
+notes: 收尾：一句话收束，进入答疑。深色页与封面形成首尾呼应。
+elements:
+  # 四角裁切标记（纸色）
+  - elementId: crop-tl
+    elementType: shape
+    bounds: [26, 26, 22, 22]
+    shapeName: custom
+    viewBox: [100, 100]
+    path: "M0,0 L100,0 L100,14 L14,14 L14,100 L0,100 Z"
+    fill: {type: solid, color: "$paper"}
+  - elementId: crop-tr
+    elementType: shape
+    bounds: [912, 26, 22, 22]
+    shapeName: custom
+    viewBox: [100, 100]
+    path: "M0,0 L100,0 L100,14 L14,14 L14,100 L0,100 Z"
+    rotation: 90
+    fill: {type: solid, color: "$paper"}
+  - elementId: crop-br
+    elementType: shape
+    bounds: [912, 492, 22, 22]
+    shapeName: custom
+    viewBox: [100, 100]
+    path: "M0,0 L100,0 L100,14 L14,14 L14,100 L0,100 Z"
+    rotation: 180
+    fill: {type: solid, color: "$paper"}
+  - elementId: crop-bl
+    elementType: shape
+    bounds: [26, 492, 22, 22]
+    shapeName: custom
+    viewBox: [100, 100]
+    path: "M0,0 L100,0 L100,14 L14,14 L14,100 L0,100 Z"
+    rotation: 270
+    fill: {type: solid, color: "$paper"}
+  # 顶部
+  - elementId: head-rule
+    elementType: shape
+    bounds: [64, 42, 832, 1]
+    shapeName: rect
+    fill: {type: solid, color: "$paper"}
+    opacity: 0.4
+  - elementId: head-left
+    elementType: text
+    bounds: [64, 24, 420, 12]
+    content: {style: "$metaLabel", color: "#B4AA93", wrap: false, text: 济跑跑工程档案 · 卷末}
+  - elementId: head-right
+    elementType: text
+    bounds: [596, 24, 300, 12]
+    content: {style: "$metaLabel", color: "#B4AA93", align: [right, top], wrap: false, text: 2026-08}
+  # 收束语
+  - elementId: end-mark
+    elementType: text
+    bounds: [60, 150, 700, 100]
+    content: {fontSize: 76, fontFamily: 思源宋体, color: "$paper", wrap: false, align: [left, middle], text: 以上。}
+  - elementId: end-line
+    elementType: text
+    bounds: [64, 276, 700, 30]
+    content: {fontSize: 19, fontFamily: 思源宋体, color: "$paper", wrap: false, text: 恳请各位老师批评指正}
+  - elementId: end-sub
+    elementType: text
+    bounds: [64, 320, 700, 16]
+    content: {fontSize: 10, fontFamily: MiSans, color: "#B4AA93", letterSpacing: 2, wrap: false, text: 济跑跑 JIRUN · 校园中转分发与跑腿服务管理系统}
+  # 底部登记
+  - elementId: end-rule
+    elementType: shape
+    bounds: [64, 420, 832, 1]
+    shapeName: rect
+    fill: {type: solid, color: "$paper"}
+    opacity: 0.4
+  - elementId: end-meta
+    elementType: text
+    bounds: [64, 438, 500, 14]
+    content: {fontSize: 9, fontFamily: MiSans, color: "#B4AA93", letterSpacing: 2, wrap: false, text: 档案编号 JR-2026-001 · 全文 13 页}
+  - elementId: end-qa
+    elementType: text
+    bounds: [712, 430, 184, 26]
+    content: {fontSize: 16, fontFamily: 思源宋体, color: "$crimson", align: [right, top], wrap: false, text: Q & A}

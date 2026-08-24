@@ -1,12 +1,15 @@
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
+using RepositoryRemoveResult = CampusDelivery.Api.Repositories.Interfaces.ServiceNodeRuleRemoveResult;
+using ServiceRemoveResult = CampusDelivery.Api.Services.Interfaces.ServiceNodeRuleRemoveResult;
 
 namespace CampusDelivery.Api.Services;
 
 public sealed class ServiceNodeRuleService(
-    ServiceNodeRuleRepository ruleRepository,
-    ServiceTypeRepository serviceTypeRepository,
-    NodeRepository nodeRepository)
+    IServiceNodeRuleRepository ruleRepository,
+    IServiceTypeRepository serviceTypeRepository,
+    INodeRepository nodeRepository) : IServiceNodeRuleService
 {
     public async Task<ServiceNodeRuleIndexViewModel> GetIndexAsync(
         CancellationToken cancellationToken = default)
@@ -78,7 +81,7 @@ public sealed class ServiceNodeRuleService(
             : ServiceNodeRuleCreateResult.Unavailable;
     }
 
-    public async Task<ServiceNodeRuleRemoveResult> RemoveAsync(
+    public async Task<ServiceRemoveResult> RemoveAsync(
         int serviceTypeId,
         int nodeId,
         CancellationToken cancellationToken = default)
@@ -90,23 +93,9 @@ public sealed class ServiceNodeRuleService(
 
         return writeResult switch
         {
-            Repositories.ServiceNodeRuleRemoveResult.Success => ServiceNodeRuleRemoveResult.Success,
-            Repositories.ServiceNodeRuleRemoveResult.Referenced => ServiceNodeRuleRemoveResult.Referenced,
-            _ => ServiceNodeRuleRemoveResult.NotFound
+            RepositoryRemoveResult.Success => ServiceRemoveResult.Success,
+            RepositoryRemoveResult.Referenced => ServiceRemoveResult.Referenced,
+            _ => ServiceRemoveResult.NotFound
         };
     }
-}
-
-public enum ServiceNodeRuleCreateResult
-{
-    Success,
-    Duplicate,
-    Unavailable
-}
-
-public enum ServiceNodeRuleRemoveResult
-{
-    Success,
-    NotFound,
-    Referenced
 }

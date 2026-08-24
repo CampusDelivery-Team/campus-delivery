@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using CampusDelivery.Api.Services;
-using CampusDelivery.Api.Repositories;
+using CampusDelivery.Api.Services.Interfaces;
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Presentation.ViewModels;
+using System.Security.Claims;
 
 namespace CampusDelivery.Api.Controllers
 {
@@ -11,21 +11,18 @@ namespace CampusDelivery.Api.Controllers
     [Authorize]
     public class AddressController : Controller
     {
-        private readonly AddressService _addressService;
-        private readonly UserRepository _userRepository;
+        private readonly IAddressService _addressService;
 
-        public AddressController(AddressService addressService, UserRepository userRepository)
+        public AddressController(IAddressService addressService)
         {
             _addressService = addressService;
-            _userRepository = userRepository;
         }
 
         // 辅助方法：获取当前登录用户的 UserId
         private int GetCurrentUserId()
         {
-            var username = User.Identity?.Name;
-            var user = _userRepository.GetUserByUsername(username!);
-            return user?.UserId ?? 0;
+            string? value = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return int.TryParse(value, out int userId) ? userId : 0;
         }
 
         // 1. 地址列表页
@@ -49,7 +46,7 @@ namespace CampusDelivery.Api.Controllers
         // 3. 提交新增地址 (POST)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Create(AddressViewModel model)
+        public async Task<IActionResult> Create(AddressViewModel model, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid) return View(model);
 
@@ -65,7 +62,7 @@ namespace CampusDelivery.Api.Controllers
                 IsDefault = model.IsDefault == "Y" ? "Y" : "N"
             };
 
-            var (success, error) = _addressService.AddAddress(newAddress);
+            var (success, error) = await _addressService.AddAddressAsync(newAddress, cancellationToken);
             if (success)
             {
                 TempData["SuccessMessage"] = "地址添加成功！";
@@ -102,7 +99,7 @@ namespace CampusDelivery.Api.Controllers
         // 5. 提交修改地址 (POST)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Edit(AddressViewModel model)
+        public async Task<IActionResult> Edit(AddressViewModel model, CancellationToken cancellationToken)
         {
             if (!ModelState.IsValid) return View(model);
 
@@ -118,7 +115,7 @@ namespace CampusDelivery.Api.Controllers
                 IsDefault = model.IsDefault == "Y" ? "Y" : "N"
             };
 
-            var (success, error) = _addressService.UpdateAddress(updateAddress);
+            var (success, error) = await _addressService.UpdateAddressAsync(updateAddress, cancellationToken);
             if (success)
             {
                 TempData["SuccessMessage"] = "地址修改成功！";
@@ -132,22 +129,24 @@ namespace CampusDelivery.Api.Controllers
         // 6. 删除地址 (POST)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
         {
             int userId = GetCurrentUserId();
-            _addressService.DeleteAddress(userId, id);
-            TempData["SuccessMessage"] = "地址已删除！";
+            var (success, error) = await _addressService.DeleteAddressAsync(userId, id, cancellationToken);
+            TempData[success ? "SuccessMessage" : "ErrorMessage"] = success ? "地址已删除！" : error;
             return RedirectToAction("Index");
         }
 
         // 7. 设置为默认地址 (POST)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult SetDefault(int id)
+        public async Task<IActionResult> SetDefault(int id, CancellationToken cancellationToken)
         {
             int userId = GetCurrentUserId();
-            _addressService.SetDefault(userId, id);
-            TempData["SuccessMessage"] = "默认地址设置成功！";
+            var (success, message) = await _addressService.SetDefaultAsync(userId, id, cancellationToken);
+            TempData[success ? "SuccessMessage" : "ErrorMessage"] = success
+                ? string.IsNullOrEmpty(message) ? "默认地址设置成功！" : message
+                : message;
             return RedirectToAction("Index");
         }
     }

@@ -3,28 +3,48 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>@ViewData["Title"] - 校园跑腿服务管理系统</title>
+    <title>@ViewData["Title"] - 济跑跑 JiRun</title>
+    <link rel="icon" href="~/images/favicon.ico" sizes="any" asp-append-version="true" />
+    <link rel="apple-touch-icon" href="~/images/jirun-mark-192.png" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
     <header class="topbar">
         <a class="brand" asp-controller="Home" asp-action="Index">
-            <span>跑</span>
-            <strong>校园跑腿</strong>
-            <small>Campus Runner Service</small>
+            <img class="brand-mark" src="~/images/jirun-mark-64.png" alt="" />
+            <div class="brand-copy">
+                <strong>济跑跑</strong>
+                <small>JiRun Campus Service</small>
+            </div>
         </a>
         <nav class="nav">
             <a asp-controller="Home" asp-action="Index" asp-fragment="services">服务类型</a>
             <a asp-controller="Home" asp-action="Index" asp-fragment="workflow">服务流程</a>
             @if (User.Identity?.IsAuthenticated == true)
             {
-                <a asp-controller="Task" asp-action="Index">任务大厅</a>
-                <a asp-controller="Task" asp-action="Receipt">确认收货</a>
+                @if (!User.IsInRole("ADMIN"))
+                {
+                    <a asp-controller="Task" asp-action="Create">发布任务</a>
+                    <a asp-controller="Payment" asp-action="Status">支付查询</a>
+                }
 
                 @if (User.IsInRole("RUNNER"))
                 {
+                    <a asp-controller="Task" asp-action="Hall">任务大厅</a>
+                }
+                else
+                {
+                    <a asp-controller="Task" asp-action="Index">我的任务</a>
+                }
 
+                <a asp-controller="Task" asp-action="Receipt">确认收货</a>
+                <a asp-controller="Review" asp-action="MyReviews">我的评价</a>
+                <a asp-controller="Complaint" asp-action="MyComplaints">我的投诉</a>
+
+                @if (User.IsInRole("RUNNER"))
+                {
                     <a asp-controller="Task" asp-action="MyTasks">配送工作台</a>
+                    <a asp-controller="Settlement" asp-action="My">我的结算</a>
                 }
 
                 <a asp-controller="User" asp-action="Profile">个人中心</a>
@@ -41,6 +61,8 @@
                         <div class="nav-menu-panel">
                             <span class="nav-menu-label">任务调度</span>
                             <a asp-controller="Task" asp-action="AdminConsole">指派控制台</a>
+                            <span class="nav-menu-label">支付退款</span>
+                            <a asp-controller="Refund" asp-action="AdminIndex">退款审核</a>
                             <span class="nav-menu-label">基础资料</span>
                             <a asp-controller="Node" asp-action="Index">节点管理</a>
                             <a asp-controller="ServiceType" asp-action="Index">服务类型</a>
@@ -49,6 +71,13 @@
                             <a asp-controller="Account" asp-action="Index">账号管理</a>
                             <a asp-controller="Runner" asp-action="Index">跑腿员资料</a>
                             <a asp-controller="Runner" asp-action="Pending">跑腿员审核</a>
+                            <span class="nav-menu-label">评价投诉</span>
+                            <a asp-controller="Review" asp-action="All">评价管理</a>
+                            <a asp-controller="Complaint" asp-action="Index">投诉管理</a>
+                            <span class="nav-menu-label">结算审计</span>
+                            <a asp-controller="Settlement" asp-action="Index">结算管理</a>
+                            <a asp-controller="Audit" asp-action="Index">审计日志</a>
+                            <a asp-controller="Report" asp-action="Index">统计报表</a>
                             <span class="nav-menu-label">系统</span>
                             <a asp-controller="Database" asp-action="Status">系统检测</a>
                         </div>

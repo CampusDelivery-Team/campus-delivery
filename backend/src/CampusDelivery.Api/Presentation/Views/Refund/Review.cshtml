@@ -1,0 +1,45 @@
+@model RefundReviewViewModel
+
+@{
+    ViewData["Title"] = "退款审核";
+}
+
+<section class="application-shell">
+    <header class="application-heading">
+        <p class="eyebrow">退款审核</p>
+        <h1>审核退款 #@Model.RefundId</h1>
+        <p>任务 #@Model.TaskId · @Model.TaskTitle</p>
+    </header>
+
+    <form asp-action="Review" method="post" class="application-form">
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+        <input type="hidden" asp-for="RefundId" />
+        <input type="hidden" asp-for="PaymentId" />
+        <input type="hidden" asp-for="TaskId" />
+
+        <div class="profile-info-grid">
+            <div><span>退款金额</span><strong>¥@Model.RefundAmount.ToString("F2")</strong></div>
+            <div><span>申请原因</span><strong>@Model.RefundReason</strong></div>
+        </div>
+
+        <div class="application-field">
+            <label asp-for="Decision"></label>
+            <select asp-for="Decision">
+                <option value="APPROVED">通过退款</option>
+                <option value="REJECTED">驳回退款</option>
+            </select>
+            <span asp-validation-for="Decision" class="validation-message"></span>
+        </div>
+
+        <div class="application-field">
+            <label asp-for="ReviewReason"></label>
+            <textarea asp-for="ReviewReason" rows="4" maxlength="100" placeholder="请说明通过或驳回退款的理由"></textarea>
+            <span asp-validation-for="ReviewReason" class="validation-message"></span>
+        </div>
+
+        <div class="application-actions">
+            <button type="submit" class="button primary">提交审核结果</button>
+            <a class="button" asp-action="AdminIndex">返回退款列表</a>
+        </div>
+    </form>
+</section>

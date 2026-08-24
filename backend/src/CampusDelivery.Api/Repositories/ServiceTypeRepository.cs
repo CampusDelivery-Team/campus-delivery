@@ -1,10 +1,11 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 
 namespace CampusDelivery.Api.Repositories;
 
-public sealed class ServiceTypeRepository(OracleConnectionFactory connectionFactory)
+public sealed class ServiceTypeRepository(OracleConnectionFactory connectionFactory) : IServiceTypeRepository
 {
     public async Task<IReadOnlyList<ServiceType>> GetAllAsync(
         CancellationToken cancellationToken = default)
@@ -68,56 +69,69 @@ public sealed class ServiceTypeRepository(OracleConnectionFactory connectionFact
         return Convert.ToInt32(result) > 0;
     }
 
-    public async Task InsertAsync(
+    public async Task<ServiceTypeRepositoryWriteResult> InsertAsync(
         ServiceType serviceType,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            INSERT INTO service_types (
-                service_name,
-                base_price,
-                distance_rule,
-                urgent_rule,
-                type_status
-            )
-            VALUES (
-                :serviceName,
-                :basePrice,
-                :distanceRule,
-                :urgentRule,
-                :typeStatus
-            )
-            """;
-        AddEditableParameters(command, serviceType);
-
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        try
+        {
+            await using var connection = connectionFactory.CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                INSERT INTO service_types (
+                    service_name,
+                    base_price,
+                    distance_rule,
+                    urgent_rule,
+                    type_status
+                )
+                VALUES (
+                    :serviceName,
+                    :basePrice,
+                    :distanceRule,
+                    :urgentRule,
+                    :typeStatus
+                )
+                """;
+            AddEditableParameters(command, serviceType);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            return ServiceTypeRepositoryWriteResult.Success;
+        }
+        catch (OracleException exception) when (exception.Number == 1)
+        {
+            return ServiceTypeRepositoryWriteResult.DuplicateName;
+        }
     }
 
-    public async Task<bool> UpdateAsync(
+    public async Task<ServiceTypeRepositoryWriteResult> UpdateAsync(
         ServiceType serviceType,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            UPDATE service_types
-            SET service_name = :serviceName,
-                base_price = :basePrice,
-                distance_rule = :distanceRule,
-                urgent_rule = :urgentRule,
-                type_status = :typeStatus
-            WHERE service_type_id = :serviceTypeId
-            """;
-        AddEditableParameters(command, serviceType);
-        command.Parameters.Add(new OracleParameter("serviceTypeId", serviceType.ServiceTypeId));
-
-        return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+        try
+        {
+            await using var connection = connectionFactory.CreateConnection();
+            await connection.OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                UPDATE service_types
+                   SET service_name = :serviceName,
+                       base_price = :basePrice,
+                       distance_rule = :distanceRule,
+                       urgent_rule = :urgentRule,
+                       type_status = :typeStatus
+                 WHERE service_type_id = :serviceTypeId
+                """;
+            AddEditableParameters(command, serviceType);
+            command.Parameters.Add(new OracleParameter("serviceTypeId", serviceType.ServiceTypeId));
+            return await command.ExecuteNonQueryAsync(cancellationToken) == 1
+                ? ServiceTypeRepositoryWriteResult.Success
+                : ServiceTypeRepositoryWriteResult.NotFound;
+        }
+        catch (OracleException exception) when (exception.Number == 1)
+        {
+            return ServiceTypeRepositoryWriteResult.DuplicateName;
+        }
     }
 
     public async Task<bool> UpdateStatusAsync(
@@ -215,11 +229,4 @@ public sealed class ServiceTypeRepository(OracleConnectionFactory connectionFact
             (object?)serviceType.UrgentRule ?? DBNull.Value));
         command.Parameters.Add(new OracleParameter("typeStatus", serviceType.TypeStatus));
     }
-}
-
-public enum ServiceTypeDeleteResult
-{
-    Success,
-    NotFound,
-    Referenced
 }

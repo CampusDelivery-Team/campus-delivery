@@ -2,25 +2,54 @@ using System;
 using System.Data;
 using Oracle.ManagedDataAccess.Client;
 using CampusDelivery.Api.Models;
-using Microsoft.Extensions.Configuration;
+using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 
 namespace CampusDelivery.Api.Repositories
 {
-    public class UserRepository
+    public sealed class UserRepository : IUserRepository
     {
-        private readonly string _connectionString;
+        private readonly OracleConnectionFactory _connectionFactory;
 
         // 通过依赖注入获取 appsettings.Local.json 里的连接字符串
-        public UserRepository(IConfiguration configuration)
+        public UserRepository(OracleConnectionFactory connectionFactory)
         {
-            _connectionString = configuration.GetConnectionString("OracleDb")
-                ?? throw new InvalidOperationException("Connection string 'OracleDb' is missing.");
+            _connectionFactory = connectionFactory;
+        }
+
+        public User? GetUserById(int userId)
+        {
+            using OracleConnection connection = _connectionFactory.CreateConnection();
+            connection.Open();
+            using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.CommandText = """
+                SELECT user_id, username, phone, password_hash, user_role, account_status
+                  FROM APPUSER.users
+                 WHERE user_id = :userId
+                """;
+            command.Parameters.Add(new OracleParameter("userId", userId));
+            using OracleDataReader reader = command.ExecuteReader();
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            return new User
+            {
+                UserId = Convert.ToInt32(reader["user_id"]),
+                Username = GetString(reader, "username"),
+                Phone = GetString(reader, "phone"),
+                PasswordHash = GetString(reader, "password_hash"),
+                UserRole = GetString(reader, "user_role"),
+                AccountStatus = GetString(reader, "account_status")
+            };
         }
 
         // 1. 根据账号查找用户（用于登录校验，以及注册时检查账号是否已存在）
         public User? GetUserByUsername(string username)
         {
-            using (OracleConnection conn = new OracleConnection(_connectionString))
+            using (OracleConnection conn = _connectionFactory.CreateConnection())
             {
                 conn.Open();
                 // ⚠️ 极其重要：表名前必须加 APPUSER.
@@ -53,54 +82,128 @@ namespace CampusDelivery.Api.Repositories
             return null; // 如果没查到，返回 null
         }
 
-        // 2. 插入新用户（用于注册功能）
-        public bool InsertUser(User user)
+        public User? GetUserByPhone(string phone)
         {
-            using (OracleConnection conn = new OracleConnection(_connectionString))
+            using OracleConnection connection = _connectionFactory.CreateConnection();
+            connection.Open();
+
+            const string sql = @"SELECT user_id, username, phone, password_hash, user_role, account_status
+                                 FROM APPUSER.users
+                                 WHERE phone = :phone";
+            using OracleCommand command = new OracleCommand(sql, connection)
             {
-                conn.Open();
-            
-                string sql = @"INSERT INTO APPUSER.users 
-                               (username, phone, password_hash, user_role, account_status) 
-                               VALUES 
-                               (:username, :phone, :password_hash, :user_role, :account_status)";
+                BindByName = true
+            };
+            command.Parameters.Add(new OracleParameter("phone", phone));
 
-                using (OracleCommand cmd = new OracleCommand(sql, conn))
+            using OracleDataReader reader = command.ExecuteReader();
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            return new User
+            {
+                UserId = Convert.ToInt32(reader["user_id"]),
+                Username = GetString(reader, "username"),
+                Phone = GetString(reader, "phone"),
+                PasswordHash = GetString(reader, "password_hash"),
+                UserRole = GetString(reader, "user_role"),
+                AccountStatus = GetString(reader, "account_status")
+            };
+        }
+
+        // 2. 插入新用户（用于注册功能）
+        public UserInsertWriteResult InsertUser(User user)
+        {
+            try
+            {
+                using OracleConnection connection = _connectionFactory.CreateConnection();
+                connection.Open();
+
+                const string sql = @"INSERT INTO APPUSER.users
+                                     (username, phone, password_hash, user_role, account_status)
+                                     VALUES
+                                     (:username, :phone, :password_hash, :user_role, :account_status)";
+                using OracleCommand command = new OracleCommand(sql, connection)
                 {
-                    cmd.Parameters.Add(new OracleParameter("username", user.Username));
-                    cmd.Parameters.Add(new OracleParameter("phone", user.Phone));
-                    cmd.Parameters.Add(new OracleParameter("password_hash", user.PasswordHash));
-                    cmd.Parameters.Add(new OracleParameter("user_role", user.UserRole));
-                    cmd.Parameters.Add(new OracleParameter("account_status", user.AccountStatus));
+                    BindByName = true
+                };
+                command.Parameters.Add(new OracleParameter("username", user.Username));
+                command.Parameters.Add(new OracleParameter("phone", user.Phone));
+                command.Parameters.Add(new OracleParameter("password_hash", user.PasswordHash));
+                command.Parameters.Add(new OracleParameter("user_role", user.UserRole));
+                command.Parameters.Add(new OracleParameter("account_status", user.AccountStatus));
 
-                    // 执行插入，如果受影响的行数大于 0，说明插入成功
-                    int rowsAffected = cmd.ExecuteNonQuery();
-                    return rowsAffected > 0;
+                return command.ExecuteNonQuery() == 1
+                    ? UserInsertWriteResult.Success
+                    : UserInsertWriteResult.Failed;
+            }
+            catch (OracleException exception) when (exception.Number == 1)
+            {
+                if (exception.Message.Contains("UK_USERS_USERNAME", StringComparison.OrdinalIgnoreCase))
+                {
+                    return UserInsertWriteResult.DuplicateUsername;
+                }
+
+                if (exception.Message.Contains("UK_USERS_PHONE", StringComparison.OrdinalIgnoreCase))
+                {
+                    return UserInsertWriteResult.DuplicatePhone;
+                }
+
+                return UserInsertWriteResult.Failed;
+            }
+        }
+
+        public bool UpdatePasswordHash(int userId, string passwordHash)
+        {
+            using (OracleConnection connection = _connectionFactory.CreateConnection())
+            {
+                connection.Open();
+
+                const string sql = @"UPDATE APPUSER.users
+                                     SET password_hash = :passwordHash
+                                     WHERE user_id = :userId";
+                using (OracleCommand command = new OracleCommand(sql, connection))
+                {
+                    command.Parameters.Add(new OracleParameter("passwordHash", passwordHash));
+                    command.Parameters.Add(new OracleParameter("userId", userId));
+                    return command.ExecuteNonQuery() == 1;
                 }
             }
         }
+
         // 3. 更新用户手机号
-        public bool UpdateUserPhone(int userId, string newPhone)
+        public UserPhoneUpdateWriteResult UpdateUserPhone(int userId, string newPhone)
         {
-            using (OracleConnection conn = new OracleConnection(_connectionString))
+            try
             {
-                conn.Open();
-   
-                string sql = @"UPDATE APPUSER.users SET phone = :phone WHERE user_id = :user_id";
+                using OracleConnection connection = _connectionFactory.CreateConnection();
+                connection.Open();
 
-                using (OracleCommand cmd = new OracleCommand(sql, conn))
+                const string sql = @"UPDATE APPUSER.users SET phone = :phone WHERE user_id = :user_id";
+                using OracleCommand command = new OracleCommand(sql, connection)
                 {
-                    cmd.Parameters.Add(new OracleParameter("phone", newPhone));
-                    cmd.Parameters.Add(new OracleParameter("user_id", userId));
+                    BindByName = true
+                };
+                command.Parameters.Add(new OracleParameter("phone", newPhone));
+                command.Parameters.Add(new OracleParameter("user_id", userId));
 
-                    return cmd.ExecuteNonQuery() > 0;
-                }
+                return command.ExecuteNonQuery() == 1
+                    ? UserPhoneUpdateWriteResult.Success
+                    : UserPhoneUpdateWriteResult.NotFound;
+            }
+            catch (OracleException exception) when (
+                exception.Number == 1
+                && exception.Message.Contains("UK_USERS_PHONE", StringComparison.OrdinalIgnoreCase))
+            {
+                return UserPhoneUpdateWriteResult.DuplicatePhone;
             }
         }
 
         public UserAddress? GetPrimaryAddress(int userId)
         {
-            using (OracleConnection conn = new OracleConnection(_connectionString))
+            using (OracleConnection conn = _connectionFactory.CreateConnection())
             {
                 conn.Open();
 
@@ -137,7 +240,7 @@ namespace CampusDelivery.Api.Repositories
         public List<ManagedAccount> GetManagedAccounts()
         {
             var accounts = new List<ManagedAccount>();
-            using (OracleConnection connection = new OracleConnection(_connectionString))
+            using (OracleConnection connection = _connectionFactory.CreateConnection())
             {
                 connection.Open();
                 const string sql = @"SELECT u.user_id, u.username, u.phone, u.user_role, u.account_status,
@@ -180,52 +283,61 @@ namespace CampusDelivery.Api.Repositories
 
         public bool UpdateAccountStatus(int userId, string nextStatus, params string[] allowedCurrentStatuses)
         {
-            using (OracleConnection connection = new OracleConnection(_connectionString))
+            try
             {
-                connection.Open();
-                using (OracleTransaction transaction = connection.BeginTransaction())
+                using (OracleConnection connection = _connectionFactory.CreateConnection())
                 {
-                    var statusParameters = string.Join(", ", allowedCurrentStatuses.Select((_, index) => $":status{index}"));
-                    using (OracleCommand accountCommand = new OracleCommand($@"UPDATE APPUSER.users
+                    connection.Open();
+                    using (OracleTransaction transaction = connection.BeginTransaction())
+                    {
+                        var statusParameters = string.Join(", ", allowedCurrentStatuses.Select((_, index) => $":status{index}"));
+                        using (OracleCommand accountCommand = new OracleCommand($@"UPDATE APPUSER.users
                         SET account_status = :nextStatus
                         WHERE user_id = :userId
                           AND user_role IN ('USER', 'RUNNER')
                           AND account_status IN ({statusParameters})", connection))
-                    {
-                        accountCommand.Transaction = transaction;
-                        accountCommand.Parameters.Add(new OracleParameter("nextStatus", nextStatus));
-                        accountCommand.Parameters.Add(new OracleParameter("userId", userId));
-                        for (var index = 0; index < allowedCurrentStatuses.Length; index++)
                         {
-                            accountCommand.Parameters.Add(new OracleParameter($"status{index}", allowedCurrentStatuses[index]));
+                            accountCommand.Transaction = transaction;
+                            accountCommand.Parameters.Add(new OracleParameter("nextStatus", nextStatus));
+                            accountCommand.Parameters.Add(new OracleParameter("userId", userId));
+                            for (var index = 0; index < allowedCurrentStatuses.Length; index++)
+                            {
+                                accountCommand.Parameters.Add(new OracleParameter($"status{index}", allowedCurrentStatuses[index]));
+                            }
+
+                            if (accountCommand.ExecuteNonQuery() == 0)
+                            {
+                                transaction.Rollback();
+                                return false;
+                            }
                         }
 
-                        if (accountCommand.ExecuteNonQuery() == 0)
+                        if (nextStatus is "BLOCKED" or "CANCELLED")
                         {
-                            transaction.Rollback();
-                            return false;
+                            using OracleCommand runnerCommand = new OracleCommand(
+                                "UPDATE APPUSER.runners SET work_status = 'OFFLINE' WHERE user_id = :userId",
+                                connection);
+                            runnerCommand.Transaction = transaction;
+                            runnerCommand.Parameters.Add(new OracleParameter("userId", userId));
+                            runnerCommand.ExecuteNonQuery();
                         }
-                    }
 
-                    if (nextStatus is "BLOCKED" or "CANCELLED")
-                    {
-                        using OracleCommand runnerCommand = new OracleCommand(
-                            "UPDATE APPUSER.runners SET work_status = 'OFFLINE' WHERE user_id = :userId",
-                            connection);
-                        runnerCommand.Transaction = transaction;
-                        runnerCommand.Parameters.Add(new OracleParameter("userId", userId));
-                        runnerCommand.ExecuteNonQuery();
+                        transaction.Commit();
+                        return true;
                     }
-
-                    transaction.Commit();
-                    return true;
                 }
+            }
+            catch (OracleException exception) when (exception.Number == 2290)
+            {
+                throw new RepositorySchemaException(
+                    "账号状态约束尚未升级。",
+                    exception);
             }
         }
 
         public bool RevokeRunnerQualification(int userId)
         {
-            using (OracleConnection connection = new OracleConnection(_connectionString))
+            using (OracleConnection connection = _connectionFactory.CreateConnection())
             {
                 connection.Open();
                 using (OracleTransaction transaction = connection.BeginTransaction())

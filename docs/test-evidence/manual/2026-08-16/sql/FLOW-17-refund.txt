@@ -1,0 +1,9 @@
+
+ REFUND_ID PAYMENT_ID REFUND_AMOUNT APPROVED_AMOUNT PROCESS_STATUS
+---------- ---------- ------------- --------------- ----------------------------------------
+         1         41           .97               0 REJECTED
+         2         43             1               0 REJECTED
+        21         61             5               5 APPROVED
+
+ÒÑÑ¡Ôñ 3 ÐÐ¡£
+

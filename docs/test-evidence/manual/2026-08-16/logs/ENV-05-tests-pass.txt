@@ -1,0 +1,21 @@
+CampusDelivery screenshot evidence - automated quality gate
+Executed: 2026-08-16 11:43 +08:00
+Git commit: 2917db9ba55a9385f81e5f16242dd454c796ad76
+Command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
+
+[TEST] Running focused business-service tests (Debug)...
+CampusDelivery.Api -> backend\src\CampusDelivery.Api\bin\Debug\net9.0\CampusDelivery.Api.dll
+CampusDelivery.Tests -> backend\tests\CampusDelivery.Tests\bin\Debug\net9.0\CampusDelivery.Tests.dll
+VSTest 17.14.1 (x64)
+
+Passed: 39
+Failed: 0
+Skipped: 0
+Total: 39
+Duration: 28 ms
+
+[PASS] Schema table count: 24 (requirement: >= 12).
+[PASS] Anti-forgery coverage: 46/46 POST actions.
+[PASS] Layer boundaries: controllers use services; services contain no Oracle commands.
+[PASS] Repository row-lock statements found: 14.
+[PASS] Oracle connection string is externally configurable via ConnectionStrings:OracleDb.

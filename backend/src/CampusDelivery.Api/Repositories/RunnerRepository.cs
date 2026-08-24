@@ -1,10 +1,11 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
+using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
 
 namespace CampusDelivery.Api.Repositories;
 
-public sealed class RunnerRepository(OracleConnectionFactory connectionFactory)
+public sealed class RunnerRepository(OracleConnectionFactory connectionFactory) : IRunnerRepository
 {
     public async Task<IReadOnlyList<Runner>> GetAllAsync(
         bool pendingOnly = false,
@@ -319,20 +320,4 @@ public sealed class RunnerRepository(OracleConnectionFactory connectionFactory)
             CreditScore = Convert.ToDecimal(reader["credit_score"])
         };
     }
-}
-
-public enum RunnerReviewWriteResult
-{
-    Success,
-    NotFound,
-    AlreadyReviewed,
-    AccountUnavailable
-}
-
-public enum RunnerWorkStatusWriteResult
-{
-    Success,
-    NotFound,
-    Busy,
-    Unavailable
 }

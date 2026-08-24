@@ -1,0 +1,8 @@
+namespace CampusDelivery.Api.Presentation.ViewModels;
+
+public sealed class TaskOptionViewModel
+{
+    public int Value { get; set; }
+
+    public string Text { get; set; } = string.Empty;
+}

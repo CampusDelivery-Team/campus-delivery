@@ -55,9 +55,9 @@
                                     <td><span class="badge task-badge--service">@task.ServiceTypeName</span></td>
                                     <td class="task-price">¥@task.TaskPrice.ToString("F2")</td>
                                     <td>
-                                        @if (Model.FreeRunners.Count == 0)
+                                        @if (!Model.FreeRunners.Any(runner => runner.UserId != task.PublisherUserId))
                                         {
-                                            <span class="task-status-text task-status-text--error">当前页无空闲跑腿员</span>
+                                            <span class="task-status-text task-status-text--error">当前页无符合条件的空闲跑腿员</span>
                                         }
                                         else
                                         {
@@ -65,7 +65,7 @@
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="taskId" value="@task.TaskId" />
                                                 <select name="runnerId">
-                                                    @foreach (var runner in Model.FreeRunners)
+                                                    @foreach (var runner in Model.FreeRunners.Where(runner => runner.UserId != task.PublisherUserId))
                                                     {
                                                         <option value="@runner.RunnerId">@runner.RealName (信誉:@runner.CreditScore)</option>
                                                     }

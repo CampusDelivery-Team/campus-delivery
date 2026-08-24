@@ -5,10 +5,11 @@
 
 <section class="auth-page">
     <div class="auth-intro">
-        <p class="eyebrow">WELCOME BACK</p>
-        <h1>登录校园跑腿服务</h1>
-        <p>登录后，系统会依据账户角色开放个人资料、跑腿员资格或基础资料管理入口。</p>
-        <a asp-controller="Home" asp-action="Index">返回首页</a>
+        <img class="auth-brand-mark" src="~/images/jirun-mark-128.png" alt="" />
+        <p class="eyebrow">WELCOME TO JIRUN</p>
+        <h1>登录济跑跑</h1>
+        <p>进入校园跑腿工作台，发布订单、处理配送，或管理调度、审核和结算流程。</p>
+        <img class="auth-visual" src="~/images/jirun-admin-visual.png" alt="济跑跑校园订单运营视觉图" />
     </div>
 
     <div class="auth-card">
@@ -35,7 +36,7 @@
                 <input asp-for="Password" placeholder="请输入密码" autocomplete="current-password" />
                 <span asp-validation-for="Password" class="validation-message"></span>
             </div>
-            <button class="button primary auth-submit" type="submit">登录</button>
+            <button class="button primary auth-submit" type="submit">登录济跑跑</button>
         </form>
 
         <p class="auth-switch">还没有账号？<a asp-controller="Auth" asp-action="Register">注册新账号</a></p>

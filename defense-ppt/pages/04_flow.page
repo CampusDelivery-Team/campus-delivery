@@ -1,0 +1,196 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+notes: 沿主线从左到右走一遍九个环节，强调接派记录是锚点；下方数据链路说明表与表之间如何衔接。
+elements:
+  - elementId: head-left
+    elementType: text
+    bounds: [48, 20, 420, 12]
+    content: {style: "$metaLabel", wrap: false, text: 济跑跑工程档案 · CAMPUS RUNNER DOSSIER}
+  - elementId: head-right
+    elementType: text
+    bounds: [512, 20, 400, 12]
+    content: {style: "$metaLabel", align: [right, top], wrap: false, text: 业务闭环 · MAIN FLOW · 2026-08}
+  - elementId: head-rule
+    elementType: shape
+    bounds: [48, 40, 864, 1]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: headline
+    elementType: text
+    bounds: [48, 64, 840, 42]
+    content: {style: "$headline", wrap: false, text: 一单任务从发布到结算，走这九步}
+  # 流程基线
+  - elementId: flow-line
+    elementType: shape
+    bounds: [64, 180, 832, 1]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: st1-num
+    elementType: text
+    bounds: [14, 148, 100, 18]
+    content: {fontSize: 15, fontFamily: 思源宋体, color: "$ink", align: [center, top], wrap: false, text: "1"}
+  - elementId: st1-name
+    elementType: text
+    bounds: [14, 198, 100, 16]
+    content: {fontSize: 10.5, fontFamily: MiSans, color: "$ink", align: [center, top], wrap: false, text: 发布任务}
+  - elementId: st1-tick
+    elementType: shape
+    bounds: [63, 172, 1, 8]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: st2-num
+    elementType: text
+    bounds: [118, 148, 100, 18]
+    content: {fontSize: 15, fontFamily: 思源宋体, color: "$crimson", align: [center, top], wrap: false, text: "2"}
+  - elementId: st2-name
+    elementType: text
+    bounds: [118, 198, 100, 16]
+    content: {fontSize: 10.5, fontFamily: MiSans, bold: true, color: "$crimson", align: [center, top], wrap: false, text: 接派}
+  - elementId: st2-tick
+    elementType: shape
+    bounds: [167, 170, 1.5, 10]
+    shapeName: rect
+    fill: {type: solid, color: "$crimson"}
+  - elementId: st3-num
+    elementType: text
+    bounds: [222, 148, 100, 18]
+    content: {fontSize: 15, fontFamily: 思源宋体, color: "$ink", align: [center, top], wrap: false, text: "3"}
+  - elementId: st3-name
+    elementType: text
+    bounds: [222, 198, 100, 16]
+    content: {fontSize: 10.5, fontFamily: MiSans, color: "$ink", align: [center, top], wrap: false, text: 取货}
+  - elementId: st3-tick
+    elementType: shape
+    bounds: [271, 172, 1, 8]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: st4-num
+    elementType: text
+    bounds: [326, 148, 100, 18]
+    content: {fontSize: 15, fontFamily: 思源宋体, color: "$ink", align: [center, top], wrap: false, text: "4"}
+  - elementId: st4-name
+    elementType: text
+    bounds: [326, 198, 100, 16]
+    content: {fontSize: 10.5, fontFamily: MiSans, color: "$ink", align: [center, top], wrap: false, text: 配送}
+  - elementId: st4-tick
+    elementType: shape
+    bounds: [375, 172, 1, 8]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: st5-num
+    elementType: text
+    bounds: [430, 148, 100, 18]
+    content: {fontSize: 15, fontFamily: 思源宋体, color: "$ink", align: [center, top], wrap: false, text: "5"}
+  - elementId: st5-name
+    elementType: text
+    bounds: [430, 198, 100, 16]
+    content: {fontSize: 10.5, fontFamily: MiSans, color: "$ink", align: [center, top], wrap: false, text: 送达}
+  - elementId: st5-tick
+    elementType: shape
+    bounds: [479, 172, 1, 8]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: st6-num
+    elementType: text
+    bounds: [534, 148, 100, 18]
+    content: {fontSize: 15, fontFamily: 思源宋体, color: "$ink", align: [center, top], wrap: false, text: "6"}
+  - elementId: st6-name
+    elementType: text
+    bounds: [534, 198, 100, 16]
+    content: {fontSize: 10.5, fontFamily: MiSans, color: "$ink", align: [center, top], wrap: false, text: 确认收货}
+  - elementId: st6-tick
+    elementType: shape
+    bounds: [583, 172, 1, 8]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: st7-num
+    elementType: text
+    bounds: [638, 148, 100, 18]
+    content: {fontSize: 15, fontFamily: 思源宋体, color: "$ink", align: [center, top], wrap: false, text: "7"}
+  - elementId: st7-name
+    elementType: text
+    bounds: [638, 198, 100, 16]
+    content: {fontSize: 10.5, fontFamily: MiSans, color: "$ink", align: [center, top], wrap: false, text: 付款}
+  - elementId: st7-tick
+    elementType: shape
+    bounds: [687, 172, 1, 8]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: st8-num
+    elementType: text
+    bounds: [742, 148, 100, 18]
+    content: {fontSize: 15, fontFamily: 思源宋体, color: "$ink", align: [center, top], wrap: false, text: "8"}
+  - elementId: st8-name
+    elementType: text
+    bounds: [742, 198, 100, 16]
+    content: {fontSize: 10.5, fontFamily: MiSans, color: "$ink", align: [center, top], wrap: false, text: 评价 · 投诉}
+  - elementId: st8-tick
+    elementType: shape
+    bounds: [791, 172, 1, 8]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: st9-num
+    elementType: text
+    bounds: [846, 148, 100, 18]
+    content: {fontSize: 15, fontFamily: 思源宋体, color: "$ink", align: [center, top], wrap: false, text: "9"}
+  - elementId: st9-name
+    elementType: text
+    bounds: [846, 198, 100, 16]
+    content: {fontSize: 10.5, fontFamily: MiSans, color: "$ink", align: [center, top], wrap: false, text: 结算 · 审计}
+  - elementId: st9-tick
+    elementType: shape
+    bounds: [895, 172, 1, 8]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  # 锚点注解
+  - elementId: anchor-leader
+    elementType: line
+    bounds: [167, 218, 1, 30]
+    viewBox: [1, 30]
+    points: "0.5,0 0.5,30"
+    curve: sharp
+    border: {style: dash, width: 1, color: "$crimson"}
+  - elementId: anchor-note
+    elementType: text
+    bounds: [182, 222, 700, 34]
+    content:
+      fontSize: 10.5
+      fontFamily: MiSans
+      color: "$ink"
+      lineHeight: 1.5
+      align: [left, top]
+      text: |
+        <p>第 2 步是这一页最要紧的地方：支付、评价、投诉、结算、状态日志，全都挂在 <span style="color:$crimson;">assign_records</span> 这一次真实接派上。</p>
+  # 数据链路
+  - elementId: chain-label
+    elementType: text
+    bounds: [48, 292, 300, 12]
+    content: {style: "$metaLabel", wrap: false, text: 数据链路 · DATA CHAIN}
+  - elementId: chain-box
+    elementType: shape
+    bounds: [48, 314, 864, 108]
+    shapeName: rect
+    border: {style: dash, width: 1, color: "$meta"}
+  - elementId: chain-text
+    elementType: text
+    bounds: [72, 330, 816, 78]
+    content:
+      fontSize: 11
+      fontFamily: MiSans
+      color: "$ink"
+      lineHeight: 1.9
+      align: [left, middle]
+      text: |
+        <p><span style="color:$meta;">基础资料</span>　users · user_addresses · service_types · nodes · service_node_rules</p>
+        <p><span style="color:$meta;">业务主链</span>　tasks → assign_records → payments</p>
+        <p><span style="color:$meta;">履约延伸</span>　refunds · reviews · complaints · settlements · audit_logs · reports</p>
+  - elementId: chain-note
+    elementType: text
+    bounds: [48, 444, 864, 16]
+    content: {fontSize: 10, fontFamily: MiSans, color: "$meta", wrap: false, text: 注：状态日志自接派起逐步写入；审计与报表只读取历史业务数据，不反向修改业务主表。}
+  - elementId: folio
+    elementType: text
+    bounds: [430, 514, 100, 14]
+    content: {style: "$folio", align: [center, top], wrap: false, text: — 04 —}

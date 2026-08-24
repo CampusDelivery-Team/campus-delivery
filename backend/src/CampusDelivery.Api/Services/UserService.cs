@@ -1,17 +1,38 @@
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 
 namespace CampusDelivery.Api.Services
 {
-    public class UserService
+    public sealed class UserService : IUserService
     {
-        private readonly UserRepository _userRepository;
+        private readonly IUserRepository _userRepository;
+        private readonly IPasswordHasher<User> _passwordHasher;
+        private readonly ILogger<UserService> _logger;
 
-        // 通过构造函数注入，拿到UserRepository 去查数据库
-        public UserService(UserRepository userRepository)
+        // 通过构造函数注入用户仓储接口。
+        public UserService(
+            IUserRepository userRepository,
+            IPasswordHasher<User> passwordHasher,
+            ILogger<UserService> logger)
         {
             _userRepository = userRepository;
+            _passwordHasher = passwordHasher;
+            _logger = logger;
+        }
+
+        public UserAuthenticationState? GetAuthenticationState(int userId)
+        {
+            User? user = _userRepository.GetUserById(userId);
+            return user is null
+                ? null
+                : new UserAuthenticationState(
+                    user.UserId,
+                    user.Username,
+                    user.UserRole,
+                    user.AccountStatus);
         }
 
         /// <summary>
@@ -29,22 +50,40 @@ namespace CampusDelivery.Api.Services
                 return (false, "账号不存在，请先注册", null);
             }
 
-            // 3. 密码比对
-            // (注意：根据 002_init_base_data.sql 脚本，目前测试账号密码暂存的是 '123456' 明文。后期如果接入了加密算法，这里应该比对 Hash 值)
-            if (user.PasswordHash != password)
+            // 3. 使用 ASP.NET Core PasswordHasher 校验带盐哈希。
+            PasswordVerificationResult verificationResult;
+            try
+            {
+                verificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+            }
+            catch (FormatException exception)
+            {
+                _logger.LogError(
+                    exception,
+                    "用户 {UserId} 的密码哈希格式无效，需要执行密码迁移或重置。",
+                    user.UserId);
+                return (false, "该账号的密码数据需要升级，请联系管理员", null);
+            }
+            if (verificationResult == PasswordVerificationResult.Failed)
             {
                 return (false, "密码错误，请重新输入", null);
             }
 
             // 4. 判断账号是否被禁用
-            if (user.AccountStatus == "BLOCKED")
+            if (user.AccountStatus == AccountStatusCodes.Blocked)
             {
                 return (false, "您的账号已被封控，请联系管理员", null);
             }
 
-            if (user.AccountStatus == "CANCELLED")
+            if (user.AccountStatus == AccountStatusCodes.Cancelled)
             {
                 return (false, "该账号已注销，不能再登录", null);
+            }
+
+            if (verificationResult == PasswordVerificationResult.SuccessRehashNeeded)
+            {
+                user.PasswordHash = _passwordHasher.HashPassword(user, password);
+                _userRepository.UpdatePasswordHash(user.UserId, user.PasswordHash);
             }
 
             // 5. 校验全部通过，允许登录
@@ -54,23 +93,48 @@ namespace CampusDelivery.Api.Services
         /// 核心业务逻辑：用户注册
         /// 返回一个包含两个元素的元组 (是否成功, 错误提示)
         /// </summary>
-        public (bool Success, string ErrorMessage) Register(User user)
+        public UserRegistrationResult Register(
+            string username,
+            string phone,
+            string password)
         {
             // 1. 去数据库查一下，这个账号是不是已经被别人抢注了
-            var existingUser = _userRepository.GetUserByUsername(user.Username);
+            var existingUser = _userRepository.GetUserByUsername(username);
             if (existingUser != null)
             {
-                return (false, "该账号已被注册，请更换一个账号名");
+                return new(false, "该账号已被注册，请更换一个账号名", UserRegistrationFailure.DuplicateUsername);
             }
 
-            // 2. 调用持久层，把新用户插进数据库
-            bool isInserted = _userRepository.InsertUser(user);
-            if (isInserted)
+            if (_userRepository.GetUserByPhone(phone) is not null)
             {
-                return (true, ""); // 成功，没有错误信息
+                return new(false, "该手机号已经注册，请更换手机号或直接登录", UserRegistrationFailure.DuplicatePhone);
             }
 
-            return (false, "系统繁忙，注册失败，请稍后再试");
+            // 2. Service 统一生成带盐密码哈希，Repository 只保存哈希结果。
+            var user = new User
+            {
+                Username = username,
+                Phone = phone,
+                UserRole = "USER",
+                AccountStatus = AccountStatusCodes.Normal
+            };
+            user.PasswordHash = _passwordHasher.HashPassword(user, password);
+
+            // 3. 调用持久层，把新用户插进数据库
+            UserInsertWriteResult insertResult = _userRepository.InsertUser(user);
+            if (insertResult == UserInsertWriteResult.Success)
+            {
+                return new(true, string.Empty);
+            }
+
+            return insertResult switch
+            {
+                UserInsertWriteResult.DuplicateUsername =>
+                    new(false, "该账号已被注册，请更换一个账号名", UserRegistrationFailure.DuplicateUsername),
+                UserInsertWriteResult.DuplicatePhone =>
+                    new(false, "该手机号已经注册，请更换手机号或直接登录", UserRegistrationFailure.DuplicatePhone),
+                _ => new(false, "系统繁忙，注册失败，请稍后再试", UserRegistrationFailure.Unavailable)
+            };
         }
 
         /// <summary>
@@ -89,21 +153,77 @@ namespace CampusDelivery.Api.Services
         /// <summary>
         /// 更新用户手机号
         /// </summary>
-        public (bool Success, string ErrorMessage) UpdatePhone(int userId, string newPhone)
+        public UserViewModel? GetProfile(string username)
         {
-            bool isUpdated = _userRepository.UpdateUserPhone(userId, newPhone);
-            if (isUpdated)
+            User? user = _userRepository.GetUserByUsername(username);
+            if (user is null)
+            {
+                return null;
+            }
+
+            UserAddress? address = _userRepository.GetPrimaryAddress(user.UserId);
+            return new UserViewModel
+            {
+                UserId = user.UserId,
+                Username = user.Username,
+                Phone = user.Phone,
+                UserRole = GetChineseRoleName(user.UserRole),
+                HasAddress = address is not null,
+                AddressSummary = address is null
+                    ? "暂未设置常用地址"
+                    : $"{address.Campus} · {address.BuildingRoom}",
+                AddressContact = address is null
+                    ? "后续可在地址管理中新增收货地址"
+                    : $"{address.ContactName} · {address.ContactPhone}"
+            };
+        }
+
+        public (bool Success, string ErrorMessage) UpdatePhone(string username, string newPhone)
+        {
+            User? user = _userRepository.GetUserByUsername(username);
+            if (user is null)
+            {
+                return (false, "用户不存在");
+            }
+
+            User? phoneOwner = _userRepository.GetUserByPhone(newPhone);
+            if (phoneOwner is not null && phoneOwner.UserId != user.UserId)
+            {
+                return (false, "该手机号已被其他账号使用");
+            }
+
+            UserPhoneUpdateWriteResult updateResult = _userRepository.UpdateUserPhone(user.UserId, newPhone);
+            if (updateResult == UserPhoneUpdateWriteResult.Success)
             {
                 return (true, "");
             }
+
+            if (updateResult == UserPhoneUpdateWriteResult.DuplicatePhone)
+            {
+                return (false, "该手机号已被其他账号使用");
+            }
+
             return (false, "系统繁忙，更新失败，请稍后再试");
         }
 
-        public (bool Success, string ErrorMessage) CancelOwnAccount(int userId)
+        public (bool Success, string ErrorMessage) CancelOwnAccount(string username)
         {
-            return _userRepository.UpdateAccountStatus(userId, "CANCELLED", "NORMAL")
-                ? (true, string.Empty)
-                : (false, "账号状态已变化，注销失败，请刷新后重试");
+            User? user = _userRepository.GetUserByUsername(username);
+            if (user is null)
+            {
+                return (false, "用户不存在");
+            }
+
+            try
+            {
+                return _userRepository.UpdateAccountStatus(user.UserId, AccountStatusCodes.Cancelled, AccountStatusCodes.Normal)
+                    ? (true, string.Empty)
+                    : (false, "账号状态已变化，注销失败，请刷新后重试");
+            }
+            catch (RepositorySchemaException)
+            {
+                return (false, "数据库账号状态尚未升级，请联系管理员执行账号状态迁移。");
+            }
         }
 
         public AccountManagementViewModel GetAccountManagement()
@@ -125,22 +245,52 @@ namespace CampusDelivery.Api.Services
                     RunnerAuditStatus = account.RunnerAuditStatus,
                     RunnerWorkStatus = account.RunnerWorkStatus
                 }).ToList(),
-                NormalCount = accounts.Count(account => account.AccountStatus == "NORMAL"),
-                BlockedCount = accounts.Count(account => account.AccountStatus == "BLOCKED"),
-                CancelledCount = accounts.Count(account => account.AccountStatus == "CANCELLED")
+                NormalCount = accounts.Count(account => account.AccountStatus == AccountStatusCodes.Normal),
+                BlockedCount = accounts.Count(account => account.AccountStatus == AccountStatusCodes.Blocked),
+                CancelledCount = accounts.Count(account => account.AccountStatus == AccountStatusCodes.Cancelled)
             };
         }
 
-        public bool BlockAccount(int userId) =>
-            _userRepository.UpdateAccountStatus(userId, "BLOCKED", "NORMAL");
+        public UserAccountOperationResult BlockAccount(int userId) =>
+            ExecuteAccountOperation(
+                () => _userRepository.UpdateAccountStatus(userId, AccountStatusCodes.Blocked, AccountStatusCodes.Normal),
+                "账号已封控",
+                "账号无法封控，可能已被处理或不是可管理账号");
 
-        public bool UnblockAccount(int userId) =>
-            _userRepository.UpdateAccountStatus(userId, "NORMAL", "BLOCKED");
+        public UserAccountOperationResult UnblockAccount(int userId) =>
+            ExecuteAccountOperation(
+                () => _userRepository.UpdateAccountStatus(userId, AccountStatusCodes.Normal, AccountStatusCodes.Blocked),
+                "账号已解除封控",
+                "账号无法解除封控");
 
-        public bool CancelAccount(int userId) =>
-            _userRepository.UpdateAccountStatus(userId, "CANCELLED", "NORMAL", "BLOCKED");
+        public UserAccountOperationResult CancelAccount(int userId) =>
+            ExecuteAccountOperation(
+                () => _userRepository.UpdateAccountStatus(userId, AccountStatusCodes.Cancelled, AccountStatusCodes.Normal, AccountStatusCodes.Blocked),
+                "账号已注销",
+                "账号无法注销，可能已被处理或不是可管理账号");
 
-        public bool RevokeRunnerQualification(int userId) =>
-            _userRepository.RevokeRunnerQualification(userId);
+        public UserAccountOperationResult RevokeRunnerQualification(int userId) =>
+            ExecuteAccountOperation(
+                () => _userRepository.RevokeRunnerQualification(userId),
+                "已撤销跑腿员资格，账号已降为普通用户",
+                "无法撤销跑腿员资格");
+
+        private static UserAccountOperationResult ExecuteAccountOperation(
+            Func<bool> action,
+            string successMessage,
+            string failureMessage)
+        {
+            try
+            {
+                bool success = action();
+                return new UserAccountOperationResult(success, success ? successMessage : failureMessage);
+            }
+            catch (RepositorySchemaException)
+            {
+                return new UserAccountOperationResult(
+                    false,
+                    "数据库账号状态尚未升级，请先执行 003_add_account_lifecycle.sql。");
+            }
+        }
     }
 }

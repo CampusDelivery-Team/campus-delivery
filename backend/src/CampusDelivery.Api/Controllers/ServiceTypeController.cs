@@ -1,13 +1,12 @@
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
-using CampusDelivery.Api.Services;
+using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize(Roles = "ADMIN")]
-public sealed class ServiceTypeController(ServiceTypeService serviceTypeService) : Controller
+public sealed class ServiceTypeController(IServiceTypeService serviceTypeService) : Controller
 {
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
@@ -107,8 +106,8 @@ public sealed class ServiceTypeController(ServiceTypeService serviceTypeService)
         var result = await serviceTypeService.DeleteAsync(id, cancellationToken);
         TempData["ServiceTypeMessage"] = result switch
         {
-            ServiceTypeDeleteResult.Success => "服务类型已删除",
-            ServiceTypeDeleteResult.Referenced => "该服务类型已有任务记录，不能删除；可先停用服务",
+            ServiceTypeDeleteOperationResult.Success => "服务类型已删除",
+            ServiceTypeDeleteOperationResult.Referenced => "该服务类型已有任务记录，不能删除；可先停用服务",
             _ => "服务类型不存在或已被删除"
         };
         return RedirectToAction(nameof(Index));

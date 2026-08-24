@@ -6,27 +6,27 @@
   1. 数据库内部枚举值统一使用英文代码。
   2. 页面显示中文由后端或前端映射完成。
   3. 本脚本只插入基础运行数据，不插入完整业务演示数据。
-  4. password_hash 当前为登录模块未接入前的占位值，不代表真实密码存储方案。
+  4. password_hash 使用 ASP.NET Core PasswordHasher<User> 生成；每个账号使用独立随机 salt。
 */
 
 SET DEFINE OFF;
 
 INSERT INTO users (username, phone, password_hash, user_role, account_status)
-SELECT 'admin', '13000000000', '123456', 'ADMIN', 'NORMAL'
+SELECT 'admin', '13000000000', 'AQAAAAIAAYagAAAAEPqJQAv/Vo1Jz5tjcxAJory+Zwgb3v6BzbtfK3FaBgjx/U8bo68KilsseZi3DlW45Q==', 'ADMIN', 'NORMAL'
 FROM dual
 WHERE NOT EXISTS (
     SELECT 1 FROM users WHERE username = 'admin'
 );
 
 INSERT INTO users (username, phone, password_hash, user_role, account_status)
-SELECT 'user001', '13100000001', '123456', 'USER', 'NORMAL'
+SELECT 'user001', '13100000001', 'AQAAAAIAAYagAAAAEOx/t+yETiCAwdivPYWUOsvmBUUx03cVjrwfuc7y2NmYl2Rb+jREtOsOSKV753GP+w==', 'USER', 'NORMAL'
 FROM dual
 WHERE NOT EXISTS (
     SELECT 1 FROM users WHERE username = 'user001'
 );
 
 INSERT INTO users (username, phone, password_hash, user_role, account_status)
-SELECT 'runner001', '13200000001', '123456', 'RUNNER', 'NORMAL'
+SELECT 'runner001', '13200000001', 'AQAAAAIAAYagAAAAEIHg+08BaIBhSacEvUe36qaRgTvu/0GFfvPvpBFq6QgpFZGwh56OdPa4COqdMrndsQ==', 'RUNNER', 'NORMAL'
 FROM dual
 WHERE NOT EXISTS (
     SELECT 1 FROM users WHERE username = 'runner001'

@@ -1,14 +1,13 @@
 using CampusDelivery.Api.Models;
-using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Presentation.ViewModels;
-using CampusDelivery.Api.Repositories;
-using Oracle.ManagedDataAccess.Client;
+using CampusDelivery.Api.Repositories.Interfaces;
+using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Api.Services;
 
 public sealed class AssignService(
-    TaskRepository taskRepository,
-    OracleConnectionFactory connectionFactory)
+    IAssignRepository assignRepository,
+    IRepositoryTransactionManager transactionManager) : IAssignService
 {
     public async Task<TaskHallViewModel> GetTaskHallAsync(
         int userId,
@@ -17,12 +16,12 @@ public sealed class AssignService(
         CancellationToken cancellationToken = default)
     {
         (page, pageSize) = NormalizePage(page, pageSize);
-        int totalCount = await taskRepository.GetGrabableCountAsync(cancellationToken);
+        int totalCount = await assignRepository.GetGrabableCountAsync(cancellationToken);
         page = ClampPage(page, totalCount, pageSize);
         int offset = (page - 1) * pageSize;
 
-        var tasks = await taskRepository.GetGrabableTasksAsync(offset, pageSize, cancellationToken);
-        var runner = await taskRepository.GetRunnerByUserIdAsync(userId, cancellationToken);
+        var tasks = await assignRepository.GetGrabableTasksAsync(offset, pageSize, cancellationToken);
+        var runner = await assignRepository.GetRunnerByUserIdAsync(userId, cancellationToken);
         var viewModel = new TaskHallViewModel
         {
             PageNumber = page,
@@ -35,7 +34,7 @@ public sealed class AssignService(
 
         foreach (var task in tasks)
         {
-            var (_, _, addressDisplay) = await taskRepository.GetAddressDetailsAsync(
+            var (_, _, addressDisplay) = await assignRepository.GetAddressDetailsAsync(
                 task.PublisherUserId,
                 task.AddressNo,
                 cancellationToken);
@@ -47,10 +46,11 @@ public sealed class AssignService(
                 UrgentFlag = task.UrgentFlag,
                 TaskStatus = task.TaskStatus,
                 TaskStatusDisplayName = DisplayNameService.GetTaskStatusName(task.TaskStatus),
-                ServiceTypeName = await taskRepository.GetServiceTypeNameAsync(task.ServiceTypeId, cancellationToken),
-                NodeName = await taskRepository.GetNodeNameAsync(task.NodeId, cancellationToken),
+                ServiceTypeName = await assignRepository.GetServiceTypeNameAsync(task.ServiceTypeId, cancellationToken),
+                NodeName = await assignRepository.GetNodeNameAsync(task.NodeId, cancellationToken),
                 AddressDisplay = addressDisplay,
-                CreatedAt = task.CreatedAt
+                CreatedAt = task.CreatedAt,
+                IsPublishedByCurrentUser = task.PublisherUserId == userId
             });
         }
 
@@ -63,17 +63,17 @@ public sealed class AssignService(
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        var runner = await taskRepository.GetRunnerByUserIdAsync(userId, cancellationToken);
+        var runner = await assignRepository.GetRunnerByUserIdAsync(userId, cancellationToken);
         if (runner == null || runner.AuditStatus != "APPROVED")
         {
             return null;
         }
 
         (page, pageSize) = NormalizePage(page, pageSize);
-        int totalCount = await taskRepository.GetActiveTaskCountByRunnerIdAsync(runner.RunnerId, cancellationToken);
+        int totalCount = await assignRepository.GetActiveTaskCountByRunnerIdAsync(runner.RunnerId, cancellationToken);
         page = ClampPage(page, totalCount, pageSize);
         int offset = (page - 1) * pageSize;
-        var tasks = await taskRepository.GetActiveTasksByRunnerIdAsync(
+        var tasks = await assignRepository.GetActiveTasksByRunnerIdAsync(
             runner.RunnerId,
             offset,
             pageSize,
@@ -90,18 +90,53 @@ public sealed class AssignService(
 
         foreach (var task in tasks)
         {
-            var assign = await taskRepository.GetLatestAssignRecordAsync(task.TaskId, cancellationToken);
+            var assign = await assignRepository.GetLatestAssignRecordAsync(task.TaskId, cancellationToken);
             if (assign == null)
             {
                 continue;
             }
 
-            var (contactName, contactPhone, addressDisplay) = await taskRepository.GetAddressDetailsAsync(
+            var (contactName, contactPhone, addressDisplay) = await assignRepository.GetAddressDetailsAsync(
                 task.PublisherUserId,
                 task.AddressNo,
                 cancellationToken);
-            var logs = await taskRepository.GetStatusLogsByTaskIdAsync(task.TaskId, cancellationToken);
+            var logs = await assignRepository.GetStatusLogsByTaskIdAsync(task.TaskId, cancellationToken);
+            var details = await assignRepository.GetActiveTaskDetailsAsync(
+                task.TaskId,
+                runner.RunnerId,
+                cancellationToken);
             bool receiptConfirmed = logs.Any(log => IsReceiptConfirmationLog(log, task.PublisherUserId));
+
+            var detailFields = new List<TaskDetailFieldViewModel>();
+            void AddDetail(string label, string? value)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    detailFields.Add(new TaskDetailFieldViewModel { Label = label, Value = value });
+                }
+            }
+
+            if (details?.Task.TaskKind == "FOOD")
+            {
+                AddDetail("商家名称", details.MerchantName);
+                AddDetail("平台订单号", details.PlatformOrderNo);
+                AddDetail("取餐备注", details.FoodPickupNote);
+            }
+            else if (details?.Task.TaskKind == "EXPRESS")
+            {
+                AddDetail("快递公司", details.ExpressCompany);
+                AddDetail("物流单号", details.WaybillNo);
+                AddDetail("取件码", details.PickupCode);
+                AddDetail("取件备注", details.ExpressPickupNote);
+            }
+            else if (details?.Task.TaskKind == "PRIVATE")
+            {
+                AddDetail("物品类别", details.ItemCategory);
+                AddDetail("取货地点", details.PickupLocation);
+                AddDetail("送达地点", details.DeliveryLocation);
+                AddDetail("期望完成时间", details.ExpectedFinishAt?.ToString("yyyy-MM-dd HH:mm"));
+                AddDetail("任务描述", details.PrivateDescription);
+            }
 
             viewModel.ActiveTasks.Add(new MyTaskItemViewModel
             {
@@ -114,13 +149,14 @@ public sealed class AssignService(
                 TaskStatusDisplayName = task.TaskStatus == "WAIT_CONFIRM" && receiptConfirmed
                     ? "待支付"
                     : DisplayNameService.GetTaskStatusName(task.TaskStatus),
-                ServiceTypeName = await taskRepository.GetServiceTypeNameAsync(task.ServiceTypeId, cancellationToken),
-                NodeName = await taskRepository.GetNodeNameAsync(task.NodeId, cancellationToken),
+                ServiceTypeName = await assignRepository.GetServiceTypeNameAsync(task.ServiceTypeId, cancellationToken),
+                NodeName = await assignRepository.GetNodeNameAsync(task.NodeId, cancellationToken),
                 AddressDisplay = addressDisplay,
                 ContactName = contactName,
                 ContactPhone = contactPhone,
                 AssignedAt = assign.AssignedAt,
                 ReceiptConfirmed = receiptConfirmed,
+                DetailFields = detailFields,
 
                 Logs = logs.Select(log => new TaskStatusLogViewModel
                 {
@@ -146,10 +182,10 @@ public sealed class AssignService(
         CancellationToken cancellationToken = default)
     {
         (page, pageSize) = NormalizePage(page, pageSize);
-        int totalCount = await taskRepository.GetTasksWaitingForReceiptCountAsync(publisherUserId, cancellationToken);
+        int totalCount = await assignRepository.GetTasksWaitingForReceiptCountAsync(publisherUserId, cancellationToken);
         page = ClampPage(page, totalCount, pageSize);
         int offset = (page - 1) * pageSize;
-        var tasks = await taskRepository.GetTasksWaitingForReceiptAsync(
+        var tasks = await assignRepository.GetTasksWaitingForReceiptAsync(
             publisherUserId,
             offset,
             pageSize,
@@ -170,7 +206,7 @@ public sealed class AssignService(
                 TaskId = task.TaskId,
                 TaskTitle = task.TaskTitle,
                 TaskPrice = task.TaskPrice,
-                ServiceTypeName = await taskRepository.GetServiceTypeNameAsync(task.ServiceTypeId, cancellationToken)
+                ServiceTypeName = await assignRepository.GetServiceTypeNameAsync(task.ServiceTypeId, cancellationToken)
             });
         }
 
@@ -186,16 +222,16 @@ public sealed class AssignService(
         (taskPage, pageSize) = NormalizePage(taskPage, pageSize);
         runnerPage = Math.Max(1, runnerPage);
 
-        int taskTotalCount = await taskRepository.GetWaitingTasksForAdminCountAsync(cancellationToken);
-        int runnerTotalCount = await taskRepository.GetFreeRunnersForAdminCountAsync(cancellationToken);
+        int taskTotalCount = await assignRepository.GetWaitingTasksForAdminCountAsync(cancellationToken);
+        int runnerTotalCount = await assignRepository.GetFreeRunnersForAdminCountAsync(cancellationToken);
         taskPage = ClampPage(taskPage, taskTotalCount, pageSize);
         runnerPage = ClampPage(runnerPage, runnerTotalCount, pageSize);
 
-        var waitingTasks = await taskRepository.GetWaitingTasksForAdminAsync(
+        var waitingTasks = await assignRepository.GetWaitingTasksForAdminAsync(
             (taskPage - 1) * pageSize,
             pageSize,
             cancellationToken);
-        var freeRunners = await taskRepository.GetFreeRunnersForAdminAsync(
+        var freeRunners = await assignRepository.GetFreeRunnersForAdminAsync(
             (runnerPage - 1) * pageSize,
             pageSize,
             cancellationToken);
@@ -212,6 +248,7 @@ public sealed class AssignService(
             FreeRunners = freeRunners.Select(runner => new AdminRunnerItemViewModel
             {
                 RunnerId = runner.RunnerId,
+                UserId = runner.UserId,
                 RealName = runner.RealName,
                 CreditScore = runner.CreditScore
             }).ToList()
@@ -219,16 +256,17 @@ public sealed class AssignService(
 
         foreach (var task in waitingTasks)
         {
-            var (_, _, addressDisplay) = await taskRepository.GetAddressDetailsAsync(
+            var (_, _, addressDisplay) = await assignRepository.GetAddressDetailsAsync(
                 task.PublisherUserId,
                 task.AddressNo,
                 cancellationToken);
             viewModel.WaitingTasks.Add(new AdminTaskItemViewModel
             {
                 TaskId = task.TaskId,
+                PublisherUserId = task.PublisherUserId,
                 TaskTitle = task.TaskTitle,
                 TaskPrice = task.TaskPrice,
-                ServiceTypeName = await taskRepository.GetServiceTypeNameAsync(task.ServiceTypeId, cancellationToken),
+                ServiceTypeName = await assignRepository.GetServiceTypeNameAsync(task.ServiceTypeId, cancellationToken),
                 CreatedAddress = addressDisplay
             });
         }
@@ -238,34 +276,42 @@ public sealed class AssignService(
 
     public async Task<bool> GrabTaskAsync(int taskId, int userId, CancellationToken cancellationToken = default)
     {
-        var runner = await taskRepository.GetRunnerByUserIdAsync(userId, cancellationToken);
+        var runner = await assignRepository.GetRunnerByUserIdAsync(userId, cancellationToken);
         if (runner == null || runner.AuditStatus != "APPROVED" || runner.WorkStatus != "FREE")
         {
             return false;
         }
 
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using var transaction = (OracleTransaction)(await connection.BeginTransactionAsync(cancellationToken));
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
 
         try
         {
-            var currentStatus = await taskRepository.GetTaskStatusWithLockAsync(taskId, connection, transaction, cancellationToken);
+            var currentStatus = await assignRepository.GetTaskStatusWithLockAsync(taskId, transaction, cancellationToken);
             if (currentStatus != "WAITING")
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
 
-            var lockedRunner = await taskRepository.GetRunnerWithLockAsync(runner.RunnerId, connection, transaction, cancellationToken);
+            var publisherUserId = await assignRepository.GetTaskPublisherUserIdAsync(
+                taskId,
+                transaction,
+                cancellationToken);
+            if (publisherUserId == userId)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            var lockedRunner = await assignRepository.GetRunnerWithLockAsync(runner.RunnerId, transaction, cancellationToken);
             if (lockedRunner == null || lockedRunner.WorkStatus != "FREE")
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
 
-            await taskRepository.UpdateTaskStatusAsync(taskId, "ASSIGNED", connection, transaction, cancellationToken);
-            await taskRepository.UpdateRunnerWorkStatusAsync(runner.RunnerId, "BUSY", connection, transaction, cancellationToken);
+            await assignRepository.UpdateTaskStatusAsync(taskId, "ASSIGNED", transaction, cancellationToken);
+            await assignRepository.UpdateRunnerWorkStatusAsync(runner.RunnerId, "BUSY", transaction, cancellationToken);
 
             var record = new AssignRecord
             {
@@ -273,14 +319,14 @@ public sealed class AssignService(
                 RunnerId = runner.RunnerId,
                 OperationType = "SELF"
             };
-            int recordId = await taskRepository.InsertAssignRecordAsync(record, connection, transaction, cancellationToken);
-            await taskRepository.InsertTaskStatusLogAsync(new TaskStatusLog
+            int recordId = await assignRepository.InsertAssignRecordAsync(record, transaction, cancellationToken);
+            await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
             {
                 RecordId = recordId,
                 StatusBefore = "WAITING",
                 StatusAfter = "ASSIGNED",
                 OperatorUserId = userId
-            }, connection, transaction, cancellationToken);
+            }, transaction, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
             return true;
@@ -294,28 +340,36 @@ public sealed class AssignService(
 
     public async Task<bool> AssignTaskAsync(int taskId, int runnerId, int adminUserId, CancellationToken cancellationToken = default)
     {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using var transaction = (OracleTransaction)(await connection.BeginTransactionAsync(cancellationToken));
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
 
         try
         {
-            var currentStatus = await taskRepository.GetTaskStatusWithLockAsync(taskId, connection, transaction, cancellationToken);
+            var currentStatus = await assignRepository.GetTaskStatusWithLockAsync(taskId, transaction, cancellationToken);
             if (currentStatus != "WAITING")
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
 
-            var runner = await taskRepository.GetRunnerWithLockAsync(runnerId, connection, transaction, cancellationToken);
+            var runner = await assignRepository.GetRunnerWithLockAsync(runnerId, transaction, cancellationToken);
             if (runner == null || runner.AuditStatus != "APPROVED" || runner.WorkStatus != "FREE")
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
 
-            await taskRepository.UpdateTaskStatusAsync(taskId, "ASSIGNED", connection, transaction, cancellationToken);
-            await taskRepository.UpdateRunnerWorkStatusAsync(runnerId, "BUSY", connection, transaction, cancellationToken);
+            var publisherUserId = await assignRepository.GetTaskPublisherUserIdAsync(
+                taskId,
+                transaction,
+                cancellationToken);
+            if (publisherUserId == runner.UserId)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            await assignRepository.UpdateTaskStatusAsync(taskId, "ASSIGNED", transaction, cancellationToken);
+            await assignRepository.UpdateRunnerWorkStatusAsync(runnerId, "BUSY", transaction, cancellationToken);
 
             var record = new AssignRecord
             {
@@ -323,14 +377,14 @@ public sealed class AssignService(
                 RunnerId = runnerId,
                 OperationType = "ADMIN"
             };
-            int recordId = await taskRepository.InsertAssignRecordAsync(record, connection, transaction, cancellationToken);
-            await taskRepository.InsertTaskStatusLogAsync(new TaskStatusLog
+            int recordId = await assignRepository.InsertAssignRecordAsync(record, transaction, cancellationToken);
+            await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
             {
                 RecordId = recordId,
                 StatusBefore = "WAITING",
                 StatusAfter = "ASSIGNED",
                 OperatorUserId = adminUserId
-            }, connection, transaction, cancellationToken);
+            }, transaction, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
             return true;
@@ -351,36 +405,44 @@ public sealed class AssignService(
     {
         reason = string.IsNullOrWhiteSpace(reason) ? "管理员后台调度异常重派" : reason.Trim();
 
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using var transaction = (OracleTransaction)(await connection.BeginTransactionAsync(cancellationToken));
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
 
         try
         {
-            var currentStatus = await taskRepository.GetTaskStatusWithLockAsync(taskId, connection, transaction, cancellationToken);
+            var currentStatus = await assignRepository.GetTaskStatusWithLockAsync(taskId, transaction, cancellationToken);
             if (currentStatus != "ASSIGNED" && currentStatus != "PICKED_UP" && currentStatus != "DELIVERING")
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
 
-            var previousAssign = await taskRepository.GetLatestAssignRecordWithConnectionAsync(taskId, connection, transaction, cancellationToken);
+            var previousAssign = await assignRepository.GetLatestAssignRecordWithLockAsync(taskId, transaction, cancellationToken);
             if (previousAssign == null || previousAssign.RunnerId == newRunnerId)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
 
-            var newRunner = await taskRepository.GetRunnerWithLockAsync(newRunnerId, connection, transaction, cancellationToken);
+            var newRunner = await assignRepository.GetRunnerWithLockAsync(newRunnerId, transaction, cancellationToken);
             if (newRunner == null || newRunner.AuditStatus != "APPROVED" || newRunner.WorkStatus != "FREE")
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
 
-            await taskRepository.UpdateRunnerWorkStatusAsync(previousAssign.RunnerId, "FREE", connection, transaction, cancellationToken);
-            await taskRepository.UpdateTaskStatusAsync(taskId, "ASSIGNED", connection, transaction, cancellationToken);
-            await taskRepository.UpdateRunnerWorkStatusAsync(newRunnerId, "BUSY", connection, transaction, cancellationToken);
+            var publisherUserId = await assignRepository.GetTaskPublisherUserIdAsync(
+                taskId,
+                transaction,
+                cancellationToken);
+            if (publisherUserId == newRunner.UserId)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            await assignRepository.UpdateRunnerWorkStatusAsync(previousAssign.RunnerId, "FREE", transaction, cancellationToken);
+            await assignRepository.UpdateTaskStatusAsync(taskId, "ASSIGNED", transaction, cancellationToken);
+            await assignRepository.UpdateRunnerWorkStatusAsync(newRunnerId, "BUSY", transaction, cancellationToken);
 
             var record = new AssignRecord
             {
@@ -389,14 +451,14 @@ public sealed class AssignService(
                 OperationType = "REASSIGN",
                 ReassignReason = reason
             };
-            int recordId = await taskRepository.InsertAssignRecordAsync(record, connection, transaction, cancellationToken);
-            await taskRepository.InsertTaskStatusLogAsync(new TaskStatusLog
+            int recordId = await assignRepository.InsertAssignRecordAsync(record, transaction, cancellationToken);
+            await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
             {
                 RecordId = recordId,
                 StatusBefore = currentStatus,
                 StatusAfter = "ASSIGNED",
                 OperatorUserId = adminUserId
-            }, connection, transaction, cancellationToken);
+            }, transaction, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
             return true;
@@ -419,20 +481,18 @@ public sealed class AssignService(
             return false;
         }
 
-        var runner = await taskRepository.GetRunnerByUserIdAsync(operatorUserId, cancellationToken);
+        var runner = await assignRepository.GetRunnerByUserIdAsync(operatorUserId, cancellationToken);
         if (runner == null || runner.AuditStatus != "APPROVED")
         {
             return false;
         }
 
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using var transaction = (OracleTransaction)(await connection.BeginTransactionAsync(cancellationToken));
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
 
         try
         {
-            var currentStatus = await taskRepository.GetTaskStatusWithLockAsync(taskId, connection, transaction, cancellationToken);
-            var assignRecord = await taskRepository.GetLatestAssignRecordWithConnectionAsync(taskId, connection, transaction, cancellationToken);
+            var currentStatus = await assignRepository.GetTaskStatusWithLockAsync(taskId, transaction, cancellationToken);
+            var assignRecord = await assignRepository.GetLatestAssignRecordWithLockAsync(taskId, transaction, cancellationToken);
             if (assignRecord == null || assignRecord.RunnerId != runner.RunnerId)
             {
                 await transaction.RollbackAsync(cancellationToken);
@@ -453,14 +513,14 @@ public sealed class AssignService(
                 return false;
             }
 
-            await taskRepository.UpdateTaskStatusAsync(taskId, targetStatus, connection, transaction, cancellationToken);
-            await taskRepository.InsertTaskStatusLogAsync(new TaskStatusLog
+            await assignRepository.UpdateTaskStatusAsync(taskId, targetStatus, transaction, cancellationToken);
+            await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
             {
                 RecordId = assignRecord.RecordId,
                 StatusBefore = currentStatus,
                 StatusAfter = targetStatus,
                 OperatorUserId = operatorUserId
-            }, connection, transaction, cancellationToken);
+            }, transaction, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
             return true;
@@ -474,15 +534,13 @@ public sealed class AssignService(
 
     public async Task<bool> ConfirmReceiptAsync(int taskId, int publisherUserId, CancellationToken cancellationToken = default)
     {
-        await using var connection = connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using var transaction = (OracleTransaction)(await connection.BeginTransactionAsync(cancellationToken));
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
 
         try
         {
-            var currentStatus = await taskRepository.GetTaskStatusWithLockAsync(taskId, connection, transaction, cancellationToken);
-            var taskPublisherUserId = await taskRepository.GetTaskPublisherUserIdAsync(taskId, connection, transaction, cancellationToken);
-            var assignRecord = await taskRepository.GetLatestAssignRecordWithConnectionAsync(taskId, connection, transaction, cancellationToken);
+            var currentStatus = await assignRepository.GetTaskStatusWithLockAsync(taskId, transaction, cancellationToken);
+            var taskPublisherUserId = await assignRepository.GetTaskPublisherUserIdAsync(taskId, transaction, cancellationToken);
+            var assignRecord = await assignRepository.GetLatestAssignRecordWithLockAsync(taskId, transaction, cancellationToken);
 
             if (currentStatus != "WAIT_CONFIRM" || taskPublisherUserId != publisherUserId || assignRecord == null)
             {
@@ -490,10 +548,9 @@ public sealed class AssignService(
                 return false;
             }
 
-            bool alreadyConfirmed = await taskRepository.IsReceiptConfirmedAsync(
+            bool alreadyConfirmed = await assignRepository.IsReceiptConfirmedAsync(
                 assignRecord.RecordId,
                 publisherUserId,
-                connection,
                 transaction,
                 cancellationToken);
             if (alreadyConfirmed)
@@ -501,14 +558,14 @@ public sealed class AssignService(
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
-
-            await taskRepository.InsertTaskStatusLogAsync(new TaskStatusLog
+            // 收货确认只写入确认日志；支付成功后再结束任务并释放跑腿员。
+            await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
             {
                 RecordId = assignRecord.RecordId,
                 StatusBefore = "WAIT_CONFIRM",
                 StatusAfter = "WAIT_CONFIRM",
                 OperatorUserId = publisherUserId
-            }, connection, transaction, cancellationToken);
+            }, transaction, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
             return true;

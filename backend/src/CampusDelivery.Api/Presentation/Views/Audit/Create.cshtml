@@ -1,0 +1,98 @@
+@using CampusDelivery.Api.Services
+@model AuditCreateViewModel
+
+@{
+    ViewData["Title"] = "登记审计";
+}
+
+<section class="panel management-panel ops-page">
+    <div class="section-header management-heading">
+        <div>
+            <p class="eyebrow">CREATE AUDIT</p>
+            <h1>登记@(Model.AuditObjectDisplayName)审计</h1>
+            <p class="section-description">选择要核验的业务记录，填写审计结果。审计主表和关联明细会在同一事务中写入。</p>
+        </div>
+        <div class="actions">
+            <a class="button" asp-action="Create" asp-route-auditObject="PAYMENT">支付</a>
+            <a class="button" asp-action="Create" asp-route-auditObject="REFUND">退款</a>
+            <a class="button" asp-action="Create" asp-route-auditObject="LOG">状态日志</a>
+            <a class="button" asp-action="Index">返回日志</a>
+        </div>
+    </div>
+
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="task-alert task-alert--error">@error</div>
+    }
+
+    <form asp-action="Create" method="post" class="ops-audit-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="AuditObject" />
+
+        <div class="ops-form-band">
+            <label class="application-field">
+                <span>审计结果</span>
+                <select asp-for="AuditResult">
+                    <option value="PASS">通过</option>
+                    <option value="ABNORMAL">异常</option>
+                </select>
+            </label>
+            <label class="application-field">
+                <span>异常说明</span>
+                <input asp-for="ExceptionNote" placeholder="结果为异常时建议填写原因" maxlength="300" />
+            </label>
+            <button type="submit" class="button primary">保存审计</button>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>选择</th>
+                        <th>对象</th>
+                        <th>说明</th>
+                        <th>状态</th>
+                        <th>金额</th>
+                        <th>发生时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Targets.Count == 0)
+                    {
+                        <tr><td colspan="6" class="empty task-table__empty">暂无可审计记录。</td></tr>
+                    }
+                    else
+                    {
+                        foreach (var target in Model.Targets)
+                        {
+                            <tr>
+                                <td>
+                                    <input class="ops-checkbox" type="checkbox" name="TargetIds" value="@target.TargetId" />
+                                </td>
+                                <td><strong>@target.Title</strong></td>
+                                <td>@target.SecondaryText</td>
+                                <td>@FormatStatus(Model.AuditObject, target.Status)</td>
+                                <td>@(target.Amount.HasValue ? $"¥{target.Amount.Value:F2}" : "—")</td>
+                                <td>@(target.OccurredAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "—")</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </form>
+</section>
+
+@functions {
+    private static string FormatStatus(string auditObject, string status)
+    {
+        return auditObject switch
+        {
+            "PAYMENT" => DisplayNameService.GetPayStatusName(status),
+            "REFUND" => DisplayNameService.GetRefundProcessStatusName(status),
+            "LOG" => DisplayNameService.GetTaskStatusName(status),
+            _ => status
+        };
+    }
+}
+

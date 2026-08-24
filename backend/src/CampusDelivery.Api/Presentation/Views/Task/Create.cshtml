@@ -1,0 +1,218 @@
+@model TaskCreateViewModel
+
+@{
+    ViewData["Title"] = "发布任务";
+}
+
+<section class="address-form-page">
+    <div class="address-form-page__heading">
+        <p class="eyebrow">TASK PUBLISH</p>
+        <h1>发布任务</h1>
+        <p>按服务类型、收货地址和交接节点创建任务。任务发布成功后会直接进入“待接单”状态。</p>
+    </div>
+
+    @if (Model.AddressOptions.Count == 0)
+    {
+        <div class="inline-notice">
+            当前账号还没有收货地址，请先
+            <a asp-controller="Address" asp-action="Create">新增地址</a>
+            后再发布任务。
+        </div>
+    }
+
+    <form class="address-form" asp-action="Create" method="post" autocomplete="off">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+        <div class="address-form__grid">
+            <div class="address-form__field">
+                <label asp-for="TaskKind">任务类型</label>
+                <select asp-for="TaskKind" id="task-kind-select">
+                    <option value="FOOD">外卖分发</option>
+                    <option value="EXPRESS">快递代取</option>
+                    <option value="PRIVATE">私人跑腿</option>
+                </select>
+                <span asp-validation-for="TaskKind" class="validation-message"></span>
+            </div>
+            <div class="address-form__field">
+                <label asp-for="ServiceTypeId">服务类型</label>
+                <select asp-for="ServiceTypeId">
+                    <option value="">请选择服务类型</option>
+                    @foreach (var option in Model.ServiceTypeOptions)
+                    {
+                        <option value="@option.Value">@option.Text</option>
+                    }
+                </select>
+                <span asp-validation-for="ServiceTypeId" class="validation-message"></span>
+            </div>
+        </div>
+
+        <div class="address-form__grid">
+            <div class="address-form__field">
+                <label asp-for="AddressNo">收货地址</label>
+                <select asp-for="AddressNo">
+                    <option value="">请选择收货地址</option>
+                    @foreach (var option in Model.AddressOptions)
+                    {
+                        <option value="@option.Value">@option.Text</option>
+                    }
+                </select>
+                <span asp-validation-for="AddressNo" class="validation-message"></span>
+            </div>
+            <div class="address-form__field">
+                <label asp-for="NodeId">交接节点</label>
+                <select asp-for="NodeId">
+                    <option value="">请选择交接节点</option>
+                    @foreach (var option in Model.NodeOptions)
+                    {
+                        <option value="@option.Value">@option.Text</option>
+                    }
+                </select>
+                <span asp-validation-for="NodeId" class="validation-message"></span>
+            </div>
+        </div>
+
+        <div class="address-form__field">
+            <label asp-for="TaskTitle">任务标题</label>
+            <input asp-for="TaskTitle" placeholder="例如：帮我从分发点拿外卖到宿舍" />
+            <span asp-validation-for="TaskTitle" class="validation-message"></span>
+        </div>
+
+        <div class="address-form__grid">
+            <div class="address-form__field">
+                <label asp-for="TaskPrice">任务价格</label>
+                <input asp-for="TaskPrice" type="number" min="0" step="0.01" placeholder="例如：5.00" />
+                <span asp-validation-for="TaskPrice" class="validation-message"></span>
+            </div>
+            <div class="address-form__field">
+                <label>加急选项</label>
+                <input type="hidden" name="UrgentFlag" value="N" />
+                <label class="address-default-choice">
+                    <input type="checkbox" name="UrgentFlag" value="Y" @(Model.UrgentFlag == "Y" ? "checked" : null) />
+                    <span>加急处理</span>
+                </label>
+            </div>
+        </div>
+
+        <section id="food-fields" class="panel">
+            <div class="section-header">
+                <div>
+                    <p class="eyebrow">FOOD DETAIL</p>
+                    <h2>外卖分发明细</h2>
+                </div>
+            </div>
+            <div class="address-form__grid">
+                <div class="address-form__field">
+                    <label asp-for="MerchantName">商家名称</label>
+                    <input asp-for="MerchantName" placeholder="例如：麦当劳嘉定店" />
+                    <span asp-validation-for="MerchantName" class="validation-message"></span>
+                </div>
+                <div class="address-form__field">
+                    <label asp-for="PlatformOrderNo">平台订单号</label>
+                    <input asp-for="PlatformOrderNo" placeholder="选填" />
+                    <span asp-validation-for="PlatformOrderNo" class="validation-message"></span>
+                </div>
+            </div>
+            <div class="address-form__field">
+                <label asp-for="FoodPickupNote">取餐备注</label>
+                <input asp-for="FoodPickupNote" placeholder="例如：到了联系我，备注少冰" />
+                <span asp-validation-for="FoodPickupNote" class="validation-message"></span>
+            </div>
+        </section>
+
+        <section id="express-fields" class="panel">
+            <div class="section-header">
+                <div>
+                    <p class="eyebrow">EXPRESS DETAIL</p>
+                    <h2>快递代取明细</h2>
+                </div>
+            </div>
+            <div class="address-form__grid">
+                <div class="address-form__field">
+                    <label asp-for="ExpressCompany">快递公司</label>
+                    <input asp-for="ExpressCompany" placeholder="例如：顺丰" />
+                    <span asp-validation-for="ExpressCompany" class="validation-message"></span>
+                </div>
+                <div class="address-form__field">
+                    <label asp-for="WaybillNo">物流单号</label>
+                    <input asp-for="WaybillNo" placeholder="请填写物流单号" />
+                    <span asp-validation-for="WaybillNo" class="validation-message"></span>
+                </div>
+            </div>
+            <div class="address-form__grid">
+                <div class="address-form__field">
+                    <label asp-for="PickupCode">取件码</label>
+                    <input asp-for="PickupCode" placeholder="请填写取件码" />
+                    <span asp-validation-for="PickupCode" class="validation-message"></span>
+                </div>
+                <div class="address-form__field">
+                    <label asp-for="ExpressPickupNote">取件备注</label>
+                    <input asp-for="ExpressPickupNote" placeholder="例如：驿站靠近西门柜台" />
+                    <span asp-validation-for="ExpressPickupNote" class="validation-message"></span>
+                </div>
+            </div>
+        </section>
+
+        <section id="private-fields" class="panel">
+            <div class="section-header">
+                <div>
+                    <p class="eyebrow">PRIVATE DETAIL</p>
+                    <h2>私人跑腿明细</h2>
+                </div>
+            </div>
+            <div class="address-form__grid">
+                <div class="address-form__field">
+                    <label asp-for="ItemCategory">物品类别</label>
+                    <input asp-for="ItemCategory" placeholder="例如：文件、钥匙、药品" />
+                    <span asp-validation-for="ItemCategory" class="validation-message"></span>
+                </div>
+                <div class="address-form__field">
+                    <label asp-for="ExpectedFinishAt">期望完成时间</label>
+                    <input asp-for="ExpectedFinishAt" type="datetime-local" />
+                    <span asp-validation-for="ExpectedFinishAt" class="validation-message"></span>
+                </div>
+            </div>
+            <div class="address-form__field">
+                <label asp-for="PickupLocation">取货地点</label>
+                <input asp-for="PickupLocation" placeholder="例如：图书馆一楼服务台" />
+                <span asp-validation-for="PickupLocation" class="validation-message"></span>
+            </div>
+            <div class="address-form__field">
+                <label asp-for="DeliveryLocation">送达地点</label>
+                <input asp-for="DeliveryLocation" placeholder="例如：学生宿舍 8 号楼 305" />
+                <span asp-validation-for="DeliveryLocation" class="validation-message"></span>
+            </div>
+            <div class="address-form__field">
+                <label asp-for="PrivateDescription">任务描述</label>
+                <textarea asp-for="PrivateDescription" rows="4" placeholder="补充说明物品特征、交接要求等"></textarea>
+                <span asp-validation-for="PrivateDescription" class="validation-message"></span>
+            </div>
+        </section>
+
+        <div class="profile-footer-actions">
+            <a class="button" asp-action="Index">返回我的任务</a>
+            <button type="submit" class="button primary" @(Model.AddressOptions.Count == 0 ? "disabled" : null)>发布任务</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <script>
+        (() => {
+            const selector = document.getElementById("task-kind-select");
+            const foodFields = document.getElementById("food-fields");
+            const expressFields = document.getElementById("express-fields");
+            const privateFields = document.getElementById("private-fields");
+
+            const render = () => {
+                const value = selector.value;
+                foodFields.style.display = value === "FOOD" ? "" : "none";
+                expressFields.style.display = value === "EXPRESS" ? "" : "none";
+                privateFields.style.display = value === "PRIVATE" ? "" : "none";
+            };
+
+            selector.addEventListener("change", render);
+            render();
+        })();
+    </script>
+}
