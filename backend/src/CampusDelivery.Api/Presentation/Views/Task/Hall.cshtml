@@ -67,11 +67,18 @@
                     </div>
                     <div class="task-card__footer">
                         <span class="badge audit-pending">@task.TaskStatusDisplayName</span>
-                        <form asp-action="Grab" method="post" class="task-inline-form">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="taskId" value="@task.TaskId" />
-                            <button type="submit" class="button primary" disabled="@(!canGrab)">接单</button>
-                        </form>
+                        @if (task.IsPublishedByCurrentUser)
+                        {
+                            <span class="task-status-text">自己发布的任务不能接单</span>
+                        }
+                        else
+                        {
+                            <form asp-action="Grab" method="post" class="task-inline-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="taskId" value="@task.TaskId" />
+                                <button type="submit" class="button primary" disabled="@(!canGrab)">接单</button>
+                            </form>
+                        }
                     </div>
                 </article>
             }

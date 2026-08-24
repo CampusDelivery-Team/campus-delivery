@@ -23,4 +23,5 @@ public sealed class TaskHallItemViewModel
     public string NodeName { get; set; } = string.Empty;
     public string AddressDisplay { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public bool IsPublishedByCurrentUser { get; set; }
 }

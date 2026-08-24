@@ -173,7 +173,7 @@ namespace CampusDelivery.Api.Controllers
 
             TempData[success ? "SuccessMessage" : "ErrorMessage"] = success
                 ? "接单成功，请前往配送工作台处理任务。"
-                : "接单失败。任务可能已被接走，或您的账号当前不可接单。";
+                : "接单失败。不能接自己发布的任务；任务也可能已被接走，或您的账号当前不可接单。";
             return RedirectToAction(nameof(Hall));
         }
 
@@ -285,7 +285,7 @@ namespace CampusDelivery.Api.Controllers
 
             TempData[success ? "SuccessMessage" : "ErrorMessage"] = success
                 ? "任务指派成功。"
-                : "任务指派失败，请检查任务和跑腿员状态。";
+                : "任务指派失败，请检查任务和跑腿员状态；发布者不能承接自己的任务。";
             return RedirectToAction(nameof(AdminConsole));
         }
 
@@ -308,7 +308,7 @@ namespace CampusDelivery.Api.Controllers
 
             TempData[success ? "SuccessMessage" : "ErrorMessage"] = success
                 ? "任务重派成功。"
-                : "任务重派失败，请检查任务状态和新跑腿员状态。";
+                : "任务重派失败，请检查任务状态和新跑腿员状态；发布者不能承接自己的任务。";
             return RedirectToAction(nameof(AdminConsole));
         }
 

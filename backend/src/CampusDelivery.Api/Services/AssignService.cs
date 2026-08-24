@@ -49,7 +49,8 @@ public sealed class AssignService(
                 ServiceTypeName = await assignRepository.GetServiceTypeNameAsync(task.ServiceTypeId, cancellationToken),
                 NodeName = await assignRepository.GetNodeNameAsync(task.NodeId, cancellationToken),
                 AddressDisplay = addressDisplay,
-                CreatedAt = task.CreatedAt
+                CreatedAt = task.CreatedAt,
+                IsPublishedByCurrentUser = task.PublisherUserId == userId
             });
         }
 
@@ -247,6 +248,7 @@ public sealed class AssignService(
             FreeRunners = freeRunners.Select(runner => new AdminRunnerItemViewModel
             {
                 RunnerId = runner.RunnerId,
+                UserId = runner.UserId,
                 RealName = runner.RealName,
                 CreditScore = runner.CreditScore
             }).ToList()
@@ -261,6 +263,7 @@ public sealed class AssignService(
             viewModel.WaitingTasks.Add(new AdminTaskItemViewModel
             {
                 TaskId = task.TaskId,
+                PublisherUserId = task.PublisherUserId,
                 TaskTitle = task.TaskTitle,
                 TaskPrice = task.TaskPrice,
                 ServiceTypeName = await assignRepository.GetServiceTypeNameAsync(task.ServiceTypeId, cancellationToken),
@@ -285,6 +288,16 @@ public sealed class AssignService(
         {
             var currentStatus = await assignRepository.GetTaskStatusWithLockAsync(taskId, transaction, cancellationToken);
             if (currentStatus != "WAITING")
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            var publisherUserId = await assignRepository.GetTaskPublisherUserIdAsync(
+                taskId,
+                transaction,
+                cancellationToken);
+            if (publisherUserId == userId)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
@@ -340,6 +353,16 @@ public sealed class AssignService(
 
             var runner = await assignRepository.GetRunnerWithLockAsync(runnerId, transaction, cancellationToken);
             if (runner == null || runner.AuditStatus != "APPROVED" || runner.WorkStatus != "FREE")
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            var publisherUserId = await assignRepository.GetTaskPublisherUserIdAsync(
+                taskId,
+                transaction,
+                cancellationToken);
+            if (publisherUserId == runner.UserId)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
@@ -402,6 +425,16 @@ public sealed class AssignService(
 
             var newRunner = await assignRepository.GetRunnerWithLockAsync(newRunnerId, transaction, cancellationToken);
             if (newRunner == null || newRunner.AuditStatus != "APPROVED" || newRunner.WorkStatus != "FREE")
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return false;
+            }
+
+            var publisherUserId = await assignRepository.GetTaskPublisherUserIdAsync(
+                taskId,
+                transaction,
+                cancellationToken);
+            if (publisherUserId == newRunner.UserId)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;

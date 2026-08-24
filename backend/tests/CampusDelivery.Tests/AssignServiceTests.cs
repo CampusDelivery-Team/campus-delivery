@@ -27,6 +27,57 @@ public sealed class AssignServiceTests
     }
 
     [Fact]
+    public async Task GrabTaskAsync_WhenRunnerPublishedTask_IsRejectedWithoutWrites()
+    {
+        var repository = new FakeAssignRepository { PublisherUserId = 11 };
+        repository.AddRunner(userId: 11, runnerId: 1011);
+        var service = new AssignService(repository, new FakeRepositoryTransactionManager());
+
+        bool result = await service.GrabTaskAsync(repository.TaskId, 11);
+
+        Assert.False(result);
+        Assert.Equal("WAITING", repository.TaskStatus);
+        Assert.Equal("FREE", repository.GetRunner(1011)?.WorkStatus);
+        Assert.Empty(repository.InsertedAssignRecords);
+        Assert.Empty(repository.InsertedStatusLogs);
+    }
+
+    [Fact]
+    public async Task AssignTaskAsync_WhenRunnerPublishedTask_IsRejectedWithoutWrites()
+    {
+        var repository = new FakeAssignRepository { PublisherUserId = 11 };
+        repository.AddRunner(userId: 11, runnerId: 1011);
+        var service = new AssignService(repository, new FakeRepositoryTransactionManager());
+
+        bool result = await service.AssignTaskAsync(repository.TaskId, 1011, adminUserId: 9001);
+
+        Assert.False(result);
+        Assert.Equal("WAITING", repository.TaskStatus);
+        Assert.Equal("FREE", repository.GetRunner(1011)?.WorkStatus);
+        Assert.Empty(repository.InsertedAssignRecords);
+    }
+
+    [Fact]
+    public async Task ReassignTaskAsync_WhenNewRunnerPublishedTask_IsRejectedWithoutWrites()
+    {
+        var repository = CreateAssignedRepository();
+        repository.AddRunner(userId: repository.PublisherUserId, runnerId: 2022);
+        var service = new AssignService(repository, new FakeRepositoryTransactionManager());
+
+        bool result = await service.ReassignTaskAsync(
+            repository.TaskId,
+            newRunnerId: 2022,
+            reason: "测试重派",
+            adminUserId: 9001);
+
+        Assert.False(result);
+        Assert.Equal("ASSIGNED", repository.TaskStatus);
+        Assert.Equal("BUSY", repository.GetRunner(1011)?.WorkStatus);
+        Assert.Equal("FREE", repository.GetRunner(2022)?.WorkStatus);
+        Assert.Empty(repository.InsertedAssignRecords);
+    }
+
+    [Fact]
     public async Task UpdateStatusAsync_WhenTransitionSkipsStep_IsRejected()
     {
         var repository = CreateAssignedRepository();
