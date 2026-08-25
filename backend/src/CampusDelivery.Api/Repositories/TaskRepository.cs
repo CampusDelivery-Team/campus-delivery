@@ -193,7 +193,8 @@ namespace CampusDelivery.Api.Repositories
                        e.express_company, e.waybill_no, e.pickup_code, e.pickup_note AS express_pickup_note,
                        p.item_category, p.pickup_location, p.delivery_location,
                        p.expected_finish_at, p.description AS private_description,
-                       ar.record_id
+                       ar.record_id,
+                       r.real_name, r.credit_score, r.work_status
                 FROM tasks t
                 JOIN users u ON u.user_id = t.publisher_user_id
                 JOIN service_types st ON st.service_type_id = t.service_type_id
@@ -203,10 +204,11 @@ namespace CampusDelivery.Api.Repositories
                 LEFT JOIN express_pickup_details e ON e.task_id = t.task_id AND e.detail_no = 1
                 LEFT JOIN private_task_details p ON p.task_id = t.task_id AND p.detail_no = 1
                 LEFT JOIN (
-                    SELECT record_id, task_id,
+                    SELECT record_id, runner_id, task_id,
                            ROW_NUMBER() OVER (PARTITION BY task_id ORDER BY assigned_at DESC, record_id DESC) AS rn
                     FROM assign_records
                 ) ar ON ar.task_id = t.task_id AND ar.rn = 1
+                LEFT JOIN runners r ON r.runner_id = ar.runner_id
                 WHERE t.task_id = :taskId
                   AND (:includeAll = 1 OR t.publisher_user_id = :currentUserId)
                 """;
@@ -224,6 +226,9 @@ namespace CampusDelivery.Api.Repositories
             return new TaskDetailsRecord
             {
                 RecordId = reader["record_id"] == DBNull.Value ? null : Convert.ToInt32(reader["record_id"]),
+                RunnerRealName = Optional("real_name"),
+                RunnerCreditScore = reader["credit_score"] == DBNull.Value ? null : Convert.ToDecimal(reader["credit_score"]),
+                RunnerWorkStatus = Optional("work_status"),
                 Task = new TaskRecord
                 {
                     TaskId = Convert.ToInt32(reader["task_id"]),

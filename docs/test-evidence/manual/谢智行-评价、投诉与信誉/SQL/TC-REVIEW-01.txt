@@ -1,0 +1,18 @@
+查询：
+SELECT settlement_id, runner_id, order_total, net_income, settlement_status
+FROM settlements
+WHERE runner_id = 341;
+结果：
+SETTLEMENT_ID  RUNNER_ID ORDER_TOTAL NET_INCOME SETTLEMENT_STATUS   
+------------- ---------- ----------- ---------- --------------------
+           42        341          10          9 DONE                
+
+查询：
+SELECT spi.payment_id
+FROM settlement_payment_items spi
+WHERE spi.settlement_id = 42;
+结果：
+PAYMENT_ID PAYMENT_ID
+---------- ----------
+       101        101
+       121        121
