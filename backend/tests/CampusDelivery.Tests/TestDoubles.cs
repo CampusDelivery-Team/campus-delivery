@@ -529,6 +529,7 @@ internal sealed class FakePaymentRepository : IPaymentRepository
 internal sealed class FakeRefundRepository : IRefundRepository
 {
     public RefundRecord? ActiveRefund { get; set; }
+    public int InsertCount { get; private set; }
 
     public Task<RefundRecord?> GetByIdAsync(
         int refundId,
@@ -564,8 +565,11 @@ internal sealed class FakeRefundRepository : IRefundRepository
     public Task<int> InsertAsync(
         RefundRecord record,
         IRepositoryTransaction transaction,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(1);
+        CancellationToken cancellationToken = default)
+    {
+        InsertCount++;
+        return Task.FromResult(1);
+    }
 
     public Task UpdateReviewAsync(
         int refundId,

@@ -158,6 +158,7 @@ public sealed class PaymentServiceTests
             assignRepository,
             paymentRepository,
             new FakeRefundRepository(),
+            new FakeSettlementRepository(),
             transactionManager);
 
         return new PaymentFixture(
