@@ -209,6 +209,7 @@ internal sealed class FakeAddressRepository : IAddressRepository
 internal sealed class FakeSettlementRepository : ISettlementRepository
 {
     public Settlement? Existing { get; set; }
+    public bool PaymentSettled { get; set; }
     public int UpdateCount { get; private set; }
 
     public Task<IReadOnlyList<Settlement>> GetRecentSettlementsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Settlement>>([]);
@@ -222,6 +223,8 @@ internal sealed class FakeSettlementRepository : ISettlementRepository
     public Task<Settlement?> GetByIdForRunnerUserAsync(int settlementId, int userId, CancellationToken cancellationToken = default) => Task.FromResult<Settlement?>(null);
     public Task<IReadOnlyList<SettlementPaymentItem>> GetItemsAsync(int settlementId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<SettlementPaymentItem>>([]);
     public Task<IReadOnlyList<SettlementPaymentItem>> GetItemsForRunnerUserAsync(int settlementId, int userId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<SettlementPaymentItem>>([]);
+    public Task<bool> IsPaymentSettledAsync(int paymentId, CancellationToken cancellationToken = default) => Task.FromResult(PaymentSettled);
+    public Task<bool> IsPaymentSettledAsync(int paymentId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => Task.FromResult(PaymentSettled);
     public Task<int> InsertSettlementAsync(Settlement settlement, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => Task.FromResult(1);
     public Task InsertSettlementItemAsync(int settlementId, int paymentId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => Task.CompletedTask;
 

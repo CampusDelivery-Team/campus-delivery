@@ -26,7 +26,13 @@ public sealed class RefundController : Controller
         }
 
         RefundCreateViewModel? model = await _refundService.BuildCreateModelAsync(taskId, currentUserId.Value, cancellationToken);
-        return model == null ? NotFound() : View(model);
+        if (model is null)
+        {
+            TempData["ErrorMessage"] = "当前订单暂不支持在线退款。如订单已进入结算流程，请在任务详情页提交投诉，管理员会进行核查处理。";
+            return RedirectToAction("Status", "Payment", new { taskId });
+        }
+
+        return View(model);
     }
 
     [HttpPost]

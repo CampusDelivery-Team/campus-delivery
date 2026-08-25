@@ -11,6 +11,7 @@ public sealed class RefundService(
     IAssignRepository assignRepository,
     IPaymentRepository paymentRepository,
     IRefundRepository refundRepository,
+    ISettlementRepository settlementRepository,
     IRepositoryTransactionManager transactionManager) : IRefundService
 {
     private const string ReviewReasonMarker = "\n审核意见：";
@@ -20,6 +21,11 @@ public sealed class RefundService(
         TaskDetailsRecord? details = await taskRepository.GetDetailsAsync(taskId, currentUserId, false, cancellationToken);
         PaymentRecord? payment = await paymentRepository.GetByTaskIdAsync(taskId, cancellationToken);
         if (details is null || payment is null || payment.PayStatus != PaymentStatusCodes.Paid)
+        {
+            return null;
+        }
+
+        if (await settlementRepository.IsPaymentSettledAsync(payment.PaymentId, cancellationToken))
         {
             return null;
         }
@@ -75,6 +81,12 @@ public sealed class RefundService(
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return new(false, "该支付记录已有待处理或已通过的退款申请。", 0);
+            }
+
+            if (await settlementRepository.IsPaymentSettledAsync(payment.PaymentId, transaction, cancellationToken))
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return new(false, "该订单已进入结算流程，不能在线申请退款。如需售后处理，请提交投诉或联系管理员。", 0);
             }
 
             AssignRecord? assignRecord = await assignRepository.GetLatestAssignRecordWithLockAsync(payment.TaskId, transaction, cancellationToken);

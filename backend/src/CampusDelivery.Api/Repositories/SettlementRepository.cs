@@ -331,6 +331,24 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         return items;
     }
 
+    public async Task<bool> IsPaymentSettledAsync(
+        int paymentId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        return await IsPaymentSettledAsync(connection, null, paymentId, cancellationToken);
+    }
+
+    public async Task<bool> IsPaymentSettledAsync(
+        int paymentId,
+        IRepositoryTransaction repositoryTransaction,
+        CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+        return await IsPaymentSettledAsync(connection, transaction, paymentId, cancellationToken);
+    }
+
     public async Task<int> InsertSettlementAsync(
         Settlement settlement,
         IRepositoryTransaction repositoryTransaction,
@@ -457,6 +475,25 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         }
 
         return items;
+    }
+
+    private static async Task<bool> IsPaymentSettledAsync(
+        OracleConnection connection,
+        OracleTransaction? transaction,
+        int paymentId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT 1
+            FROM APPUSER.settlement_payment_items
+            WHERE payment_id = :paymentId
+            FETCH FIRST 1 ROWS ONLY
+            """;
+        command.Parameters.Add(new OracleParameter("paymentId", paymentId));
+        return await command.ExecuteScalarAsync(cancellationToken) is not null;
     }
 
     private static Settlement MapSettlement(OracleDataReader reader)
