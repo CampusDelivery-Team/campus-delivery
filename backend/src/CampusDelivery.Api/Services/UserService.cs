@@ -168,6 +168,9 @@ namespace CampusDelivery.Api.Services
                 Username = user.Username,
                 Phone = user.Phone,
                 UserRole = GetChineseRoleName(user.UserRole),
+                RunnerRealName = user.UserRole == "RUNNER"
+                    ? _userRepository.GetRunnerRealName(user.UserId)
+                    : null,
                 HasAddress = address is not null,
                 AddressSummary = address is null
                     ? "暂未设置常用地址"

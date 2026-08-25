@@ -1270,6 +1270,10 @@ textarea {
     padding-left: 28px;
 }
 
+.profile-details > div:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+}
+
 .profile-details dt {
     color: #60728f;
     font-size: 13px;
