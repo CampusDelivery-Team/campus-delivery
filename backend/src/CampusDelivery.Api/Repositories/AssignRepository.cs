@@ -142,6 +142,38 @@ public sealed class AssignRepository(OracleConnectionFactory connectionFactory) 
         return Convert.ToInt32(result);
     }
 
+    public async Task<int> GetOtherActiveTaskCountByRunnerIdAsync(
+        int runnerId,
+        int excludedTaskId,
+        IRepositoryTransaction repositoryTransaction,
+        CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM APPUSER.tasks t
+            JOIN (
+                SELECT record_id, task_id, runner_id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY task_id
+                           ORDER BY assigned_at DESC, record_id DESC
+                       ) AS rn
+                FROM APPUSER.assign_records
+            ) r ON r.task_id = t.task_id AND r.rn = 1
+            WHERE r.runner_id = :runnerId
+              AND t.task_id <> :excludedTaskId
+              AND t.task_status IN ('ASSIGNED', 'PICKED_UP', 'DELIVERING', 'WAIT_CONFIRM')
+            """;
+        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
+        command.Parameters.Add(new OracleParameter("excludedTaskId", excludedTaskId));
+
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToInt32(result);
+    }
+
     public async Task<TaskDetailsRecord?> GetActiveTaskDetailsAsync(
         int taskId,
         int runnerId,
@@ -537,7 +569,7 @@ public sealed class AssignRepository(OracleConnectionFactory connectionFactory) 
     }
 
 
-    public async Task<IReadOnlyList<Runner>> GetFreeRunnersForAdminAsync(
+    public async Task<IReadOnlyList<Runner>> GetAvailableRunnersForAdminAsync(
         int offset,
         int pageSize,
         CancellationToken cancellationToken = default)
@@ -551,7 +583,7 @@ public sealed class AssignRepository(OracleConnectionFactory connectionFactory) 
         command.CommandText = """
             SELECT runner_id, user_id, real_name, identity_info, audit_status, work_status, credit_score
             FROM APPUSER.runners
-            WHERE audit_status = 'APPROVED' AND work_status = 'FREE'
+            WHERE audit_status = 'APPROVED' AND work_status IN ('FREE', 'BUSY')
             ORDER BY runner_id
             OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
             """;
@@ -566,7 +598,7 @@ public sealed class AssignRepository(OracleConnectionFactory connectionFactory) 
         return runners;
     }
 
-    public async Task<int> GetFreeRunnersForAdminCountAsync(CancellationToken cancellationToken = default)
+    public async Task<int> GetAvailableRunnersForAdminCountAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
@@ -575,7 +607,7 @@ public sealed class AssignRepository(OracleConnectionFactory connectionFactory) 
         command.CommandText = """
             SELECT COUNT(*)
             FROM APPUSER.runners
-            WHERE audit_status = 'APPROVED' AND work_status = 'FREE'
+            WHERE audit_status = 'APPROVED' AND work_status IN ('FREE', 'BUSY')
             """;
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return Convert.ToInt32(result);

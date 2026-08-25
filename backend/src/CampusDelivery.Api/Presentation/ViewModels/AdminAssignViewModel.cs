@@ -3,7 +3,7 @@ namespace CampusDelivery.Api.Presentation.ViewModels;
 public sealed class AdminAssignViewModel
 {
     public List<AdminTaskItemViewModel> WaitingTasks { get; set; } = new();
-    public List<AdminRunnerItemViewModel> FreeRunners { get; set; } = new();
+    public List<AdminRunnerItemViewModel> AvailableRunners { get; set; } = new();
     public int TaskPageNumber { get; set; }
     public int TaskTotalPages { get; set; }
     public int TaskTotalCount { get; set; }
@@ -29,4 +29,5 @@ public sealed class AdminRunnerItemViewModel
     public int UserId { get; set; }
     public string RealName { get; set; } = string.Empty;
     public decimal CreditScore { get; set; }
+    public int ActiveTaskCount { get; set; }
 }

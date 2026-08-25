@@ -27,6 +27,21 @@ public sealed class AssignServiceTests
     }
 
     [Fact]
+    public async Task GrabTaskAsync_WhenRunnerIsBusy_AcceptsAnotherTask()
+    {
+        var repository = new FakeAssignRepository();
+        repository.AddRunner(userId: 11, runnerId: 1011, workStatus: "BUSY");
+        var service = new AssignService(repository, new FakeRepositoryTransactionManager());
+
+        bool result = await service.GrabTaskAsync(repository.TaskId, 11);
+
+        Assert.True(result);
+        Assert.Equal("ASSIGNED", repository.TaskStatus);
+        Assert.Equal("BUSY", repository.GetRunner(1011)?.WorkStatus);
+        Assert.Single(repository.InsertedAssignRecords);
+    }
+
+    [Fact]
     public async Task GrabTaskAsync_WhenRunnerPublishedTask_IsRejectedWithoutWrites()
     {
         var repository = new FakeAssignRepository { PublisherUserId = 11 };
@@ -75,6 +90,25 @@ public sealed class AssignServiceTests
         Assert.Equal("BUSY", repository.GetRunner(1011)?.WorkStatus);
         Assert.Equal("FREE", repository.GetRunner(2022)?.WorkStatus);
         Assert.Empty(repository.InsertedAssignRecords);
+    }
+
+    [Fact]
+    public async Task ReassignTaskAsync_WhenPreviousRunnerHasOtherTask_KeepsRunnerBusy()
+    {
+        var repository = CreateAssignedRepository();
+        repository.OtherActiveTaskCount = 1;
+        repository.AddRunner(userId: 22, runnerId: 2022, workStatus: "BUSY");
+        var service = new AssignService(repository, new FakeRepositoryTransactionManager());
+
+        bool result = await service.ReassignTaskAsync(
+            repository.TaskId,
+            newRunnerId: 2022,
+            reason: "测试重派",
+            adminUserId: 9001);
+
+        Assert.True(result);
+        Assert.Equal("BUSY", repository.GetRunner(1011)?.WorkStatus);
+        Assert.Equal("BUSY", repository.GetRunner(2022)?.WorkStatus);
     }
 
     [Fact]

@@ -9,6 +9,7 @@ public sealed class TaskHallViewModel
     public int PageSize { get; set; }
     public int? ActiveRunnerId { get; set; }
     public string ActiveRunnerStatus { get; set; } = string.Empty;
+    public int ActiveTaskCount { get; set; }
 }
 
 public sealed class TaskHallItemViewModel

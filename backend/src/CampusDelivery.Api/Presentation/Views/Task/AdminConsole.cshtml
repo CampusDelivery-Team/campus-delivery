@@ -55,9 +55,9 @@
                                     <td><span class="badge task-badge--service">@task.ServiceTypeName</span></td>
                                     <td class="task-price">¥@task.TaskPrice.ToString("F2")</td>
                                     <td>
-                                        @if (!Model.FreeRunners.Any(runner => runner.UserId != task.PublisherUserId))
+                                        @if (!Model.AvailableRunners.Any(runner => runner.UserId != task.PublisherUserId))
                                         {
-                                            <span class="task-status-text task-status-text--error">当前页无符合条件的空闲跑腿员</span>
+                                            <span class="task-status-text task-status-text--error">当前页无符合条件的可用跑腿员</span>
                                         }
                                         else
                                         {
@@ -65,9 +65,9 @@
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="taskId" value="@task.TaskId" />
                                                 <select name="runnerId">
-                                                    @foreach (var runner in Model.FreeRunners.Where(runner => runner.UserId != task.PublisherUserId))
+                                                    @foreach (var runner in Model.AvailableRunners.Where(runner => runner.UserId != task.PublisherUserId))
                                                     {
-                                                        <option value="@runner.RunnerId">@runner.RealName (信誉:@runner.CreditScore)</option>
+                                                        <option value="@runner.RunnerId">@runner.RealName (进行中:@runner.ActiveTaskCount 单)</option>
                                                     }
                                                 </select>
                                                 <button type="submit" class="button primary task-button--small">指派</button>
@@ -84,30 +84,32 @@
         </article>
 
         <article class="task-admin-panel">
-            <h2>空闲跑腿员</h2>
+            <h2>可用跑腿员</h2>
             <div class="table-wrap">
                 <table>
                     <thead>
                         <tr>
                             <th>ID</th>
                             <th>姓名</th>
+                            <th>进行中任务</th>
                             <th>信誉分</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @if (Model.FreeRunners.Count == 0)
+                        @if (Model.AvailableRunners.Count == 0)
                         {
                             <tr>
-                                <td colspan="3" class="empty task-table__empty">当前没有空闲的跑腿员</td>
+                                <td colspan="4" class="empty task-table__empty">当前没有可用的跑腿员</td>
                             </tr>
                         }
                         else
                         {
-                            foreach (var runner in Model.FreeRunners)
+                            foreach (var runner in Model.AvailableRunners)
                             {
                                 <tr>
                                     <td>@runner.RunnerId</td>
                                     <td><strong>@runner.RealName</strong></td>
+                                    <td>@runner.ActiveTaskCount 单</td>
                                     <td><span class="badge success">@runner.CreditScore 分</span></td>
                                 </tr>
                             }
@@ -121,7 +123,7 @@
 
     <article class="task-admin-panel task-reassign-panel">
         <h2>异常订单重派</h2>
-        <p class="task-page__note">管理员可以保留原接派记录，将配送中的任务改派给其他空闲跑腿员。</p>
+        <p class="task-page__note">管理员可以保留原接派记录，将配送中的任务改派给其他在线跑腿员。</p>
         <form asp-action="AdminReassign" method="post" class="task-reassign-form">
             @Html.AntiForgeryToken()
             <label class="field">
@@ -131,13 +133,13 @@
             <label class="field">
                 <span>新跑腿员</span>
                 <select name="runnerId" required>
-                    @if (Model.FreeRunners.Count == 0)
+                    @if (Model.AvailableRunners.Count == 0)
                     {
-                        <option value="">当前页无空闲跑腿员</option>
+                        <option value="">当前页无可用跑腿员</option>
                     }
                     else
                     {
-                        @foreach (var runner in Model.FreeRunners)
+                        @foreach (var runner in Model.AvailableRunners)
                         {
                             <option value="@runner.RunnerId">@runner.RealName (ID:@runner.RunnerId)</option>
                         }

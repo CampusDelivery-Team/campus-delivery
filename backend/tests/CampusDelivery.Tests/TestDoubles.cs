@@ -103,6 +103,8 @@ internal sealed class FakeAssignRepository : IAssignRepository
 
     public List<CampusTask> ActiveTasks { get; } = [];
 
+    public int OtherActiveTaskCount { get; set; }
+
     public TaskDetailsRecord? ActiveTaskDetails { get; set; }
 
     public List<AssignRecord> InsertedAssignRecords { get; } = [];
@@ -305,6 +307,13 @@ internal sealed class FakeAssignRepository : IAssignRepository
         CancellationToken cancellationToken = default) =>
         Task.FromResult(ActiveTasks.Count);
 
+    public Task<int> GetOtherActiveTaskCountByRunnerIdAsync(
+        int runnerId,
+        int excludedTaskId,
+        IRepositoryTransaction transaction,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(OtherActiveTaskCount);
+
     public Task<TaskDetailsRecord?> GetActiveTaskDetailsAsync(
         int taskId,
         int runnerId,
@@ -332,13 +341,13 @@ internal sealed class FakeAssignRepository : IAssignRepository
     public Task<int> GetWaitingTasksForAdminCountAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(0);
 
-    public Task<IReadOnlyList<Runner>> GetFreeRunnersForAdminAsync(
+    public Task<IReadOnlyList<Runner>> GetAvailableRunnersForAdminAsync(
         int offset,
         int pageSize,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<Runner>>([]);
 
-    public Task<int> GetFreeRunnersForAdminCountAsync(CancellationToken cancellationToken = default) =>
+    public Task<int> GetAvailableRunnersForAdminCountAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(0);
 
     public Task<string> GetServiceTypeNameAsync(
