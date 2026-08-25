@@ -25,6 +25,8 @@ public interface IAssignRepository
     Task<AssignRecord?> GetLatestAssignRecordWithLockAsync(int taskId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CampusTask>> GetWaitingTasksForAdminAsync(int offset, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetWaitingTasksForAdminCountAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ReassignableTaskRecord>> GetReassignableTasksForAdminAsync(string? keyword, string? status, int offset, int pageSize, CancellationToken cancellationToken = default);
+    Task<int> GetReassignableTasksForAdminCountAsync(string? keyword, string? status, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Runner>> GetAvailableRunnersForAdminAsync(int offset, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetAvailableRunnersForAdminCountAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TaskStatusLog>> GetStatusLogsByTaskIdAsync(int taskId, CancellationToken cancellationToken = default);

@@ -103,6 +103,18 @@ internal sealed class FakeAssignRepository : IAssignRepository
 
     public List<CampusTask> ActiveTasks { get; } = [];
 
+    public List<ReassignableTaskRecord> ReassignableTasks { get; } = [];
+
+    public string? ReassignKeyword { get; private set; }
+
+    public string? ReassignStatus { get; private set; }
+
+    public int ReassignOffset { get; private set; }
+
+    public int ReassignPageSize { get; private set; }
+
+    public int ReassignTotalCount { get; set; }
+
     public int OtherActiveTaskCount { get; set; }
 
     public TaskDetailsRecord? ActiveTaskDetails { get; set; }
@@ -340,6 +352,26 @@ internal sealed class FakeAssignRepository : IAssignRepository
 
     public Task<int> GetWaitingTasksForAdminCountAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(0);
+
+    public Task<IReadOnlyList<ReassignableTaskRecord>> GetReassignableTasksForAdminAsync(
+        string? keyword,
+        string? status,
+        int offset,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        ReassignKeyword = keyword;
+        ReassignStatus = status;
+        ReassignOffset = offset;
+        ReassignPageSize = pageSize;
+        return Task.FromResult<IReadOnlyList<ReassignableTaskRecord>>(ReassignableTasks);
+    }
+
+    public Task<int> GetReassignableTasksForAdminCountAsync(
+        string? keyword,
+        string? status,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(ReassignTotalCount == 0 ? ReassignableTasks.Count : ReassignTotalCount);
 
     public Task<IReadOnlyList<Runner>> GetAvailableRunnersForAdminAsync(
         int offset,

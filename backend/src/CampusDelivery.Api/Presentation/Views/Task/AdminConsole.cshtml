@@ -122,35 +122,176 @@
     </div>
 
     <article class="task-admin-panel task-reassign-panel">
-        <h2>异常订单重派</h2>
-        <p class="task-page__note">管理员可以保留原接派记录，将配送中的任务改派给其他在线跑腿员。</p>
-        <form asp-action="AdminReassign" method="post" class="task-reassign-form">
-            @Html.AntiForgeryToken()
-            <label class="field">
-                <span>任务编号</span>
-                <input type="number" name="taskId" required placeholder="例如: 2" />
-            </label>
-            <label class="field">
-                <span>新跑腿员</span>
-                <select name="runnerId" required>
-                    @if (Model.AvailableRunners.Count == 0)
+        <h2>已指派任务</h2>
+        <p class="task-page__note">查看仍在配送流程中的任务，并在需要时重新指派跑腿员。</p>
+
+        <form method="get" asp-action="AdminConsole" class="task-reassign-filter">
+            <input type="hidden" name="taskPage" value="@Model.TaskPageNumber" />
+            <input type="hidden" name="runnerPage" value="@Model.RunnerPageNumber" />
+            <input type="hidden" name="pageSize" value="@Model.PageSize" />
+            <input name="reassignKeyword" value="@Model.ReassignKeyword" placeholder="搜索任务 ID、标题或跑腿员姓名" />
+            <select name="reassignStatus">
+                <option value="">全部状态</option>
+                <option value="ASSIGNED" selected="@(Model.ReassignStatus == "ASSIGNED")">已接单</option>
+                <option value="PICKED_UP" selected="@(Model.ReassignStatus == "PICKED_UP")">已取件</option>
+                <option value="DELIVERING" selected="@(Model.ReassignStatus == "DELIVERING")">配送中</option>
+            </select>
+            <button type="submit" class="button primary">筛选</button>
+            <a class="button" asp-action="AdminConsole" asp-route-taskPage="@Model.TaskPageNumber" asp-route-runnerPage="@Model.RunnerPageNumber" asp-route-pageSize="@Model.PageSize">清除</a>
+        </form>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>标题</th>
+                        <th>服务</th>
+                        <th>状态</th>
+                        <th>当前跑腿员</th>
+                        <th>发布时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.ReassignableTasks.Count == 0)
                     {
-                        <option value="">当前页无可用跑腿员</option>
+                        <tr>
+                            <td colspan="7" class="empty task-table__empty">没有找到符合条件的已指派任务</td>
+                        </tr>
                     }
                     else
                     {
-                        @foreach (var runner in Model.AvailableRunners)
+                        foreach (var task in Model.ReassignableTasks)
                         {
-                            <option value="@runner.RunnerId">@runner.RealName (ID:@runner.RunnerId)</option>
+                            <tr>
+                                <td>@task.TaskId</td>
+                                <td><strong>@task.TaskTitle</strong></td>
+                                <td><span class="badge task-badge--service">@task.ServiceTypeName</span></td>
+                                <td><span class="badge">@task.TaskStatusDisplayName</span></td>
+                                <td>@task.CurrentRunnerName (ID:@task.CurrentRunnerId)</td>
+                                <td>@task.CreatedAt.ToString("MM-dd HH:mm")</td>
+                                <td>
+                                    <button type="button"
+                                            class="button primary task-button--small reassign-open-button"
+                                            data-task-id="@task.TaskId"
+                                            data-task-title="@task.TaskTitle"
+                                            data-current-runner-id="@task.CurrentRunnerId"
+                                            data-current-runner="@task.CurrentRunnerName">
+                                        重新指派
+                                    </button>
+                                </td>
+                            </tr>
                         }
                     }
-                </select>
-            </label>
-            <label class="field">
-                <span>重派原因</span>
-                <input type="text" name="reason" required placeholder="原跑腿员临时无法继续配送" />
-            </label>
-            <button type="submit" class="button primary">执行重派</button>
-        </form>
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.ReassignTotalPages > 1)
+        {
+            <nav class="task-pagination" aria-label="重派任务分页">
+                @if (Model.ReassignPageNumber > 1)
+                {
+                    <a class="button task-pagination__button"
+                       asp-action="AdminConsole"
+                       asp-route-taskPage="@Model.TaskPageNumber"
+                       asp-route-runnerPage="@Model.RunnerPageNumber"
+                       asp-route-pageSize="@Model.PageSize"
+                       asp-route-reassignKeyword="@Model.ReassignKeyword"
+                       asp-route-reassignStatus="@Model.ReassignStatus"
+                       asp-route-reassignPage="@(Model.ReassignPageNumber - 1)">上一页</a>
+                }
+                <span>第 @Model.ReassignPageNumber 页 / 共 @Model.ReassignTotalPages 页</span>
+                @if (Model.ReassignPageNumber < Model.ReassignTotalPages)
+                {
+                    <a class="button task-pagination__button"
+                       asp-action="AdminConsole"
+                       asp-route-taskPage="@Model.TaskPageNumber"
+                       asp-route-runnerPage="@Model.RunnerPageNumber"
+                       asp-route-pageSize="@Model.PageSize"
+                       asp-route-reassignKeyword="@Model.ReassignKeyword"
+                       asp-route-reassignStatus="@Model.ReassignStatus"
+                       asp-route-reassignPage="@(Model.ReassignPageNumber + 1)">下一页</a>
+                }
+            </nav>
+        }
     </article>
 </section>
+
+<dialog id="reassignDialog" class="task-reassign-dialog">
+    <form asp-action="AdminReassign" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="taskId" id="reassignTaskId" />
+        <h2>重新指派任务</h2>
+        <p id="reassignTaskSummary" class="task-page__note"></p>
+        <div class="field">
+            <span>新跑腿员</span>
+            <input type="search" id="reassignRunnerSearch" placeholder="搜索姓名或跑腿员 ID" autocomplete="off" />
+            <div id="reassignRunnerList" class="task-runner-option-list">
+                @foreach (var runner in Model.ReassignRunners)
+                {
+                    <label class="task-runner-option"
+                           data-runner-id="@runner.RunnerId"
+                           data-search-text="@runner.RealName.ToLowerInvariant() @runner.RunnerId">
+                        <input type="radio" name="runnerId" value="@runner.RunnerId" required />
+                        <span>
+                            <strong>@runner.RealName</strong>
+                            <small>ID: @runner.RunnerId</small>
+                        </span>
+                        <em>进行中 @runner.ActiveTaskCount 单</em>
+                    </label>
+                }
+                <p id="reassignRunnerEmpty" class="task-runner-option-empty" hidden>没有找到符合条件的跑腿员</p>
+            </div>
+        </div>
+        <label class="field">
+            <span>重派原因</span>
+            <input type="text" name="reason" required placeholder="原跑腿员临时无法继续配送" />
+        </label>
+        <div class="task-reassign-dialog__actions">
+            <button type="button" class="button" id="reassignCancelButton">取消</button>
+            <button type="submit" class="button primary" disabled="@(Model.ReassignRunners.Count == 0)">确认重派</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+    const reassignDialog = document.getElementById("reassignDialog");
+    const reassignTaskId = document.getElementById("reassignTaskId");
+    const reassignTaskSummary = document.getElementById("reassignTaskSummary");
+    const reassignRunnerSearch = document.getElementById("reassignRunnerSearch");
+    const reassignRunnerOptions = Array.from(document.querySelectorAll(".task-runner-option"));
+    const reassignRunnerEmpty = document.getElementById("reassignRunnerEmpty");
+
+    function filterReassignRunners() {
+        const keyword = reassignRunnerSearch.value.trim().toLowerCase();
+        let visibleCount = 0;
+        reassignRunnerOptions.forEach(option => {
+            const visible = option.dataset.runnerId !== reassignDialog.dataset.currentRunnerId
+                && option.dataset.searchText.includes(keyword);
+            option.hidden = !visible;
+            if (!visible)
+            {
+                option.querySelector("input").checked = false;
+            }
+            visibleCount += visible ? 1 : 0;
+        });
+        reassignRunnerEmpty.hidden = visibleCount > 0;
+    }
+
+    document.querySelectorAll(".reassign-open-button").forEach(button => {
+        button.addEventListener("click", () => {
+            reassignTaskId.value = button.dataset.taskId;
+            reassignTaskSummary.textContent = `#${button.dataset.taskId} ${button.dataset.taskTitle}，当前跑腿员：${button.dataset.currentRunner}`;
+            reassignDialog.dataset.currentRunnerId = button.dataset.currentRunnerId;
+            reassignRunnerSearch.value = "";
+            reassignRunnerOptions.forEach(option => option.querySelector("input").checked = false);
+            filterReassignRunners();
+            reassignDialog.showModal();
+        });
+    });
+
+    reassignRunnerSearch.addEventListener("input", filterReassignRunners);
+    document.getElementById("reassignCancelButton").addEventListener("click", () => reassignDialog.close());
+</script>

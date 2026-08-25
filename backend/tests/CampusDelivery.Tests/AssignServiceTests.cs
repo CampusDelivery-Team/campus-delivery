@@ -7,6 +7,42 @@ namespace CampusDelivery.Tests;
 public sealed class AssignServiceTests
 {
     [Fact]
+    public async Task GetAdminConsoleAsync_WhenTaskCanBeReassigned_MapsFilterPaginationAndTableFields()
+    {
+        var repository = new FakeAssignRepository { ReassignTotalCount = 15 };
+        repository.ReassignableTasks.Add(new ReassignableTaskRecord
+        {
+            TaskId = 250,
+            TaskTitle = "多单测试任务",
+            TaskStatus = "DELIVERING",
+            ServiceTypeName = "外卖分发",
+            CreatedAt = new DateTime(2026, 8, 25, 12, 0, 0),
+            CurrentRunnerId = 364,
+            CurrentRunnerName = "测试跑腿员"
+        });
+        var service = new AssignService(repository, new FakeRepositoryTransactionManager());
+
+        AdminAssignViewModel result = await service.GetAdminConsoleAsync(
+            1,
+            1,
+            10,
+            "  多单  ",
+            "DELIVERING",
+            2);
+
+        AdminReassignableTaskViewModel task = Assert.Single(result.ReassignableTasks);
+        Assert.Equal("多单", repository.ReassignKeyword);
+        Assert.Equal("DELIVERING", repository.ReassignStatus);
+        Assert.Equal(10, repository.ReassignOffset);
+        Assert.Equal(10, repository.ReassignPageSize);
+        Assert.Equal(2, result.ReassignPageNumber);
+        Assert.Equal(2, result.ReassignTotalPages);
+        Assert.Equal("配送中", task.TaskStatusDisplayName);
+        Assert.Equal("外卖分发", task.ServiceTypeName);
+        Assert.Equal("测试跑腿员", task.CurrentRunnerName);
+    }
+
+    [Fact]
     public async Task GrabTaskAsync_WhenTwoRunnersCompete_OnlyOneSucceeds()
     {
         var repository = new FakeAssignRepository();
