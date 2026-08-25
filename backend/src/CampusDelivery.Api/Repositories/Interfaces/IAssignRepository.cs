@@ -9,6 +9,7 @@ public interface IAssignRepository
     Task<Runner?> GetRunnerByUserIdAsync(int userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CampusTask>> GetActiveTasksByRunnerIdAsync(int runnerId, int offset, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetActiveTaskCountByRunnerIdAsync(int runnerId, CancellationToken cancellationToken = default);
+    Task<int> GetOtherActiveTaskCountByRunnerIdAsync(int runnerId, int excludedTaskId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<TaskDetailsRecord?> GetActiveTaskDetailsAsync(int taskId, int runnerId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CampusTask>> GetTasksWaitingForReceiptAsync(int publisherUserId, int offset, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetTasksWaitingForReceiptCountAsync(int publisherUserId, CancellationToken cancellationToken = default);
@@ -24,8 +25,10 @@ public interface IAssignRepository
     Task<AssignRecord?> GetLatestAssignRecordWithLockAsync(int taskId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CampusTask>> GetWaitingTasksForAdminAsync(int offset, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetWaitingTasksForAdminCountAsync(CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<Runner>> GetFreeRunnersForAdminAsync(int offset, int pageSize, CancellationToken cancellationToken = default);
-    Task<int> GetFreeRunnersForAdminCountAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ReassignableTaskRecord>> GetReassignableTasksForAdminAsync(string? keyword, string? status, int offset, int pageSize, CancellationToken cancellationToken = default);
+    Task<int> GetReassignableTasksForAdminCountAsync(string? keyword, string? status, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Runner>> GetAvailableRunnersForAdminAsync(int offset, int pageSize, CancellationToken cancellationToken = default);
+    Task<int> GetAvailableRunnersForAdminCountAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TaskStatusLog>> GetStatusLogsByTaskIdAsync(int taskId, CancellationToken cancellationToken = default);
     Task<string> GetServiceTypeNameAsync(int serviceTypeId, CancellationToken cancellationToken = default);
     Task<string> GetNodeNameAsync(int nodeId, CancellationToken cancellationToken = default);

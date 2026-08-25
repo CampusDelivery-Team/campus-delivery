@@ -126,7 +126,20 @@ public sealed class PaymentService(
                     return new(false, "接单跑腿员不存在。", 0);
                 }
 
-                await assignRepository.UpdateRunnerWorkStatusAsync(assignRecord.RunnerId, "FREE", transaction, cancellationToken);
+                int otherActiveTaskCount = await assignRepository.GetOtherActiveTaskCountByRunnerIdAsync(
+                    assignRecord.RunnerId,
+                    taskId,
+                    transaction,
+                    cancellationToken);
+                if (otherActiveTaskCount == 0)
+                {
+                    await assignRepository.UpdateRunnerWorkStatusAsync(
+                        assignRecord.RunnerId,
+                        "FREE",
+                        transaction,
+                        cancellationToken);
+                }
+
                 if (completePayment)
                 {
                     await assignRepository.UpdateTaskStatusAsync(

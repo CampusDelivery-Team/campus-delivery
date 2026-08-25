@@ -59,6 +59,22 @@ public sealed class PaymentServiceTests
     }
 
     [Fact]
+    public async Task SubmitPaymentAsync_WhenRunnerHasOtherTask_KeepsRunnerBusy()
+    {
+        PaymentFixture fixture = CreateFixture(receiptConfirmed: true);
+        fixture.AssignRepository.OtherActiveTaskCount = 1;
+
+        var result = await fixture.Service.SubmitPaymentAsync(
+            fixture.AssignRepository.TaskId,
+            fixture.AssignRepository.PublisherUserId,
+            "ALIPAY");
+
+        Assert.True(result.Success);
+        Assert.Equal("FINISHED", fixture.AssignRepository.TaskStatus);
+        Assert.Equal("BUSY", fixture.AssignRepository.GetRunner(1011)?.WorkStatus);
+    }
+
+    [Fact]
     public async Task SaveUnpaidPaymentAsync_KeepsTaskPendingPaymentAndReleasesRunner()
     {
         PaymentFixture fixture = CreateFixture(receiptConfirmed: true);
