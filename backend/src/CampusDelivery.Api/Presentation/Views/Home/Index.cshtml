@@ -5,281 +5,157 @@
     var isRunner = User.IsInRole("RUNNER");
 }
 
-<section class="home-hero" id="top">
-    <div class="home-hero__content">
-        <p class="eyebrow">JIRUN CAMPUS DELIVERY</p>
-        <h1><span>济跑跑 JiRun</span><span>校内需求，一路送达</span></h1>
-        <p class="summary">
-            面向同济校园的跑腿订单协同平台，把代取、代送、外卖分发、支付退款和结算审计串成一条清楚的业务链路。
-        </p>
-        <div class="actions">
+<section class="dd-hero" id="top">
+    <div class="dd-hero__copy">
+        <p class="dd-eyebrow">JIRUN · 同济校园跑腿</p>
+        <h1>校内需求，<br><span>一路送达</span></h1>
+        <p class="dd-hero__sub">济跑跑连接普通用户、跑腿员与管理员，把代取、代送、外卖分发、支付退款和结算审计串成一条清楚链路。</p>
+
+        <p class="dd-hero__hint">📍 校内代取 · 代送 · 外卖分发 —— 发布任务，跑腿员马上接单</p>
+
+        <div class="dd-hero__actions">
             @if (!isAuthenticated)
             {
-                <a class="button primary" asp-controller="Auth" asp-action="Login">进入济跑跑</a>
-                <a class="button" asp-controller="Auth" asp-action="Register">创建账号</a>
+                <a class="dd-btn dd-btn--primary" asp-controller="Auth" asp-action="Register">立即创建账号</a>
+                <a class="dd-btn dd-btn--ghost" asp-controller="Auth" asp-action="Login">登录济跑跑</a>
             }
             else if (isAdmin)
             {
-                <a class="button primary" asp-controller="Task" asp-action="AdminConsole">进入运营后台</a>
-                <a class="button" asp-controller="Report" asp-action="Index">查看统计报表</a>
+                <a class="dd-btn dd-btn--primary" asp-controller="Task" asp-action="AdminConsole">进入运营后台</a>
+                <a class="dd-btn dd-btn--ghost" asp-controller="Report" asp-action="Index">查看统计报表</a>
             }
             else if (isRunner)
             {
-                <a class="button primary" asp-controller="Task" asp-action="Hall">进入任务大厅</a>
-                <a class="button" asp-controller="Task" asp-action="MyTasks">配送工作台</a>
+                <a class="dd-btn dd-btn--primary" asp-controller="Task" asp-action="Hall">进入任务大厅</a>
+                <a class="dd-btn dd-btn--ghost" asp-controller="Task" asp-action="MyTasks">配送工作台</a>
             }
             else
             {
-                <a class="button primary" asp-controller="Task" asp-action="Create">发布跑腿任务</a>
-                <a class="button" asp-controller="Task" asp-action="Index">查看我的订单</a>
-            }
-        </div>
-        <div class="metric-strip" aria-label="系统基础信息">
-            <div>
-                <strong>3 类</strong>
-                <span>校内跑腿场景</span>
-            </div>
-            <div>
-                <strong>三端协同</strong>
-                <span>用户、跑腿员、管理员</span>
-            </div>
-            <div>
-                <strong>Oracle</strong>
-                <span>订单与结算数据</span>
-            </div>
-        </div>
-    </div>
-
-    <aside class="home-quick-panel" aria-label="当前可用入口">
-        <div class="home-quick-panel__header">
-            <div>
-                <p class="eyebrow">QUICK START</p>
-                <h2>角色工作台</h2>
-            </div>
-            @if (!isAuthenticated)
-            {
-                <span class="status-chip">访客</span>
-            }
-            else if (isAdmin)
-            {
-                <span class="status-chip success-chip">管理员</span>
-            }
-            else if (isRunner)
-            {
-                <span class="status-chip runner-chip">跑腿员</span>
-            }
-            else
-            {
-                <span class="status-chip">普通用户</span>
+                <a class="dd-btn dd-btn--primary" asp-controller="Task" asp-action="Create">发布跑腿任务</a>
+                <a class="dd-btn dd-btn--ghost" asp-controller="Task" asp-action="Index">查看我的订单</a>
             }
         </div>
 
-        @if (!isAuthenticated)
-        {
-            <a class="quick-entry" asp-controller="Auth" asp-action="Login">
-                <span class="quick-entry__mark">01</span>
-                <span><strong>登录济跑跑</strong><small>进入订单、配送或运营工作台</small></span>
-            </a>
-            <a class="quick-entry" asp-controller="Auth" asp-action="Register">
-                <span class="quick-entry__mark">02</span>
-                <span><strong>创建校园账号</strong><small>注册后即可发布跑腿任务</small></span>
-            </a>
-        }
-        else if (isAdmin)
-        {
-            <a class="quick-entry" asp-controller="Task" asp-action="AdminConsole">
-                <span class="quick-entry__mark">01</span>
-                <span><strong>运营调度台</strong><small>处理任务指派与配送状态</small></span>
-            </a>
-            <a class="quick-entry" asp-controller="Runner" asp-action="Pending">
-                <span class="quick-entry__mark">02</span>
-                <span><strong>跑腿员审核</strong><small>处理待审核的资格申请</small></span>
-            </a>
-            <a class="quick-entry" asp-controller="Settlement" asp-action="Index">
-                <span class="quick-entry__mark">03</span>
-                <span><strong>结算审计</strong><small>查看结算批次、审计日志和报表</small></span>
-            </a>
-        }
-        else if (isRunner)
-        {
-            <a class="quick-entry" asp-controller="Task" asp-action="Hall">
-                <span class="quick-entry__mark">01</span>
-                <span><strong>任务大厅</strong><small>浏览可接取的校园跑腿任务</small></span>
-            </a>
-            <a class="quick-entry" asp-controller="Task" asp-action="MyTasks">
-                <span class="quick-entry__mark">02</span>
-                <span><strong>配送工作台</strong><small>处理已接单任务和配送状态</small></span>
-            </a>
-            <a class="quick-entry" asp-controller="User" asp-action="Profile">
-                <span class="quick-entry__mark">03</span>
-                <span><strong>个人中心</strong><small>查看账号资料和常用信息</small></span>
-            </a>
-        }
-        else
-        {
-            <a class="quick-entry" asp-controller="Task" asp-action="Create">
-                <span class="quick-entry__mark">01</span>
-                <span><strong>发布跑腿任务</strong><small>填写取送位置、服务类型和费用</small></span>
-            </a>
-            <a class="quick-entry" asp-controller="Task" asp-action="Index">
-                <span class="quick-entry__mark">02</span>
-                <span><strong>我的订单</strong><small>查看任务进度、支付和收货状态</small></span>
-            </a>
-            <a class="quick-entry" asp-controller="Runner" asp-action="Apply">
-                <span class="quick-entry__mark">03</span>
-                <span><strong>成为跑腿员</strong><small>提交资格申请，加入配送工作台</small></span>
-            </a>
-        }
-    </aside>
-</section>
-
-<section class="home-section" id="services">
-    <p class="eyebrow">SERVICE CATALOG</p>
-    <div class="section-title">
-        <div>
-            <h2>校园服务类型</h2>
-            <p>以下为系统目前配置的服务场景。任务发布、接派、配送、收货支付和售后流程均由对应业务模块承接。</p>
+        <div class="dd-hero__stats">
+            <div class="dd-stat"><strong>3 类</strong><span>校园跑腿场景</span></div>
+            <div class="dd-stat"><strong>三端</strong><span>用户 · 跑腿员 · 管理员</span></div>
+            <div class="dd-stat"><strong>全流程</strong><span>下单 · 履约 · 售后</span></div>
         </div>
-        @if (isAdmin)
-        {
-            <a class="button" asp-controller="ServiceType" asp-action="Index">管理服务类型</a>
-        }
-    </div>
-
-    <div class="service-grid">
-        <article class="service-card blue">
-            <span class="pill">集中分发</span>
-            <h3>外卖分发</h3>
-            <p>将校门、食堂或商圈的外卖集中分发到宿舍楼或指定服务节点。</p>
-        </article>
-        <article class="service-card pink">
-            <span class="pill">代取服务</span>
-            <h3>快递代取</h3>
-            <p>记录快递公司、取件信息和交付位置，为代取配送提供统一基础资料。</p>
-        </article>
-        <article class="service-card cyan">
-            <span class="pill">灵活委托</span>
-            <h3>私人跑腿</h3>
-            <p>覆盖资料递送、物品转交等个性化校园委托场景。</p>
-        </article>
     </div>
 </section>
 
-@if (isAdmin)
+@if (!isRunner && !isAdmin)
 {
-    <section class="home-section portal-band" id="management">
-        <p class="eyebrow">MANAGEMENT</p>
-        <h2>管理工作台</h2>
-        <p class="section-copy">所有入口均已连接到实际可访问的管理页面。</p>
-        <div class="portal-grid">
-            <article class="portal-card">
-                <span>基础资料</span>
-                <h3>服务与节点</h3>
-                <p>维护节点、服务类型及两者之间的服务范围规则。</p>
-                <div class="tag-row">
-                    <a asp-controller="Node" asp-action="Index">节点管理</a>
-                    <a asp-controller="ServiceType" asp-action="Index">服务类型</a>
-                    <a asp-controller="ServiceNodeRule" asp-action="Index">服务节点规则</a>
-                </div>
-            </article>
-            <article class="portal-card">
-                <span>人员管理</span>
-                <h3>账号审核</h3>
-                <p>查看申请进度、完成审核，并维护已通过跑腿员的工作状态。</p>
-                <div class="tag-row">
-                    <a asp-controller="Runner" asp-action="Pending">待审核申请</a>
-                    <a asp-controller="Runner" asp-action="Index">跑腿员资料</a>
-                    <a asp-controller="Account" asp-action="Index">账号管理</a>
-                </div>
-            </article>
-            <article class="portal-card">
-                <span>系统状态</span>
-                <h3>数据库检测</h3>
-                <p>验证当前应用到 Oracle 数据库的连接状态，并查看基础用户统计。</p>
-                <div class="tag-row">
-                    <a asp-controller="Database" asp-action="Status">打开系统检测</a>
-                    <a asp-controller="User" asp-action="Profile">个人中心</a>
-                </div>
-            </article>
-        </div>
-    </section>
-}
-else
-{
-    <section class="home-section portal-band" id="account">
-        <p class="eyebrow">ACCOUNT</p>
-        <h2>账户与跑腿员资格</h2>
-        <p class="section-copy">先完成账户登录，再根据个人意愿提交跑腿员资格申请。每个入口都会直接打开对应功能页面。</p>
-        <div class="portal-grid">
-            <article class="portal-card">
-                <span>账户资料</span>
-                <h3>@(isAuthenticated ? "管理个人账户" : "登录或注册")</h3>
-                <p>@(isAuthenticated ? "查看账号、联系电话和默认收货地址。" : "已有账号可登录；首次使用请先注册普通用户账号。")</p>
-                <div class="tag-row">
-                    @if (isAuthenticated)
-                    {
-                        <a asp-controller="User" asp-action="Profile">个人中心</a>
-                    }
-                    else
-                    {
-                        <a asp-controller="Auth" asp-action="Login">登录</a>
-                        <a asp-controller="Auth" asp-action="Register">注册</a>
-                    }
-                </div>
-            </article>
-            <article class="portal-card">
-                <span>跑腿员资格</span>
-                <h3>提交与查看申请</h3>
-                <p>填写身份信息后提交审核；管理员审核通过后，账户角色更新为跑腿员。</p>
-                <div class="tag-row">
-                    @if (isAuthenticated)
-                    {
-                        <a asp-controller="Runner" asp-action="Apply">跑腿员资格</a>
-                    }
-                    else
-                    {
-                        <a asp-controller="Auth" asp-action="Login">登录后申请</a>
-                    }
-                </div>
-            </article>
-            <article class="portal-card">
-                <span>任务服务</span>
-                <h3>任务服务</h3>
-                <p>当前已提供任务发布、进度查询、确认收货、支付和评价投诉等完整入口。</p>
-                <div class="tag-row">
-                    @if (isAuthenticated)
-                    {
-                        <a asp-controller="Task" asp-action="Create">发布任务</a>
-                        <a asp-controller="Task" asp-action="Index">我的任务</a>
-                    }
-                    else
-                    {
-                        <a asp-controller="Auth" asp-action="Login">登录后使用</a>
-                    }
-                </div>
-            </article>
+    <section class="dd-runner-band">
+        <div class="dd-runner-band__inner">
+            <div class="dd-runner-band__copy">
+                <p class="dd-eyebrow">BECOME A RUNNER</p>
+                <h2>成为济跑跑跑腿员</h2>
+                <p>提交资格申请，审核通过后即可在任务大厅接单，利用课余时间赚取配送收入。</p>
+                <a class="dd-btn dd-btn--primary" asp-controller="Runner" asp-action="Apply">申请跑腿员资格</a>
+            </div>
+            <div class="dd-runner-band__media">
+                <img src="~/images/dasher.png" alt="成为跑腿员" />
+            </div>
         </div>
     </section>
 }
 
-<section class="home-section" id="workflow">
-    <p class="eyebrow">WORKFLOW</p>
-    <h2>完整服务流程</h2>
-    <p class="section-copy">系统围绕配置、资格、任务履约和服务评价形成完整业务闭环。</p>
-    <div class="workflow-grid">
-        <article><span>1</span><h3>维护资料</h3><p>管理员配置服务类型、服务节点及适用范围。</p></article>
-        <article><span>2</span><h3>资格审核</h3><p>用户申请成为跑腿员，管理员进行审核处理。</p></article>
-        <article><span>3</span><h3>任务配送</h3><p>用户发布任务，跑腿员接单并按取货、配送、待确认顺序履约。</p></article>
-        <article><span>4</span><h3>完成评价</h3><p>用户确认收货和支付，平台继续处理评价、投诉、退款、结算与审计。</p></article>
+<section class="dd-section" id="services">
+    <div class="dd-section__head">
+        <h2>校园服务分类</h2>
+        <p>选一种场景，一键发布你的跑腿需求。</p>
+    </div>
+    <div class="dd-category-grid">
+        <a class="dd-category-card" asp-controller="Task" asp-action="Create">
+            <span class="dd-category-card__icon">🍜</span>
+            <strong>外卖分发</strong>
+            <p>校门、食堂或商圈外卖集中分发到宿舍与指定节点。</p>
+        </a>
+        <a class="dd-category-card" asp-controller="Task" asp-action="Create">
+            <span class="dd-category-card__icon">📦</span>
+            <strong>快递代取</strong>
+            <p>记录快递公司、取件码与送达位置，统一代取。</p>
+        </a>
+        <a class="dd-category-card" asp-controller="Task" asp-action="Create">
+            <span class="dd-category-card__icon">🏃</span>
+            <strong>私人跑腿</strong>
+            <p>资料递送、物品转交等个性化校园委托。</p>
+        </a>
     </div>
 </section>
 
-@if (isAdmin)
-{
-    <section class="system-panel" id="system">
-        <div><span>应用服务</span><strong>CampusDelivery.Api</strong></div>
-        <div><span>数据库</span><strong>Oracle</strong></div>
-        <div><span>当前身份</span><strong>管理员</strong></div>
-        <a class="button" asp-controller="Database" asp-action="Status">系统检测</a>
-    </section>
-}
+<section class="dd-section" id="workflow">
+    <div class="dd-section__head">
+        <h2>怎么使用济跑跑</h2>
+        <p>从下单到售后，四步跑通一条完整链路。</p>
+    </div>
+    <div class="dd-step-grid">
+        <div class="dd-step"><span class="dd-step__num">1</span><h3>发布任务</h3><p>填写取送位置、服务类型和费用，任务进入待接单。</p></div>
+        <div class="dd-step"><span class="dd-step__num">2</span><h3>接单配送</h3><p>跑腿员在任务大厅抢单，按取货、配送、待确认履约。</p></div>
+        <div class="dd-step"><span class="dd-step__num">3</span><h3>收货支付</h3><p>用户确认收货，并完成收货后支付。</p></div>
+        <div class="dd-step"><span class="dd-step__num">4</span><h3>评价售后</h3><p>评价、投诉、退款、结算与审计持续闭环。</p></div>
+    </div>
+</section>
+
+<section class="dd-section dd-role-band">
+    <div class="dd-section__head">
+        <h2>三端协同工作台</h2>
+        <p>每个角色都有专属入口，直接进入对应功能。</p>
+    </div>
+    <div class="dd-role-grid">
+        <article class="dd-role-card">
+            <span class="dd-role-card__tag">用户端</span>
+            <h3>发布与跟踪订单</h3>
+            <p>发布任务、查看进度、确认收货、支付与评价投诉。</p>
+            <div class="dd-role-card__links">
+                @if (isAuthenticated)
+                {
+                    <a asp-controller="Task" asp-action="Create">发布任务</a>
+                    <a asp-controller="Task" asp-action="Index">我的订单</a>
+                }
+                else
+                {
+                    <a asp-controller="Auth" asp-action="Login">登录</a>
+                    <a asp-controller="Auth" asp-action="Register">注册</a>
+                }
+            </div>
+        </article>
+        <article class="dd-role-card">
+            <span class="dd-role-card__tag">跑腿员端</span>
+            <h3>接单与配送履约</h3>
+            <p>任务大厅抢单、配送工作台更新状态、查看我的结算。</p>
+            <div class="dd-role-card__links">
+                @if (isRunner)
+                {
+                    <a asp-controller="Task" asp-action="Hall">任务大厅</a>
+                    <a asp-controller="Task" asp-action="MyTasks">配送工作台</a>
+                }
+                else if (isAuthenticated)
+                {
+                    <a asp-controller="Runner" asp-action="Apply">申请跑腿员</a>
+                }
+                else
+                {
+                    <a asp-controller="Auth" asp-action="Login">登录后申请</a>
+                }
+            </div>
+        </article>
+        <article class="dd-role-card">
+            <span class="dd-role-card__tag">管理员端</span>
+            <h3>调度与运营管理</h3>
+            <p>任务指派、跑腿员审核、退款、结算、审计与报表。</p>
+            <div class="dd-role-card__links">
+                @if (isAdmin)
+                {
+                    <a asp-controller="Task" asp-action="AdminConsole">指派控制台</a>
+                    <a asp-controller="Settlement" asp-action="Index">结算管理</a>
+                }
+                else
+                {
+                    <a asp-controller="Auth" asp-action="Login">管理员登录</a>
+                }
+            </div>
+        </article>
+    </div>
+</section>
