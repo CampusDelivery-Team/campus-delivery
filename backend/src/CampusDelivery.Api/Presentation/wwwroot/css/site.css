@@ -1270,6 +1270,10 @@ textarea {
     padding-left: 28px;
 }
 
+.profile-details > div:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+}
+
 .profile-details dt {
     color: #60728f;
     font-size: 13px;
@@ -2435,16 +2439,95 @@ button:disabled {
     padding: 4px 6px;
 }
 
-.task-reassign-form {
-    align-items: end;
+.task-reassign-filter {
+    align-items: center;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(240px, 1fr) 160px auto auto;
+    margin-bottom: 16px;
+}
+
+.task-reassign-filter input,
+.task-reassign-filter select {
+    min-height: 38px;
+}
+
+.task-reassign-dialog {
+    border: 0;
+    border-radius: 10px;
+    box-shadow: 0 18px 50px rgba(7, 26, 61, 0.22);
+    max-width: 600px;
+    padding: 24px;
+    width: calc(100% - 32px);
+}
+
+.task-reassign-dialog::backdrop {
+    background: rgba(7, 26, 61, 0.4);
+}
+
+.task-reassign-dialog form {
     display: grid;
     gap: 16px;
-    grid-template-columns: 1fr 1fr 1.5fr auto;
+}
+
+.task-reassign-dialog h2 {
+    margin: 0;
+}
+
+.task-runner-option-list {
+    border: 1px solid #d7e2f1;
+    border-radius: 8px;
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.task-runner-option {
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 10px;
+}
+
+.task-runner-option:hover,
+.task-runner-option:has(input:checked) {
+    background: #eef6ff;
+    border-color: #8ab4f8;
+}
+
+.task-runner-option span {
+    display: grid;
+}
+
+.task-runner-option small,
+.task-runner-option em {
+    color: #6b7893;
+    font-size: 12px;
+    font-style: normal;
+}
+
+.task-runner-option-empty {
+    color: #6b7893;
+    margin: 12px;
+    text-align: center;
+}
+
+.task-reassign-dialog__actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
 }
 
 @media (max-width: 920px) {
     .task-admin-grid,
-    .task-reassign-form {
+    .task-reassign-filter {
         grid-template-columns: 1fr;
     }
 

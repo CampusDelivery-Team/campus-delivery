@@ -28,6 +28,10 @@
     {
         <div class="inline-notice success">@success</div>
     }
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="inline-notice danger">@error</div>
+    }
 
     @if (Model.Payment is not null)
     {
@@ -52,10 +56,13 @@
                 {
                     <a class="button primary" asp-action="Confirm" asp-route-taskId="@Model.Payment.TaskId">继续付款</a>
                 }
-                else if (Model.Payment.PayStatus == "PAID"
-                    && Model.Payment.RefundProcessStatus is not "APPLY" and not "APPROVED")
+                else if (Model.Payment.CanRequestRefund)
                 {
                     <a class="button primary" asp-controller="Refund" asp-action="Create" asp-route-taskId="@Model.Payment.TaskId">申请退款</a>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Payment.RefundUnavailableMessage))
+                {
+                    <div class="inline-notice" style="margin-top: .75rem;">@Model.Payment.RefundUnavailableMessage</div>
                 }
                 <a class="button" asp-action="Status">返回支付列表</a>
             </div>
