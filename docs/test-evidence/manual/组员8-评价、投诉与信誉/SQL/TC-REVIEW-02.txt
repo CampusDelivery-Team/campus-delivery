@@ -1,0 +1,23 @@
+查询：查看各评分对应的信誉变动
+SELECT review_id, task_id, record_id, rating, credit_delta, reviewed_at
+FROM reviews
+ORDER BY review_id DESC;
+结果： 
+REVIEW_ID    TASK_ID  RECORD_ID     RATING CREDIT_DELTA REVIEWED_
+---------- ---------- ---------- ---------- ------------ ---------
+        63        273        266          1            0 27-8月 -26
+        62        246        264          2           -1 27-8月 -26
+        61        247        265          3            0 27-8月 -26
+        41        244        244          4            1 25-8月 -26
+        21        222        221          5            2 25-8月 -26
+         1        181        181          5            2 22-8月 -26
+
+查询：查看跑腿员当前信誉分
+SELECT runner_id, real_name, credit_score
+FROM runners
+WHERE runner_id = &runner;
+结果：
+
+ RUNNER_ID REAL_NAME                                          CREDIT_SCORE
+---------- -------------------------------------------------- ------------
+       341 Jason Xie                                                     104

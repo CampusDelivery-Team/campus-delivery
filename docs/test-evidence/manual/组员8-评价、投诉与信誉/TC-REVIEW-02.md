@@ -14,14 +14,22 @@
 
 ### 实际结果
 
-（待填写）
+信誉变化依次 +1 / 0 / -1 / -2
 
 ### 结果
 
-（待填写：通过 / 失败 / 阻塞）
+通过
 
 ### 证据
 
-截图：（待补充）
+截图：
+
+![1](screenshots/02-1.png)
+
+![1](screenshots/02-2.png)
+
+![1](screenshots/02-4.png)
+
+![2](screenshots/02-5.png)
 
 SQL：SQL/TC-REVIEW-02.txt

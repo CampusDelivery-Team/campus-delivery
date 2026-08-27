@@ -13,15 +13,16 @@
 状态 SUBMITTED → PROCESSING → DONE，处理结果保存
 
 ### 实际结果
-
-（待填写）
+状态由SUBMITTED → PROCESSING → DONE
 
 ### 结果
-
-（待填写：通过 / 失败 / 阻塞）
+通过 
 
 ### 证据
 
-截图：（待补充）
+截图：
+![1](screenshots/08-1.png)
+![2](screenshots/08-2.png)
+![2](screenshots/08-3.png)
 
 SQL：SQL/TC-REVIEW-08.txt

@@ -1,6 +1,0 @@
-查询：查看投诉记录
-SELECT complaint_id, record_id, reason, process_status, process_result
-FROM complaints
-WHERE record_id = &rid;
-结果：
-

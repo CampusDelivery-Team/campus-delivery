@@ -14,14 +14,16 @@
 
 ### 实际结果
 
-（待填写）
+`complaints`新增 SUBMITTED 记录
 
 ### 结果
 
-（待填写：通过 / 失败 / 阻塞）
+通过
 
 ### 证据
 
-截图：（待补充）
+截图：
+
+![1](screenshots/07-1.png)
 
 SQL：SQL/TC-REVIEW-07.txt
