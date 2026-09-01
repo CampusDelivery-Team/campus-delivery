@@ -117,7 +117,9 @@ WHERE a.audit_id = :audit_id;
 ### 页面截图
 
 <!-- TODO: 放置 Audit 首页截图 -->
+![1788247157520](image/TC-SETTLE-06-三类审计/1788247157520.png)
 
+![1788248237243](image/TC-SETTLE-06-三类审计/1788248237243.png)
 <!-- TODO: 放置 PAYMENT 审计提交成功截图 -->
 
 <!-- TODO: 放置 REFUND 审计提交成功截图 -->
@@ -127,15 +129,15 @@ WHERE a.audit_id = :audit_id;
 ### SQL 截图
 
 <!-- TODO: 放置 audit_logs 最近记录截图 -->
-
+![1788248364350](image/TC-SETTLE-06-三类审计/1788248364350.png)
 <!-- TODO: 放置 audit_payment_checks 关联查询截图 -->
-
+![1788248409742](image/TC-SETTLE-06-三类审计/1788248409742.png)
 <!-- TODO: 放置 audit_refund_checks 关联查询截图 -->
-
+![1788248442249](image/TC-SETTLE-06-三类审计/1788248442249.png)
 <!-- TODO: 放置 audit_status_log_checks 关联查询截图 -->
 
 ## 7. 实际结果与结论
 
-实际结果：待填写。
+实际结果：通过。
 
 结论：待填写：通过 / 失败 / 阻塞 / 需确认。
