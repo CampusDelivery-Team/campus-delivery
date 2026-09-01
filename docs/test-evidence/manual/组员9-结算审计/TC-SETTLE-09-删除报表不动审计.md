@@ -114,25 +114,19 @@ WHERE audit_id IN (:audit_id_1, :audit_id_2);
 ### 页面截图
 
 <!-- TODO: 放置报表详情页删除按钮截图 -->
-
+![1788252671076](image/TC-SETTLE-09-删除报表不动审计/1788252671076.png)
 <!-- TODO: 放置删除确认弹窗截图 -->
-
+![1788252694753](image/TC-SETTLE-09-删除报表不动审计/1788252694753.png)
 <!-- TODO: 放置删除成功后返回 /Report 的提示截图 -->
-
+![1788252705263](image/TC-SETTLE-09-删除报表不动审计/1788252705263.png)
 ### SQL 截图
 
-<!-- TODO: 放置删除前 reports 查询截图 -->
-
-<!-- TODO: 放置删除前 report_audit_items 与 audit_logs 查询截图 -->
-
-<!-- TODO: 放置删除后 reports 查询无结果截图 -->
 
 <!-- TODO: 放置删除后 report_audit_items 查询无结果截图 -->
-
-<!-- TODO: 放置删除后 audit_logs 仍保留截图 -->
+![1788252757839](image/TC-SETTLE-09-删除报表不动审计/1788252757839.png)
 
 ## 7. 实际结果与结论
 
-实际结果：待填写。
+实际结果：通过。
 
 结论：待填写：通过 / 失败 / 阻塞 / 需确认。
