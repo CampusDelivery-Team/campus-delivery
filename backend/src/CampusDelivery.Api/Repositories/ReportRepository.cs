@@ -396,6 +396,34 @@ public sealed class ReportRepository(OracleConnectionFactory connectionFactory) 
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
+    public async Task<bool> DeleteAsync(
+        int reportId,
+        IRepositoryTransaction repositoryTransaction,
+        CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+
+        await using var deleteItemsCommand = connection.CreateCommand();
+        deleteItemsCommand.Transaction = transaction;
+        deleteItemsCommand.BindByName = true;
+        deleteItemsCommand.CommandText = """
+            DELETE FROM APPUSER.report_audit_items
+            WHERE report_id = :reportId
+            """;
+        deleteItemsCommand.Parameters.Add(new OracleParameter("reportId", reportId));
+        await deleteItemsCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        await using var deleteReportCommand = connection.CreateCommand();
+        deleteReportCommand.Transaction = transaction;
+        deleteReportCommand.BindByName = true;
+        deleteReportCommand.CommandText = """
+            DELETE FROM APPUSER.reports
+            WHERE report_id = :reportId
+            """;
+        deleteReportCommand.Parameters.Add(new OracleParameter("reportId", reportId));
+        return await deleteReportCommand.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
     private static async Task<int> GetScalarAsync(
         OracleConnection connection,
         string sql,

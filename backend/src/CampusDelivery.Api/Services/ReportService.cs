@@ -149,6 +149,44 @@ public sealed class ReportService(
         return new ReportExportResult(true, string.Empty, fileName, content);
     }
 
+    public async Task<ReportOperationResult> DeleteAsync(
+        int reportId,
+        CancellationToken cancellationToken = default)
+    {
+        if (reportId <= 0)
+        {
+            return new ReportOperationResult(false, "报表编号无效。", reportId);
+        }
+
+        ReportRecord? report = await reportRepository.GetByIdAsync(reportId, cancellationToken);
+        if (report == null)
+        {
+            return new ReportOperationResult(false, "报表不存在或已被删除。", reportId);
+        }
+
+        await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
+        try
+        {
+            bool deleted = await reportRepository.DeleteAsync(reportId, transaction, cancellationToken);
+            if (!deleted)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return new ReportOperationResult(false, "报表删除失败，请刷新后重试。", reportId);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return new ReportOperationResult(
+                true,
+                $"报表 #{report.ReportId} 已删除，原始审计日志已保留。",
+                reportId);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
     private static ReportDetailsViewModel BuildDetailsViewModel(
         ReportRecord report,
         IReadOnlyList<ReportBusinessItem> businessItems,

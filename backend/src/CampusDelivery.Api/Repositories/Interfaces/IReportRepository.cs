@@ -15,4 +15,5 @@ public interface IReportRepository
     Task<int> InsertReportAsync(ReportRecord report, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task InsertReportAuditItemAsync(int reportId, int auditId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<bool> UpdateStatusAsync(int reportId, string reportStatus, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(int reportId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
 }
