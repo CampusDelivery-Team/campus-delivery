@@ -469,6 +469,11 @@ h3 {
     padding: 7px 12px;
 }
 
+.tag-row form {
+    display: inline-flex;
+    margin: 0;
+}
+
 .workflow-grid {
     display: grid;
     gap: 20px;
@@ -2862,6 +2867,41 @@ button:hover {
     border-color: #9ab5da;
     box-shadow: 0 10px 24px rgba(11, 31, 58, 0.08);
     transform: translateY(-1px);
+}
+
+.button.danger {
+    background: #fff7ed;
+    border-color: #fed7aa;
+    box-shadow: none;
+    color: #c2410c;
+}
+
+.button.danger:hover {
+    background: #ffedd5;
+    border-color: #fdba74;
+    color: #9a3412;
+}
+
+.tag-row .button,
+.tag-row button.button {
+    border-radius: 7px;
+    box-sizing: border-box;
+    font-size: 13px;
+    font-weight: 800;
+    justify-content: center;
+    min-height: 40px;
+    min-width: 96px;
+    padding: 0 16px;
+}
+
+.tag-row .button.primary {
+    color: #ffffff;
+}
+
+.tag-row .button.danger {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #c2410c;
 }
 
 .page {

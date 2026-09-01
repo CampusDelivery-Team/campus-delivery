@@ -247,6 +247,8 @@ internal sealed class FakeReportRepository : IReportRepository
     public IReadOnlyList<int> AuditIds { get; set; } = [];
     public ReportRecord? StoredReport { get; private set; }
     public List<int> LinkedAuditIds { get; } = [];
+    public bool DeleteResult { get; set; } = true;
+    public bool DeleteCalled { get; private set; }
 
     public Task<IReadOnlyList<ReportMetricRecord>> GetMetricsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ReportMetricRecord>>([]);
     public Task<IReadOnlyList<NodeVolumeRecord>> GetNodeVolumesAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<NodeVolumeRecord>>([]);
@@ -279,6 +281,19 @@ internal sealed class FakeReportRepository : IReportRepository
         }
 
         StoredReport.ReportStatus = reportStatus;
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> DeleteAsync(int reportId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default)
+    {
+        DeleteCalled = true;
+        if (!DeleteResult || StoredReport?.ReportId != reportId)
+        {
+            return Task.FromResult(false);
+        }
+
+        StoredReport = null;
+        LinkedAuditIds.Clear();
         return Task.FromResult(true);
     }
 }
