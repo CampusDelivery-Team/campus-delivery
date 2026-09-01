@@ -9,7 +9,7 @@
 | 测试人员 | 开发团队 |
 | 自动化测试时间 | 2026-08-22 |
 | 数据库系统测试时间 | 2026-08-22 完成共享库结构核验、MVC 写入型端到端验收及真实双会话并发复核 |
-| 测试结论 | 39 项高价值业务自动化测试和静态门禁全部通过；原 `PENDING-DB` 用例已在共享 Oracle 实际执行并通过，覆盖主链路、权限、并发、退款、评价投诉、结算审计和三类报表导出。2026-08-30 组员10 回归复核：测试已增至 50 项并全部通过（见 9.3 节） |
+| 测试结论 | 39 项高价值业务自动化测试和静态门禁全部通过；原 `PENDING-DB` 用例已在共享 Oracle 实际执行并通过，覆盖主链路、权限、并发、退款、评价投诉、结算审计和三类报表导出。2026-09-01 组员1集成复核：测试已增至 52 项并全部通过（见 9.4 节） |
 
 ## 2. 测试目的
 
@@ -106,7 +106,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 `scripts/run-tests.ps1` 在测试后检查：
 
 - 建表数量不少于 12；当前为 24。
-- 所有 `[HttpPost]` Action 均有 `[ValidateAntiForgeryToken]`；当前为 46/46。
+- 所有 `[HttpPost]` Action 均有 `[ValidateAntiForgeryToken]`；当前为 47/47。
 - Controller 不引用 Repository 接口。
 - Service 中不存在 Oracle Command/Connection 或 `CommandText`。
 - Repository 中存在真实的 `FOR UPDATE` 行锁；当前检出 14 处。
@@ -263,6 +263,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 
 已知待办：`docs/test-evidence/manual/2026-08-16/sql/verification.sql` 引用了 `payments.paid_at` 列，该列在当前结构脚本中不存在，复核证据 SQL 时注意与 `docs/database_dictionary.md` 对齐（已登记 Bug 清单）。
 
+### 9.4 2026-09-01 组员1总集成复核（第五阶段）
+
+组员1在 `test` 分支（`61cb6a2`）完成 TC-INT-01～05：公网 HTTPS、四类角色导航、31 个页面/路由、Oracle 状态页和自动化门禁全部通过。Release 构建 0 警告 0 错误，自动化测试 52/52 通过，静态门禁为 24 张表、47/47 POST 防伪、14 处行锁、五层边界和外置连接配置全部通过。证据见 `docs/test-evidence/manual/组员1-总集成与架构/`。
+
 ## 10. 已修复问题与剩余验证
 
 | 编号 | 原级别 | 原问题 | 修复结果 | 剩余验证 |
@@ -278,7 +282,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 后续提交至少满足：
 
 1. `scripts/run-tests.ps1` 全部通过。
-2. 不减少 46/46 POST 防伪覆盖。
+2. 不减少 47/47 POST 防伪覆盖。
 3. 抢单、支付或退款变更必须补充事务/状态回归测试。
 4. 数据库结构变化后更新 24 表统计、数据库字典和测试 SQL。
 5. 评价支付/退款门槛、地址事务、结算状态机和报表生成/导出变更必须保留对应回归测试。

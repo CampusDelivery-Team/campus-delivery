@@ -1,0 +1,12 @@
+TC-INT-03 全站页面抽查
+日期：2026-09-01
+
+公开页面（3）：/、/Auth/Login、/Auth/Register，均返回 200。
+普通用户页面（11）：/User/Profile、/User/Edit、/Address、/Runner/Apply、/Task、/Task/Create、/Task/Receipt、/Payment/Status、/Refund/Create、/Review/MyReviews、/Complaint/MyComplaints。
+跑腿员页面（3）：/Task/Hall、/Task/MyTasks、/Settlement/My。
+管理员页面（14）：/Account、/Node、/ServiceType、/ServiceNodeRule、/Runner、/Runner/Pending、/Task/AdminConsole、/Refund/AdminIndex、/Review/All、/Complaint/Index、/Settlement、/Audit、/Report、/Database/Status。
+
+合计：31 个路由。全部页面未出现 HTTP 500，标题和主标题正常。
+访问控制：访客访问 /Report 返回 302，并跳转 /Auth/Login?ReturnUrl=%2FReport。
+说明：/Refund/Create 未指定 taskId 时按设计跳转到 /Payment/Status?taskId=0，不属于错误。
+结论：PASS
