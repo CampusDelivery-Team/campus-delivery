@@ -136,19 +136,42 @@ SELECT COUNT(*) FROM payments p JOIN assign_records a ON p.record_id = a.record_
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | TC-ASSIGN-01 | 任务大厅只显示待接单 | 有 WAITING 和 ASSIGNED 任务 | 跑腿员打开 `/Task/Hall` | 仅显示 WAITING 任务，已接单任务消失 | | | 截图 |
 | TC-ASSIGN-02 | 跑腿员抢单 | APPROVED+FREE 跑腿员，一条 WAITING 任务 | 大厅点击抢单 | 任务变 ASSIGNED；新增 `operation_type=SELF` 接派记录；跑腿员变 BUSY；写入状态日志 | | | 截图+SQL |
-| TC-ASSIGN-03 | 非空闲/未审核跑腿员不能抢单 | 一名 BUSY 跑腿员、一名 PENDING 申请用户 | 分别尝试抢单 | 均被拒绝，任务状态不变 | | | 截图 |
-| TC-ASSIGN-04 | 并发抢单只成功一人 | 两名 FREE 跑腿员，一条 WAITING 任务 | 两人同时提交抢单 | 仅一人成功；任务只有一条有效接派记录，无脏数据 | | | 截图+SQL |
-| TC-ASSIGN-05 | 管理员派单 | 无人接单的 WAITING 任务 | `/Task/AdminConsole` 派给指定跑腿员 | 任务变 ASSIGNED；记录 `operation_type=ADMIN`；跑腿员 BUSY | | | 截图+SQL |
-| TC-ASSIGN-06 | 管理员重派 | 一条已接单任务 | AdminConsole 重派给另一名 FREE 跑腿员 | 旧记录保留；新增 `REASSIGN` 记录；旧跑腿员释放为 FREE，新跑腿员 BUSY；日志完整 | | | 截图+SQL |
+| TC-ASSIGN-03 | 多单接单与资格限制 | 一名 APPROVED+BUSY 跑腿员、一名未审核或审核未通过的申请用户，两条 WAITING 任务 | BUSY 跑腿员继续抢一单；未取得跑腿员资格的用户尝试进入任务大厅 | BUSY 跑腿员可继续接单且进行中任务数增加；未取得资格的用户被拒绝访问，任务状态不变 | | | 截图+SQL |
+| TC-ASSIGN-04 | 并发抢单只成功一人 | 两名 APPROVED 且非 OFFLINE 的跑腿员，一条 WAITING 任务 | 两人使用独立会话同时提交抢单 | 仅一人成功；任务只有一条有效接派记录，无脏数据 | | | 截图+SQL |
+| TC-ASSIGN-05 | 管理员派单 | 无人接单的 WAITING 任务 | `/Task/AdminConsole` 派给指定的 APPROVED 且非 OFFLINE 跑腿员 | 任务变 ASSIGNED；记录 `operation_type=ADMIN`；跑腿员变为或保持 BUSY | | | 截图+SQL |
+| TC-ASSIGN-06 | 管理员重派与工作状态联动 | 准备两条由同一旧跑腿员承接的活动任务和另一名 APPROVED 且非 OFFLINE 跑腿员 | 依次把两条任务重派给新跑腿员 | 旧记录保留并新增 `REASSIGN` 记录；旧跑腿员尚有其他活动任务时保持 BUSY，最后一条活动任务转出后变为 FREE；新跑腿员变为或保持 BUSY；日志完整 | | | 截图+SQL |
 | TC-ASSIGN-07 | 禁止接自己的任务 | 用户自己发布的 WAITING 任务（该用户同时为跑腿员） | 尝试接/派给自己 | 系统拒绝 | | | 截图 |
 | TC-ASSIGN-08 | 配送状态顺序流转 | 已接单任务 | 依次操作取货 → 配送中 → 送达 | 状态依次 PICKED_UP → DELIVERING → WAIT_CONFIRM；每次变更写 `task_status_logs` | | | 截图+SQL |
-| TC-ASSIGN-09 | 非法状态跳转被拒 | 已接单任务 | 尝试跳过取货直接送达等非法跳转 | 拒绝并提示，状态和日志不变 | | | 截图 |
+| TC-ASSIGN-09 | 非法状态跳转被拒 | 已接单任务 | 尝试跳过取货直接送达等非法跳转 | 拒绝并提示，状态和日志不变 | | | 截图+SQL |
 
 参考 SQL：
 ```sql
-SELECT record_id, task_id, runner_id, operation_type, assigned_at FROM assign_records WHERE task_id = :tid ORDER BY assigned_at DESC, record_id DESC;
-SELECT log_id, record_id, old_status, new_status, changed_at FROM task_status_logs WHERE record_id = :rid ORDER BY changed_at;
-SELECT r.runner_id, r.audit_status, r.work_status FROM runners r WHERE r.runner_id = :runner;
+SELECT record_id, task_id, runner_id, operation_type, assigned_at, reassign_reason
+FROM assign_records
+WHERE task_id = :tid
+ORDER BY assigned_at DESC, record_id DESC;
+
+SELECT l.log_id, l.record_id, l.status_before, l.status_after, l.operator_user_id, l.operated_at
+FROM task_status_logs l
+JOIN assign_records ar ON ar.record_id = l.record_id
+WHERE ar.task_id = :tid
+ORDER BY l.operated_at, l.log_id;
+
+WITH latest_assign AS (
+    SELECT ar.*,
+           ROW_NUMBER() OVER (
+               PARTITION BY ar.task_id
+               ORDER BY ar.assigned_at DESC, ar.record_id DESC
+           ) AS rn
+    FROM assign_records ar
+)
+SELECT r.runner_id, r.audit_status, r.work_status, COUNT(t.task_id) AS active_task_count
+FROM runners r
+LEFT JOIN latest_assign la ON la.runner_id = r.runner_id AND la.rn = 1
+LEFT JOIN tasks t ON t.task_id = la.task_id
+                 AND t.task_status IN ('ASSIGNED', 'PICKED_UP', 'DELIVERING', 'WAIT_CONFIRM')
+WHERE r.runner_id = :runner
+GROUP BY r.runner_id, r.audit_status, r.work_status;
 ```
 
 ### 组员7：收货后支付与退款（TC-PAY）
