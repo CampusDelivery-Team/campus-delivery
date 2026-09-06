@@ -298,6 +298,7 @@ public sealed class AssignService(
             viewModel.ReassignRunners.Add(new AdminRunnerOptionViewModel
             {
                 RunnerId = runner.RunnerId,
+                UserId = runner.UserId,
                 RealName = runner.RealName,
                 ActiveTaskCount = await assignRepository.GetActiveTaskCountByRunnerIdAsync(
                     runner.RunnerId,

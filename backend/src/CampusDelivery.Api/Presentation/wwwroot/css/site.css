@@ -9,6 +9,10 @@
     box-sizing: border-box;
 }
 
+[hidden] {
+    display: none !important;
+}
+
 html {
     scroll-behavior: smooth;
 }
@@ -2522,6 +2526,11 @@ button:disabled {
     color: #6b7893;
     margin: 12px;
     text-align: center;
+}
+
+.task-runner-option[hidden],
+.task-runner-option-empty[hidden] {
+    display: none !important;
 }
 
 .task-reassign-dialog__actions {

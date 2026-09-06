@@ -55,24 +55,13 @@
                                     <td><span class="badge task-badge--service">@task.ServiceTypeName</span></td>
                                     <td class="task-price">¥@task.TaskPrice.ToString("F2")</td>
                                     <td>
-                                        @if (!Model.AvailableRunners.Any(runner => runner.UserId != task.PublisherUserId))
-                                        {
-                                            <span class="task-status-text task-status-text--error">当前页无符合条件的可用跑腿员</span>
-                                        }
-                                        else
-                                        {
-                                            <form asp-action="AdminAssign" method="post" class="task-assign-form">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="taskId" value="@task.TaskId" />
-                                                <select name="runnerId">
-                                                    @foreach (var runner in Model.AvailableRunners.Where(runner => runner.UserId != task.PublisherUserId))
-                                                    {
-                                                        <option value="@runner.RunnerId">@runner.RealName (进行中:@runner.ActiveTaskCount 单)</option>
-                                                    }
-                                                </select>
-                                                <button type="submit" class="button primary task-button--small">指派</button>
-                                            </form>
-                                        }
+                                        <button type="button"
+                                                class="button primary task-button--small assign-open-button"
+                                                data-task-id="@task.TaskId"
+                                                data-task-title="@task.TaskTitle"
+                                                data-publisher-user-id="@task.PublisherUserId">
+                                            指派
+                                        </button>
                                     </td>
                                 </tr>
                             }
@@ -219,6 +208,40 @@
     </article>
 </section>
 
+<dialog id="assignDialog" class="task-reassign-dialog">
+    <form asp-action="AdminAssign" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="taskId" id="assignTaskId" />
+        <h2>指派任务</h2>
+        <p id="assignTaskSummary" class="task-page__note"></p>
+        <div class="field">
+            <span>选择跑腿员</span>
+            <input type="search" id="assignRunnerSearch" placeholder="搜索姓名或跑腿员 ID" autocomplete="off" />
+            <div id="assignRunnerList" class="task-runner-option-list">
+                @foreach (var runner in Model.ReassignRunners)
+                {
+                    <label class="task-runner-option assign-runner-option"
+                           data-runner-id="@runner.RunnerId"
+                           data-user-id="@runner.UserId"
+                           data-search-text="@runner.RealName.ToLowerInvariant() @runner.RunnerId">
+                        <input type="radio" name="runnerId" value="@runner.RunnerId" required />
+                        <span>
+                            <strong>@runner.RealName</strong>
+                            <small>ID: @runner.RunnerId</small>
+                        </span>
+                        <em>进行中 @runner.ActiveTaskCount 单</em>
+                    </label>
+                }
+                <p id="assignRunnerEmpty" class="task-runner-option-empty" hidden>没有找到符合条件的跑腿员</p>
+            </div>
+        </div>
+        <div class="task-reassign-dialog__actions">
+            <button type="button" class="button" id="assignCancelButton">取消</button>
+            <button type="submit" class="button primary" disabled="@(Model.ReassignRunners.Count == 0)">确认指派</button>
+        </div>
+    </form>
+</dialog>
+
 <dialog id="reassignDialog" class="task-reassign-dialog">
     <form asp-action="AdminReassign" method="post">
         @Html.AntiForgeryToken()
@@ -231,8 +254,9 @@
             <div id="reassignRunnerList" class="task-runner-option-list">
                 @foreach (var runner in Model.ReassignRunners)
                 {
-                    <label class="task-runner-option"
+                    <label class="task-runner-option reassign-runner-option"
                            data-runner-id="@runner.RunnerId"
+                           data-user-id="@runner.UserId"
                            data-search-text="@runner.RealName.ToLowerInvariant() @runner.RunnerId">
                         <input type="radio" name="runnerId" value="@runner.RunnerId" required />
                         <span>
@@ -257,11 +281,65 @@
 </dialog>
 
 <script>
+    // 指派弹窗逻辑
+    const assignDialog = document.getElementById("assignDialog");
+    const assignTaskId = document.getElementById("assignTaskId");
+    const assignTaskSummary = document.getElementById("assignTaskSummary");
+    const assignRunnerSearch = document.getElementById("assignRunnerSearch");
+    const assignRunnerOptions = Array.from(document.querySelectorAll(".assign-runner-option"));
+    const assignRunnerEmpty = document.getElementById("assignRunnerEmpty");
+
+    function filterAssignRunners() {
+        const keyword = assignRunnerSearch.value.trim().toLowerCase();
+        let visibleCount = 0;
+        assignRunnerOptions.forEach(option => {
+            const visible = option.dataset.userId !== assignDialog.dataset.publisherUserId
+                && option.dataset.searchText.includes(keyword);
+            option.hidden = !visible;
+            option.style.display = visible ? "" : "none";
+            if (!visible)
+            {
+                const input = option.querySelector("input");
+                if (input)
+                {
+                    input.checked = false;
+                }
+            }
+            visibleCount += visible ? 1 : 0;
+        });
+        assignRunnerEmpty.hidden = visibleCount > 0;
+        assignRunnerEmpty.style.display = visibleCount > 0 ? "none" : "";
+    }
+
+    document.querySelectorAll(".assign-open-button").forEach(button => {
+        button.addEventListener("click", () => {
+            assignTaskId.value = button.dataset.taskId;
+            assignTaskSummary.textContent = `#${button.dataset.taskId} ${button.dataset.taskTitle}`;
+            assignDialog.dataset.publisherUserId = button.dataset.publisherUserId;
+            assignRunnerSearch.value = "";
+            assignRunnerOptions.forEach(option => {
+                const input = option.querySelector("input");
+                if (input)
+                {
+                    input.checked = false;
+                }
+            });
+            filterAssignRunners();
+            assignDialog.showModal();
+            assignRunnerSearch.focus();
+        });
+    });
+
+    assignRunnerSearch.addEventListener("input", filterAssignRunners);
+    assignRunnerSearch.addEventListener("search", filterAssignRunners);
+    document.getElementById("assignCancelButton").addEventListener("click", () => assignDialog.close());
+
+    // 重新指派弹窗逻辑
     const reassignDialog = document.getElementById("reassignDialog");
     const reassignTaskId = document.getElementById("reassignTaskId");
     const reassignTaskSummary = document.getElementById("reassignTaskSummary");
     const reassignRunnerSearch = document.getElementById("reassignRunnerSearch");
-    const reassignRunnerOptions = Array.from(document.querySelectorAll(".task-runner-option"));
+    const reassignRunnerOptions = Array.from(document.querySelectorAll(".reassign-runner-option"));
     const reassignRunnerEmpty = document.getElementById("reassignRunnerEmpty");
 
     function filterReassignRunners() {
@@ -271,13 +349,19 @@
             const visible = option.dataset.runnerId !== reassignDialog.dataset.currentRunnerId
                 && option.dataset.searchText.includes(keyword);
             option.hidden = !visible;
+            option.style.display = visible ? "" : "none";
             if (!visible)
             {
-                option.querySelector("input").checked = false;
+                const input = option.querySelector("input");
+                if (input)
+                {
+                    input.checked = false;
+                }
             }
             visibleCount += visible ? 1 : 0;
         });
         reassignRunnerEmpty.hidden = visibleCount > 0;
+        reassignRunnerEmpty.style.display = visibleCount > 0 ? "none" : "";
     }
 
     document.querySelectorAll(".reassign-open-button").forEach(button => {
@@ -286,12 +370,20 @@
             reassignTaskSummary.textContent = `#${button.dataset.taskId} ${button.dataset.taskTitle}，当前跑腿员：${button.dataset.currentRunner}`;
             reassignDialog.dataset.currentRunnerId = button.dataset.currentRunnerId;
             reassignRunnerSearch.value = "";
-            reassignRunnerOptions.forEach(option => option.querySelector("input").checked = false);
+            reassignRunnerOptions.forEach(option => {
+                const input = option.querySelector("input");
+                if (input)
+                {
+                    input.checked = false;
+                }
+            });
             filterReassignRunners();
             reassignDialog.showModal();
+            reassignRunnerSearch.focus();
         });
     });
 
     reassignRunnerSearch.addEventListener("input", filterReassignRunners);
+    reassignRunnerSearch.addEventListener("search", filterReassignRunners);
     document.getElementById("reassignCancelButton").addEventListener("click", () => reassignDialog.close());
 </script>

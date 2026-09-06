@@ -43,6 +43,7 @@ public sealed class AdminReassignableTaskViewModel
 public sealed class AdminRunnerOptionViewModel
 {
     public int RunnerId { get; set; }
+    public int UserId { get; set; }
     public string RealName { get; set; } = string.Empty;
     public int ActiveTaskCount { get; set; }
 }
