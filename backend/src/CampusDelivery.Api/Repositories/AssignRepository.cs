@@ -142,38 +142,6 @@ public sealed class AssignRepository(OracleConnectionFactory connectionFactory) 
         return Convert.ToInt32(result);
     }
 
-    public async Task<int> GetOtherActiveTaskCountByRunnerIdAsync(
-        int runnerId,
-        int excludedTaskId,
-        IRepositoryTransaction repositoryTransaction,
-        CancellationToken cancellationToken = default)
-    {
-        var (connection, transaction) = repositoryTransaction.GetOracle();
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.Transaction = transaction;
-        command.CommandText = """
-            SELECT COUNT(*)
-            FROM APPUSER.tasks t
-            JOIN (
-                SELECT record_id, task_id, runner_id,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY task_id
-                           ORDER BY assigned_at DESC, record_id DESC
-                       ) AS rn
-                FROM APPUSER.assign_records
-            ) r ON r.task_id = t.task_id AND r.rn = 1
-            WHERE r.runner_id = :runnerId
-              AND t.task_id <> :excludedTaskId
-              AND t.task_status IN ('ASSIGNED', 'PICKED_UP', 'DELIVERING', 'WAIT_CONFIRM')
-            """;
-        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
-        command.Parameters.Add(new OracleParameter("excludedTaskId", excludedTaskId));
-
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return Convert.ToInt32(result);
-    }
-
     public async Task<TaskDetailsRecord?> GetActiveTaskDetailsAsync(
         int taskId,
         int runnerId,
@@ -568,102 +536,8 @@ public sealed class AssignRepository(OracleConnectionFactory connectionFactory) 
         return Convert.ToInt32(result);
     }
 
-    public async Task<IReadOnlyList<ReassignableTaskRecord>> GetReassignableTasksForAdminAsync(
-        string? keyword,
-        string? status,
-        int offset,
-        int pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        var tasks = new List<ReassignableTaskRecord>();
-        await using var connection = _connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
 
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT t.task_id, t.task_title, t.task_status, t.created_at,
-                   st.service_name, r.runner_id, r.real_name
-            FROM APPUSER.tasks t
-            JOIN APPUSER.service_types st ON st.service_type_id = t.service_type_id
-            JOIN (
-                SELECT task_id, runner_id,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY task_id
-                           ORDER BY assigned_at DESC, record_id DESC
-                       ) AS rn
-                FROM APPUSER.assign_records
-            ) ar ON ar.task_id = t.task_id AND ar.rn = 1
-            JOIN APPUSER.runners r ON r.runner_id = ar.runner_id
-            WHERE t.task_status IN ('ASSIGNED', 'PICKED_UP', 'DELIVERING')
-              AND (:status IS NULL OR t.task_status = :status)
-              AND (:keyword IS NULL
-                   OR TO_CHAR(t.task_id) LIKE :keyword
-                   OR t.task_title LIKE :keyword
-                   OR r.real_name LIKE :keyword)
-            ORDER BY t.created_at DESC, t.task_id DESC
-            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
-            """;
-        command.Parameters.Add(new OracleParameter("status", string.IsNullOrWhiteSpace(status) ? DBNull.Value : status));
-        command.Parameters.Add(new OracleParameter("keyword", string.IsNullOrWhiteSpace(keyword) ? DBNull.Value : $"%{keyword.Trim()}%"));
-        command.Parameters.Add(new OracleParameter("offset", offset));
-        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
-
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            tasks.Add(new ReassignableTaskRecord
-            {
-                TaskId = Convert.ToInt32(reader["task_id"]),
-                TaskTitle = Convert.ToString(reader["task_title"]) ?? string.Empty,
-                TaskStatus = Convert.ToString(reader["task_status"]) ?? string.Empty,
-                ServiceTypeName = Convert.ToString(reader["service_name"]) ?? string.Empty,
-                CreatedAt = Convert.ToDateTime(reader["created_at"]),
-                CurrentRunnerId = Convert.ToInt32(reader["runner_id"]),
-                CurrentRunnerName = Convert.ToString(reader["real_name"]) ?? string.Empty
-            });
-        }
-
-        return tasks;
-    }
-
-    public async Task<int> GetReassignableTasksForAdminCountAsync(
-        string? keyword,
-        string? status,
-        CancellationToken cancellationToken = default)
-    {
-        await using var connection = _connectionFactory.CreateConnection();
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = connection.CreateCommand();
-        command.BindByName = true;
-        command.CommandText = """
-            SELECT COUNT(*)
-            FROM APPUSER.tasks t
-            JOIN (
-                SELECT task_id, runner_id,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY task_id
-                           ORDER BY assigned_at DESC, record_id DESC
-                       ) AS rn
-                FROM APPUSER.assign_records
-            ) ar ON ar.task_id = t.task_id AND ar.rn = 1
-            JOIN APPUSER.runners r ON r.runner_id = ar.runner_id
-            WHERE t.task_status IN ('ASSIGNED', 'PICKED_UP', 'DELIVERING')
-              AND (:status IS NULL OR t.task_status = :status)
-              AND (:keyword IS NULL
-                   OR TO_CHAR(t.task_id) LIKE :keyword
-                   OR t.task_title LIKE :keyword
-                   OR r.real_name LIKE :keyword)
-            """;
-        command.Parameters.Add(new OracleParameter("status", string.IsNullOrWhiteSpace(status) ? DBNull.Value : status));
-        command.Parameters.Add(new OracleParameter("keyword", string.IsNullOrWhiteSpace(keyword) ? DBNull.Value : $"%{keyword.Trim()}%"));
-
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return Convert.ToInt32(result);
-    }
-
-    public async Task<IReadOnlyList<Runner>> GetAvailableRunnersForAdminAsync(
+    public async Task<IReadOnlyList<Runner>> GetFreeRunnersForAdminAsync(
         int offset,
         int pageSize,
         CancellationToken cancellationToken = default)
@@ -677,7 +551,7 @@ public sealed class AssignRepository(OracleConnectionFactory connectionFactory) 
         command.CommandText = """
             SELECT runner_id, user_id, real_name, identity_info, audit_status, work_status, credit_score
             FROM APPUSER.runners
-            WHERE audit_status = 'APPROVED' AND work_status IN ('FREE', 'BUSY')
+            WHERE audit_status = 'APPROVED' AND work_status = 'FREE'
             ORDER BY runner_id
             OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
             """;
@@ -692,7 +566,7 @@ public sealed class AssignRepository(OracleConnectionFactory connectionFactory) 
         return runners;
     }
 
-    public async Task<int> GetAvailableRunnersForAdminCountAsync(CancellationToken cancellationToken = default)
+    public async Task<int> GetFreeRunnersForAdminCountAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
@@ -701,7 +575,7 @@ public sealed class AssignRepository(OracleConnectionFactory connectionFactory) 
         command.CommandText = """
             SELECT COUNT(*)
             FROM APPUSER.runners
-            WHERE audit_status = 'APPROVED' AND work_status IN ('FREE', 'BUSY')
+            WHERE audit_status = 'APPROVED' AND work_status = 'FREE'
             """;
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return Convert.ToInt32(result);

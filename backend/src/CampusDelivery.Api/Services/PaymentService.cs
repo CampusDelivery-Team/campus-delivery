@@ -10,7 +10,6 @@ public sealed class PaymentService(
     IAssignRepository assignRepository,
     IPaymentRepository paymentRepository,
     IRefundRepository refundRepository,
-    ISettlementRepository settlementRepository,
     IRepositoryTransactionManager transactionManager) : IPaymentService
 {
     private const string ReviewReasonMarker = "\n审核意见：";
@@ -127,20 +126,7 @@ public sealed class PaymentService(
                     return new(false, "接单跑腿员不存在。", 0);
                 }
 
-                int otherActiveTaskCount = await assignRepository.GetOtherActiveTaskCountByRunnerIdAsync(
-                    assignRecord.RunnerId,
-                    taskId,
-                    transaction,
-                    cancellationToken);
-                if (otherActiveTaskCount == 0)
-                {
-                    await assignRepository.UpdateRunnerWorkStatusAsync(
-                        assignRecord.RunnerId,
-                        "FREE",
-                        transaction,
-                        cancellationToken);
-                }
-
+                await assignRepository.UpdateRunnerWorkStatusAsync(assignRecord.RunnerId, "FREE", transaction, cancellationToken);
                 if (completePayment)
                 {
                     await assignRepository.UpdateTaskStatusAsync(
@@ -205,10 +191,8 @@ public sealed class PaymentService(
         TaskDetailsRecord? details = await taskRepository.GetDetailsAsync(payment.TaskId, currentUserId, false, cancellationToken);
         RefundRecord? refund = await refundRepository.GetByPaymentIdAsync(payment.PaymentId, cancellationToken);
         PaymentSummaryViewModel summary = MapSummary(payment, details?.Task.TaskTitle ?? string.Empty);
-        summary.IsSettled = await settlementRepository.IsPaymentSettledAsync(payment.PaymentId, cancellationToken);
         summary.RefundProcessStatus = refund?.ProcessStatus;
         summary.RefundStatusDisplayName = refund is null ? null : DisplayNameService.GetRefundStatusName(refund.ProcessStatus);
-        ApplyRefundAvailability(summary);
         if (refund is not null)
         {
             (summary.RefundReason, summary.RefundReviewReason) = SplitRefundReasons(refund.RefundReason);
@@ -234,10 +218,7 @@ public sealed class PaymentService(
         PayStatusDisplayName = DisplayNameService.GetPayStatusName(payment.PayStatus),
         PayStatus = payment.PayStatus,
         RefundProcessStatus = payment.RefundProcessStatus,
-        RefundStatusDisplayName = payment.RefundProcessStatus is null ? null : DisplayNameService.GetRefundStatusName(payment.RefundProcessStatus),
-        IsSettled = payment.IsSettled,
-        CanRequestRefund = CanRequestRefund(payment.PayStatus, payment.RefundProcessStatus, payment.IsSettled),
-        RefundUnavailableMessage = GetRefundUnavailableMessage(payment.PayStatus, payment.RefundProcessStatus, payment.IsSettled)
+        RefundStatusDisplayName = payment.RefundProcessStatus is null ? null : DisplayNameService.GetRefundStatusName(payment.RefundProcessStatus)
     };
 
     private static PaymentSummaryViewModel MapSummary(PaymentRecord payment, string taskTitle) => new()
@@ -252,39 +233,6 @@ public sealed class PaymentService(
         PayStatusDisplayName = DisplayNameService.GetPayStatusName(payment.PayStatus),
         PayStatus = payment.PayStatus
     };
-
-    private static void ApplyRefundAvailability(PaymentSummaryViewModel payment)
-    {
-        payment.CanRequestRefund = CanRequestRefund(
-            payment.PayStatus,
-            payment.RefundProcessStatus,
-            payment.IsSettled);
-        payment.RefundUnavailableMessage = GetRefundUnavailableMessage(
-            payment.PayStatus,
-            payment.RefundProcessStatus,
-            payment.IsSettled);
-    }
-
-    private static bool CanRequestRefund(string payStatus, string? refundProcessStatus, bool isSettled) =>
-        payStatus == PaymentStatusCodes.Paid
-        && !isSettled
-        && refundProcessStatus is not RefundStatusCodes.Apply and not RefundStatusCodes.Approved;
-
-    private static string? GetRefundUnavailableMessage(
-        string payStatus,
-        string? refundProcessStatus,
-        bool isSettled)
-    {
-        if (payStatus != PaymentStatusCodes.Paid
-            || refundProcessStatus is RefundStatusCodes.Apply or RefundStatusCodes.Approved)
-        {
-            return null;
-        }
-
-        return isSettled
-            ? "该订单已进入结算流程，暂不支持在线退款。如仍有售后问题，请在任务详情页提交投诉，管理员会进行核查处理。"
-            : null;
-    }
 
     private static (string ApplicationReason, string? ReviewReason) SplitRefundReasons(string? combinedReason)
     {

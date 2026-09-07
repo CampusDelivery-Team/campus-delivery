@@ -258,18 +258,12 @@ namespace CampusDelivery.Api.Controllers
             int taskPage = 1,
             int runnerPage = 1,
             int pageSize = 10,
-            string? reassignKeyword = null,
-            string? reassignStatus = null,
-            int reassignPage = 1,
             CancellationToken cancellationToken = default)
         {
             AdminAssignViewModel model = await _assignService.GetAdminConsoleAsync(
                 taskPage,
                 runnerPage,
                 pageSize,
-                reassignKeyword,
-                reassignStatus,
-                reassignPage,
                 cancellationToken);
             return View(model);
         }

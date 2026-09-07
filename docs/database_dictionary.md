@@ -29,12 +29,6 @@
 - 函数唯一索引：`uk_user_addresses_one_default`，只对 `is_default = 'Y'` 的行索引 `user_id`，保证每个用户最多一个默认地址
 - 应用层在用户行锁和同一事务内完成地址编号分配及默认地址切换；数据库索引负责最终一致性
 
-### `runners`
-
-- 主键：`runner_id`
-- 作用：保存跑腿员审核、工作状态及信誉分
-- `credit_score` 默认100，通过 `ck_runners_credit` 限制在0至100
-
 ### `nodes`
 
 - 主键：`node_id`
@@ -46,7 +40,6 @@
 - 主键：`service_type_id`
 - 作用：保存服务类型及价格规则
 - 关键字段：`service_name`、`base_price`、`distance_rule`、`urgent_rule`、`type_status`
-- 基础数据中的外卖分发、快递代取、私人跑腿基础价分别为3元、4元、5元；运行时以表中当前值为准
 - 函数唯一索引：`uk_service_types_name_ci`，对 `UPPER(TRIM(service_name))` 唯一，防止并发请求写入语义相同的名称
 
 ### `tasks`
@@ -55,7 +48,6 @@
 - 作用：保存任务主单公共字段
 - 外键：发布用户、服务类型、地址、交接节点
 - 关键字段：`task_title`、`task_price`、`urgent_flag`、`task_status`、`created_at`、`completed_at`
-- `task_price` 是发布者填写的最终总价，应用层保证其不得低于关联服务类型的 `base_price`
 
 ### `assign_records`
 
@@ -89,7 +81,7 @@
 主体业务表按实体和联系拆分，非主属性依赖各自主键。以下字段是为完整性或历史审计保留的受控冗余/快照：
 
 - `reviews.record_id` 标识实际被评价的最终接派服务；`reviews.task_id` 可经接派记录推导，但保留它是为了直接实施 `UNIQUE(task_id)` 的“一单一评”规则，并通过 `(record_id, task_id)` 复合外键防止把评价绑定到其他任务的接派记录。
-- `reviews.credit_delta` 保存考虑信誉分0至100上下限后实际生效的变化值。它可能不同于评分规则的理论变化值，编辑或删除评价时必须依靠该快照精确补差和回滚。
+- `reviews.credit_delta` 保存考虑信誉分下限后实际生效的变化值。它可能不同于评分规则的理论变化值，编辑或删除评价时必须依靠该快照精确补差和回滚。
 - `settlements.order_total`、`platform_fee`、`net_income` 保存结算发生时的财务口径；来源支付记录仍由 `settlement_payment_items` 逐条保留，可独立复核。
 
 这些字段不作为可独立修改的重复事实：全部由 Service 在事务中计算，页面和客户端不能直接指定。该设计在保持主体第三范式的基础上，为唯一约束、跨表一致性和历史可追溯性保留最小必要快照。
@@ -113,7 +105,6 @@ database/oracle/002_init_base_data.sql
 ```text
 database/oracle/004_add_review_integrity.sql
 database/oracle/006_harden_business_integrity.sql
-database/oracle/database-enhancement/04_business_functions_and_credit_rules.sql
 ```
 
 ## 维护建议

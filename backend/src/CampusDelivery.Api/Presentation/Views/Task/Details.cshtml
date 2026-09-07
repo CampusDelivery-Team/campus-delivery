@@ -24,13 +24,6 @@
             {
                 <a class="button" asp-controller="Complaint" asp-action="Create" asp-route-recordId="@Model.RecordId">投诉服务</a>
             }
-            @if (Model.CanCancel)
-            {
-                <form asp-action="Cancel" asp-route-id="@Model.TaskId" method="post" class="task-inline-form" onsubmit="return confirm('确认取消这个订单吗？');">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="button">取消订单</button>
-                </form>
-            }
             <a class="button" asp-action="Index">返回任务列表</a>
         </div>
     </div>
@@ -47,18 +40,6 @@
         <div><span>送达地址</span><strong>@Model.AddressSummary</strong></div>
         <div><span>交接节点</span><strong>@Model.NodeName</strong></div>
     </div>
-
-    @if (Model.RecordId.HasValue && !string.IsNullOrEmpty(Model.RunnerRealName))
-    {
-        <div class="task-admin-panel">
-            <h2>跑腿员信息</h2>
-            <div class="profile-info-grid">
-                <div><span>跑腿员</span><strong>@Model.RunnerRealName</strong></div>
-                <div><span>信誉值</span><strong>@(Model.RunnerCreditScore?.ToString("0") ?? "—")</strong></div>
-                <div><span>工作状态</span><strong>@(Model.RunnerWorkStatus != null ? DisplayNameService.GetRunnerWorkStatusName(Model.RunnerWorkStatus) : "—")</strong></div>
-            </div>
-        </div>
-    }
 
     @if (Model.DetailFields.Count > 0)
     {

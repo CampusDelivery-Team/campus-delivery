@@ -17,9 +17,6 @@ namespace CampusDelivery.Api.Presentation.ViewModels
         [Display(Name = "角色")]
         public string UserRole { get; set; } = string.Empty;
 
-        [Display(Name = "跑腿员姓名")]
-        public string? RunnerRealName { get; set; }
-
         public string AddressSummary { get; set; } = string.Empty;
 
         public string AddressContact { get; set; } = string.Empty;

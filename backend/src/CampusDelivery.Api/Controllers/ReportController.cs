@@ -46,15 +46,5 @@ public sealed class ReportController(IReportService reportService) : Controller
 
         return File(result.Content, "text/csv; charset=utf-8", result.FileName);
     }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
-    {
-        ReportOperationResult result = await reportService.DeleteAsync(id, cancellationToken);
-        TempData[result.Success ? "SuccessMessage" : "ErrorMessage"] = result.Message;
-
-        return RedirectToAction(nameof(Index));
-    }
 }
 

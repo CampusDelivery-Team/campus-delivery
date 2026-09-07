@@ -16,7 +16,4 @@ public sealed class TaskDetailsRecord
     public string? DeliveryLocation { get; set; }
     public DateTime? ExpectedFinishAt { get; set; }
     public string? PrivateDescription { get; set; }
-    public string? RunnerRealName { get; set; }
-    public decimal? RunnerCreditScore { get; set; }
-    public string? RunnerWorkStatus { get; set; }
 }

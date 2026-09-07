@@ -17,10 +17,6 @@
                 @Html.AntiForgeryToken()
                 <button class="button primary" type="submit">导出 CSV</button>
             </form>
-            <form asp-action="Delete" asp-route-id="@Model.Report.ReportId" method="post" onsubmit="return confirm('删除后将移除该报表及其审计关联，但不会删除原始审计日志。确定继续吗？');">
-                @Html.AntiForgeryToken()
-                <button class="button danger" type="submit">删除报表</button>
-            </form>
         </div>
     </div>
 

@@ -52,16 +52,11 @@ public enum RunnerWorkStatusWriteResult
     Unavailable
 }
 
-public sealed class TaskCreateWriteResult(
-    TaskCreateResult result,
-    int taskId = 0,
-    decimal? minimumPrice = null)
+public sealed class TaskCreateWriteResult(TaskCreateResult result, int taskId = 0)
 {
     public TaskCreateResult Result { get; } = result;
 
     public int TaskId { get; } = taskId;
-
-    public decimal? MinimumPrice { get; } = minimumPrice;
 }
 
 public enum TaskCreateResult
@@ -69,7 +64,6 @@ public enum TaskCreateResult
     Success,
     AddressNotFound,
     ServiceTypeUnavailable,
-    PriceBelowMinimum,
     NodeUnavailable,
     RuleNotMatched
 }

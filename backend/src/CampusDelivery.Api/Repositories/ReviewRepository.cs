@@ -292,7 +292,7 @@ public sealed class ReviewRepository(OracleConnectionFactory connectionFactory) 
         command.BindByName = true;
         command.CommandText = """
             UPDATE APPUSER.runners
-            SET credit_score = LEAST(100, GREATEST(0, credit_score + :creditDelta))
+            SET credit_score = GREATEST(0, credit_score + :creditDelta)
             WHERE runner_id = :runnerId
             """;
         command.Parameters.Add(new OracleParameter("creditDelta", creditDelta));

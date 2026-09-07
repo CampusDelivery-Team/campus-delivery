@@ -56,23 +56,6 @@ public sealed class TaskServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_WhenPriceIsBelowBasePrice_ReturnsMinimumPriceMessage()
-    {
-        var repository = new FakeTaskRepository
-        {
-            CreateResult = new TaskCreateWriteResult(
-                TaskCreateResult.PriceBelowMinimum,
-                minimumPrice: 4m)
-        };
-        TaskService service = CreateService(repository);
-
-        var result = await service.CreateAsync(501, CreateValidModel("EXPRESS"));
-
-        Assert.False(result.Success);
-        Assert.Equal("任务价格不得低于基础价 4.00 元", result.ErrorMessage);
-    }
-
-    [Fact]
     public async Task CreateAsync_NormalizesUserInputBeforeRepositoryWrite()
     {
         var repository = new FakeTaskRepository();

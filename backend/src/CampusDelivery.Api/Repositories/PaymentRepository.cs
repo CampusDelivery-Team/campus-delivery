@@ -55,21 +55,20 @@ public sealed class PaymentRepository(OracleConnectionFactory connectionFactory)
         await using OracleCommand command = connection.CreateCommand();
         command.BindByName = true;
         command.CommandText = """
-            SELECT payment_id,
-                   task_id,
-                   record_id,
-                   task_title,
-                   order_amount,
-                   pay_amount,
-                   pay_method,
-                   third_trade_no,
-                   pay_status,
-                   latest_refund_status AS refund_process_status,
-                   is_settled
-              FROM APPUSER.vw_payment_refund_overview
-             WHERE publisher_user_id = :publisherUserId
-               AND (:keyword IS NULL OR task_title LIKE :keyword)
-             ORDER BY payment_id DESC
+            SELECT p.payment_id, ar.task_id, p.record_id, t.publisher_user_id, t.task_title,
+                   p.order_amount, p.pay_amount, p.pay_method, p.third_trade_no, p.pay_status,
+                   latest_refund.process_status AS refund_process_status
+              FROM APPUSER.payments p
+              JOIN APPUSER.assign_records ar ON ar.record_id = p.record_id
+              JOIN APPUSER.tasks t ON t.task_id = ar.task_id
+              LEFT JOIN (
+                  SELECT payment_id, process_status,
+                         ROW_NUMBER() OVER (PARTITION BY payment_id ORDER BY refund_id DESC) AS rn
+                    FROM APPUSER.refunds
+              ) latest_refund ON latest_refund.payment_id = p.payment_id AND latest_refund.rn = 1
+             WHERE t.publisher_user_id = :publisherUserId
+               AND (:keyword IS NULL OR t.task_title LIKE :keyword)
+             ORDER BY p.payment_id DESC
              OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
             """;
         command.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
@@ -94,9 +93,11 @@ public sealed class PaymentRepository(OracleConnectionFactory connectionFactory)
         command.BindByName = true;
         command.CommandText = """
             SELECT COUNT(*)
-              FROM APPUSER.vw_payment_refund_overview
-             WHERE publisher_user_id = :publisherUserId
-               AND (:keyword IS NULL OR task_title LIKE :keyword)
+              FROM APPUSER.payments p
+              JOIN APPUSER.assign_records ar ON ar.record_id = p.record_id
+              JOIN APPUSER.tasks t ON t.task_id = ar.task_id
+             WHERE t.publisher_user_id = :publisherUserId
+               AND (:keyword IS NULL OR t.task_title LIKE :keyword)
             """;
         command.Parameters.Add(new OracleParameter("publisherUserId", publisherUserId));
         command.Parameters.Add(new OracleParameter("keyword", string.IsNullOrWhiteSpace(keyword) ? DBNull.Value : $"%{keyword.Trim()}%"));
@@ -210,7 +211,6 @@ public sealed class PaymentRepository(OracleConnectionFactory connectionFactory)
         PayMethod = Convert.ToString(reader["pay_method"]) ?? "CASH",
         ThirdTradeNo = reader["third_trade_no"] == DBNull.Value ? null : Convert.ToString(reader["third_trade_no"]),
         PayStatus = Convert.ToString(reader["pay_status"]) ?? "UNPAID",
-        RefundProcessStatus = reader["refund_process_status"] == DBNull.Value ? null : Convert.ToString(reader["refund_process_status"]),
-        IsSettled = Convert.ToInt32(reader["is_settled"]) == 1
+        RefundProcessStatus = reader["refund_process_status"] == DBNull.Value ? null : Convert.ToString(reader["refund_process_status"])
     };
 }

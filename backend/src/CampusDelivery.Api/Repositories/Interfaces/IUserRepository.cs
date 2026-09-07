@@ -7,7 +7,6 @@ public interface IUserRepository
     User? GetUserById(int userId);
     User? GetUserByUsername(string username);
     User? GetUserByPhone(string phone);
-    string? GetRunnerRealName(int userId);
     UserInsertWriteResult InsertUser(User user);
     bool UpdatePasswordHash(int userId, string passwordHash);
     UserPhoneUpdateWriteResult UpdateUserPhone(int userId, string newPhone);

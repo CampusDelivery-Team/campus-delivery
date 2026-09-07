@@ -1,10 +1,7 @@
 @model CampusDelivery.Api.Presentation.ViewModels.UserViewModel
 @{
     ViewData["Title"] = "个人中心";
-    var displayName = string.IsNullOrWhiteSpace(Model.RunnerRealName)
-        ? Model.Username
-        : Model.RunnerRealName;
-    var avatarText = string.IsNullOrWhiteSpace(displayName) ? "我" : displayName[..1].ToUpperInvariant();
+    var avatarText = string.IsNullOrWhiteSpace(Model.Username) ? "我" : Model.Username[..1].ToUpperInvariant();
 }
 
 <section class="profile-page">
@@ -14,20 +11,11 @@
     }
 
     <section class="profile-overview">
-        <div class="profile-avatar" aria-label="@displayName 的头像">@avatarText</div>
+        <div class="profile-avatar" aria-label="@Model.Username 的头像">@avatarText</div>
         <div class="profile-identity">
             <p class="eyebrow">CAMPUS RUNNER PROFILE</p>
-            <h1>@displayName</h1>
-            <p>
-                @if (!string.IsNullOrWhiteSpace(Model.RunnerRealName))
-                {
-                    @:登录账号 @Model.Username
-                }
-                else
-                {
-                    @:校园跑腿服务账户
-                }
-            </p>
+            <h1>@Model.Username</h1>
+            <p>校园跑腿服务账户</p>
         </div>
         <div class="profile-role">
             <span>系统身份</span>
@@ -54,13 +42,6 @@
                 <dt>登录账号</dt>
                 <dd>@Model.Username</dd>
             </div>
-            @if (!string.IsNullOrWhiteSpace(Model.RunnerRealName))
-            {
-                <div>
-                    <dt>跑腿员姓名</dt>
-                    <dd>@Model.RunnerRealName</dd>
-                </div>
-            }
             <div>
                 <dt>联系电话</dt>
                 <dd>@Model.Phone</dd>

@@ -8,7 +8,6 @@ public interface IReportService
     Task<ReportOperationResult> GenerateAsync(ReportGenerateViewModel model, CancellationToken cancellationToken = default);
     Task<ReportDetailsViewModel?> GetDetailsAsync(int reportId, CancellationToken cancellationToken = default);
     Task<ReportExportResult> ExportAsync(int reportId, CancellationToken cancellationToken = default);
-    Task<ReportOperationResult> DeleteAsync(int reportId, CancellationToken cancellationToken = default);
 }
 
 public sealed record ReportExportResult(

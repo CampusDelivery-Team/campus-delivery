@@ -47,7 +47,4 @@ public sealed class PaymentSummaryViewModel
     public string? RefundStatusDisplayName { get; set; }
     public string? RefundReason { get; set; }
     public string? RefundReviewReason { get; set; }
-    public bool IsSettled { get; set; }
-    public bool CanRequestRefund { get; set; }
-    public string? RefundUnavailableMessage { get; set; }
 }

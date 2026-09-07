@@ -2,7 +2,7 @@
 
 @{
     ViewData["Title"] = "任务大厅";
-    bool canGrab = Model.ActiveRunnerId.HasValue && Model.ActiveRunnerStatus != "OFFLINE";
+    bool canGrab = Model.ActiveRunnerId.HasValue && Model.ActiveRunnerStatus == "FREE";
 }
 
 <section class="panel task-page">
@@ -30,11 +30,7 @@
     }
     else if (!canGrab)
     {
-        <div class="inline-notice">当前处于离线状态，暂时不能抢单。</div>
-    }
-    else
-    {
-        <div class="inline-notice">当前进行中任务：@Model.ActiveTaskCount 单，可继续接单。</div>
+        <div class="inline-notice">当前工作状态不是“可接单”，暂时不能抢单。</div>
     }
 
     <div class="task-card-list">

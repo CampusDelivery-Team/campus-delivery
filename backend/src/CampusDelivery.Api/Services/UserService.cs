@@ -105,28 +105,9 @@ namespace CampusDelivery.Api.Services
                 return new(false, "该账号已被注册，请更换一个账号名", UserRegistrationFailure.DuplicateUsername);
             }
 
-            var existingPhoneUser = _userRepository.GetUserByPhone(phone);
-            if (existingPhoneUser != null)
+            if (_userRepository.GetUserByPhone(phone) is not null)
             {
-                // 如果发现手机号被占用，判断该占用的账号是否已被注销
-                if (existingPhoneUser.AccountStatus == AccountStatusCodes.Cancelled)
-                {
-                    // 为了规避数据库唯一约束，并符合 phone 字段 VARCHAR2(20) 的最大长度限制
-                    // 将旧注销账号的手机号加一个废弃后缀释放出来，例如把后三位切掉加上 _del 和 ID：18721960_del41
-                    string scrambledPhone = $"{phone.Substring(0, 8)}_del{existingPhoneUser.UserId}";
-                    if (scrambledPhone.Length > 20)
-                    {
-                        scrambledPhone = scrambledPhone.Substring(0, 20);
-                    }
-
-                    // 调用现成的 UpdateUserPhone 方法更新旧账号，释放出真实手机号
-                    _userRepository.UpdateUserPhone(existingPhoneUser.UserId, scrambledPhone);
-                }
-                else
-                {
-                    // 如果账号正常或被封禁，依然阻止注册
-                    return new(false, "该手机号已经注册，请更换手机号或直接登录", UserRegistrationFailure.DuplicatePhone);
-                }
+                return new(false, "该手机号已经注册，请更换手机号或直接登录", UserRegistrationFailure.DuplicatePhone);
             }
 
             // 2. Service 统一生成带盐密码哈希，Repository 只保存哈希结果。
@@ -187,9 +168,6 @@ namespace CampusDelivery.Api.Services
                 Username = user.Username,
                 Phone = user.Phone,
                 UserRole = GetChineseRoleName(user.UserRole),
-                RunnerRealName = user.UserRole == "RUNNER"
-                    ? _userRepository.GetRunnerRealName(user.UserId)
-                    : null,
                 HasAddress = address is not null,
                 AddressSummary = address is null
                     ? "暂未设置常用地址"
@@ -211,16 +189,7 @@ namespace CampusDelivery.Api.Services
             User? phoneOwner = _userRepository.GetUserByPhone(newPhone);
             if (phoneOwner is not null && phoneOwner.UserId != user.UserId)
             {
-                if (phoneOwner.AccountStatus == AccountStatusCodes.Cancelled)
-                {
-                    string scrambledPhone = $"{newPhone.Substring(0, 8)}_del{phoneOwner.UserId}";
-                    if (scrambledPhone.Length > 20) scrambledPhone = scrambledPhone.Substring(0, 20);
-                    _userRepository.UpdateUserPhone(phoneOwner.UserId, scrambledPhone);
-                }
-                else
-                {
-                    return (false, "该手机号已被其他账号使用");
-                }
+                return (false, "该手机号已被其他账号使用");
             }
 
             UserPhoneUpdateWriteResult updateResult = _userRepository.UpdateUserPhone(user.UserId, newPhone);

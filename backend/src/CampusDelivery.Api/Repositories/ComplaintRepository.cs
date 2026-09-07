@@ -1,8 +1,8 @@
-using System.Data;
-using CampusDelivery.Api.Models;
+﻿using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
+using System.Data;
 
 namespace CampusDelivery.Api.Repositories;
 
@@ -195,7 +195,7 @@ public sealed class ComplaintRepository(OracleConnectionFactory connectionFactor
         command.BindByName = true;
         command.CommandText = """
             UPDATE APPUSER.runners
-               SET credit_score = LEAST(100, GREATEST(0, credit_score + :creditDelta))
+               SET credit_score = GREATEST(0, credit_score + :creditDelta)
              WHERE runner_id = :runnerId
             """;
         command.Parameters.Add(new OracleParameter("creditDelta", creditDelta));

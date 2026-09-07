@@ -1,0 +1,139 @@
+pageType: cover
+background:
+  type: solid
+  color: "$paper"
+notes: 开场：这份档案记录的是济跑跑——校园中转分发与跑腿服务管理系统的设计与实现。
+elements:
+  # 四角裁切标记
+  - elementId: crop-tl
+    elementType: shape
+    bounds: [26, 26, 22, 22]
+    shapeName: custom
+    viewBox: [100, 100]
+    path: "M0,0 L100,0 L100,14 L14,14 L14,100 L0,100 Z"
+    fill: {type: solid, color: "$ink"}
+  - elementId: crop-tr
+    elementType: shape
+    bounds: [912, 26, 22, 22]
+    shapeName: custom
+    viewBox: [100, 100]
+    path: "M0,0 L100,0 L100,14 L14,14 L14,100 L0,100 Z"
+    rotation: 90
+    fill: {type: solid, color: "$ink"}
+  - elementId: crop-br
+    elementType: shape
+    bounds: [912, 492, 22, 22]
+    shapeName: custom
+    viewBox: [100, 100]
+    path: "M0,0 L100,0 L100,14 L14,14 L14,100 L0,100 Z"
+    rotation: 180
+    fill: {type: solid, color: "$ink"}
+  - elementId: crop-bl
+    elementType: shape
+    bounds: [26, 492, 22, 22]
+    shapeName: custom
+    viewBox: [100, 100]
+    path: "M0,0 L100,0 L100,14 L14,14 L14,100 L0,100 Z"
+    rotation: 270
+    fill: {type: solid, color: "$ink"}
+  # 顶部
+  - elementId: head-rule
+    elementType: shape
+    bounds: [64, 42, 832, 1]
+    shapeName: rect
+    fill: {type: solid, color: "$ink"}
+  - elementId: head-left
+    elementType: text
+    bounds: [64, 24, 420, 12]
+    content: {style: "$metaLabel", wrap: false, text: 数据库系统课程设计 · 答辩汇报}
+  - elementId: head-right
+    elementType: text
+    bounds: [596, 24, 300, 12]
+    content: {style: "$metaLabel", align: [right, top], wrap: false, text: 2026-08}
+  # 档案编号
+  - elementId: doc-no
+    elementType: text
+    bounds: [64, 104, 320, 14]
+    content: {fontSize: 10, fontFamily: MiSans, color: "$crimson", letterSpacing: 3, wrap: false, text: 档案编号 JR-2026-001}
+  # 主标题
+  - elementId: title
+    elementType: text
+    bounds: [60, 124, 640, 118]
+    content: {fontSize: 96, fontFamily: 思源宋体, color: "$ink", wrap: false, align: [left, middle], text: 济跑跑}
+  - elementId: subtitle
+    elementType: text
+    bounds: [64, 252, 700, 30]
+    content: {fontSize: 21, fontFamily: 思源宋体, color: "$ink", wrap: false, text: 校园中转分发与跑腿服务管理系统}
+  - elementId: subtitle-en
+    elementType: text
+    bounds: [64, 290, 620, 13]
+    content: {style: "$metaLabel", wrap: false, text: JIRUN · CAMPUS DELIVERY & ERRAND SERVICE SYSTEM}
+  # 答辩标记
+  - elementId: defense-mark
+    elementType: shape
+    bounds: [64, 328, 12, 12]
+    shapeName: rect
+    fill: {type: solid, color: "$crimson"}
+  - elementId: defense-text
+    elementType: text
+    bounds: [86, 326, 260, 16]
+    content: {fontSize: 11, fontFamily: MiSans, color: "$ink", wrap: false, align: [left, middle], text: 校内代取代送，从发单到结算都留在系统里}
+  # 底部登记栏
+  - elementId: reg-rule-top
+    elementType: shape
+    bounds: [64, 384, 832, 1]
+    shapeName: rect
+    fill: {type: solid, color: "$hairline"}
+  - elementId: reg-l1-label
+    elementType: text
+    bounds: [64, 398, 70, 14]
+    content: {style: "$metaLabel", wrap: false, text: 课程}
+  - elementId: reg-l1-value
+    elementType: text
+    bounds: [140, 397, 300, 16]
+    content: {fontSize: 11, fontFamily: MiSans, color: "$ink", wrap: false, text: 数据库系统课程设计}
+  - elementId: reg-l2-label
+    elementType: text
+    bounds: [64, 428, 70, 14]
+    content: {style: "$metaLabel", wrap: false, text: 小组}
+  - elementId: reg-l2-value
+    elementType: text
+    bounds: [140, 427, 320, 16]
+    content: {fontSize: 11, fontFamily: MiSans, color: "$ink", wrap: false, text: 〔第 X 小组 · 成员姓名〕}
+  - elementId: reg-l3-label
+    elementType: text
+    bounds: [64, 458, 70, 14]
+    content: {style: "$metaLabel", wrap: false, text: 汇报}
+  - elementId: reg-l3-value
+    elementType: text
+    bounds: [140, 457, 320, 16]
+    content: {fontSize: 11, fontFamily: MiSans, color: "$ink", wrap: false, text: 〔汇报人〕}
+  - elementId: reg-r1-label
+    elementType: text
+    bounds: [500, 398, 70, 14]
+    content: {style: "$metaLabel", wrap: false, text: 技术栈}
+  - elementId: reg-r1-value
+    elementType: text
+    bounds: [576, 397, 320, 16]
+    content: {fontSize: 11, fontFamily: MiSans, color: "$ink", wrap: false, text: ASP.NET Core MVC · Oracle 19c}
+  - elementId: reg-r2-label
+    elementType: text
+    bounds: [500, 428, 70, 14]
+    content: {style: "$metaLabel", wrap: false, text: 规模}
+  - elementId: reg-r2-value
+    elementType: text
+    bounds: [576, 427, 320, 16]
+    content: {fontSize: 11, fontFamily: MiSans, color: "$ink", wrap: false, text: 24 张关系表 · 30 项功能点}
+  - elementId: reg-r3-label
+    elementType: text
+    bounds: [500, 458, 70, 14]
+    content: {style: "$metaLabel", wrap: false, text: 状态}
+  - elementId: reg-r3-value
+    elementType: text
+    bounds: [576, 457, 320, 16]
+    content: {fontSize: 11, fontFamily: MiSans, color: "$ink", wrap: false, text: 39 项自动化测试全部通过}
+  - elementId: reg-rule-bottom
+    elementType: shape
+    bounds: [64, 486, 832, 1]
+    shapeName: rect
+    fill: {type: solid, color: "$hairline"}

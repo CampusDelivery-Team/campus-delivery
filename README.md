@@ -107,7 +107,7 @@ dotnet build backend/CampusDelivery.sln
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 ```
 
-2026-08-22 的 Release 结果为 39/39 项自动化测试通过；此后随第五阶段修复与补充用例持续增长，2026-09-01 复核为 52/52 通过，2026-09-07 在任务最低价和信誉分边界加固后本地 Release 回归为 58/58 通过。静态检查确认 24 张关系表、47/47 个 POST Action 有防伪令牌、15 处仓储行锁语句，且 Controller/Service 未越过五层边界。
+2026-08-22 的 Release 结果为 39/39 项自动化测试通过；同时检查到 24 张关系表、46/46 个 POST Action 有防伪令牌、14 处仓储行锁语句，且 Controller/Service 未越过五层边界。
 
 ## 文档入口
 
@@ -119,11 +119,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 | `docs/设计调整说明.md` | 原设计与当前实现的调整依据、建议修正项和扩展边界 |
 | `database/oracle/README.md` | 数据库脚本、执行顺序和迁移状态 |
 | `docs/database_dictionary.md` | 24 张业务表字段字典 |
-| `docs/test-plan.md` | 第五阶段分模块测试用例与执行规范（组员10 维护） |
 | `docs/system-test-report.md` | 当前测试结论与剩余验收边界 |
 | `docs/manual-system-test-guide.md` | 数据库端到端手工验收步骤 |
-| `docs/demo-script.md` | 答辩现场演示脚本（含角色分工与兜底方案） |
-| `docs/member10-defense-script.md` | 组员10 答辩讲稿：测试过程讲解与预设问答 |
-| `docs/test-evidence/manual/README.md` | 各模块测试证据提交状态索引 |
 
 `docs/test-evidence/` 保存带日期的历史测试证据和原始输出，不作为当前环境配置说明。

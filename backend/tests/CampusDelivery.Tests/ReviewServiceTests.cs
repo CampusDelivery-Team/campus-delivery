@@ -55,83 +55,7 @@ public sealed class ReviewServiceTests
         Assert.True(fixture.Transactions.Transactions.Single().WasCommitted);
     }
 
-    [Fact]
-    public async Task CreateReviewAsync_WhenCreditIs100_DoesNotExceedUpperBound()
-    {
-        var fixture = CreateFixture(PaymentStatusCodes.Paid, 100m);
-
-        var result = await fixture.Service.CreateReviewAsync(101, 5, 'N', "很好", 501);
-
-        Assert.True(result.Success);
-        Assert.Equal(0m, fixture.Reviews.InsertedReview!.CreditDelta);
-        Assert.Equal(0m, fixture.Reviews.CreditChange);
-    }
-
-    [Fact]
-    public async Task CreateReviewAsync_WhenCreditIs99_AppliesOnlyRemainingPoint()
-    {
-        var fixture = CreateFixture(PaymentStatusCodes.Paid, 99m);
-
-        var result = await fixture.Service.CreateReviewAsync(101, 5, 'N', "很好", 501);
-
-        Assert.True(result.Success);
-        Assert.Equal(1m, fixture.Reviews.InsertedReview!.CreditDelta);
-        Assert.Equal(1m, fixture.Reviews.CreditChange);
-    }
-
-    [Fact]
-    public async Task CreateReviewAsync_WhenCreditIs0_DoesNotGoBelowLowerBound()
-    {
-        var fixture = CreateFixture(PaymentStatusCodes.Paid, 0m);
-
-        var result = await fixture.Service.CreateReviewAsync(101, 1, 'N', "较差", 501);
-
-        Assert.True(result.Success);
-        Assert.Equal(0m, fixture.Reviews.InsertedReview!.CreditDelta);
-        Assert.Equal(0m, fixture.Reviews.CreditChange);
-    }
-
-    [Fact]
-    public async Task UpdateReviewAsync_WhenCreditIsAtUpperBound_DoesNotAddMoreCredit()
-    {
-        var fixture = CreateFixture(PaymentStatusCodes.Paid, 100m);
-        fixture.Reviews.WriteContext = CreateReviewWriteContext(rating: 4, creditDelta: 1m);
-
-        var result = await fixture.Service.UpdateReviewAsync(301, 5, 'N', "更新评价", 501, false);
-
-        Assert.True(result.Success);
-        Assert.Equal(1m, fixture.Reviews.UpdatedReview!.CreditDelta);
-        Assert.Equal(0m, fixture.Reviews.CreditChange);
-    }
-
-    [Fact]
-    public async Task DeleteReviewAsync_WhenRollbackWouldExceed100_AppliesOnlyRemainingPoint()
-    {
-        var fixture = CreateFixture(PaymentStatusCodes.Paid, 99m);
-        fixture.Reviews.WriteContext = CreateReviewWriteContext(rating: 1, creditDelta: -2m);
-
-        var result = await fixture.Service.DeleteReviewAsync(301, 501, false);
-
-        Assert.True(result.Success);
-        Assert.Equal(301, fixture.Reviews.DeletedReviewId);
-        Assert.Equal(1m, fixture.Reviews.CreditChange);
-    }
-
-    private static ReviewWriteContext CreateReviewWriteContext(int rating, decimal creditDelta) =>
-        new(
-            new Review
-            {
-                ReviewId = 301,
-                TaskId = 101,
-                RecordId = 111,
-                PublisherUserId = 501,
-                Rating = rating,
-                AnonymousFlag = 'N',
-                CreditDelta = creditDelta
-            },
-            901);
-
-    private static ReviewFixture CreateFixture(string payStatus, decimal creditScore = 90m)
+    private static ReviewFixture CreateFixture(string payStatus)
     {
         var reviews = new FakeReviewRepository();
         var assigns = new FakeAssignRepository
@@ -146,7 +70,7 @@ public sealed class ReviewServiceTests
                 OperationType = "SELF"
             }
         };
-        assigns.AddRunner(601, 901, creditScore: creditScore);
+        assigns.AddRunner(601, 901);
         var payments = new FakePaymentRepository
         {
             ExistingPayment = new PaymentRecord

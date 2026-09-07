@@ -29,10 +29,7 @@ public sealed class AssignService(
             TotalCount = totalCount,
             TotalPages = GetTotalPages(totalCount, pageSize),
             ActiveRunnerId = runner?.AuditStatus == "APPROVED" ? runner.RunnerId : null,
-            ActiveRunnerStatus = runner?.WorkStatus ?? string.Empty,
-            ActiveTaskCount = runner?.AuditStatus == "APPROVED"
-                ? await assignRepository.GetActiveTaskCountByRunnerIdAsync(runner.RunnerId, cancellationToken)
-                : 0
+            ActiveRunnerStatus = runner?.WorkStatus ?? string.Empty
         };
 
         foreach (var task in tasks)
@@ -220,48 +217,23 @@ public sealed class AssignService(
         int taskPage,
         int runnerPage,
         int pageSize,
-        string? reassignKeyword,
-        string? reassignStatus,
-        int reassignPage,
         CancellationToken cancellationToken = default)
     {
-        const int reassignPageSize = 10;
         (taskPage, pageSize) = NormalizePage(taskPage, pageSize);
         runnerPage = Math.Max(1, runnerPage);
-        reassignPage = Math.Max(1, reassignPage);
-        reassignKeyword = string.IsNullOrWhiteSpace(reassignKeyword) ? null : reassignKeyword.Trim();
-        if (reassignStatus is not ("ASSIGNED" or "PICKED_UP" or "DELIVERING"))
-        {
-            reassignStatus = null;
-        }
 
         int taskTotalCount = await assignRepository.GetWaitingTasksForAdminCountAsync(cancellationToken);
-        int runnerTotalCount = await assignRepository.GetAvailableRunnersForAdminCountAsync(cancellationToken);
-        int reassignTotalCount = await assignRepository.GetReassignableTasksForAdminCountAsync(
-            reassignKeyword,
-            reassignStatus,
-            cancellationToken);
+        int runnerTotalCount = await assignRepository.GetFreeRunnersForAdminCountAsync(cancellationToken);
         taskPage = ClampPage(taskPage, taskTotalCount, pageSize);
         runnerPage = ClampPage(runnerPage, runnerTotalCount, pageSize);
-        reassignPage = ClampPage(reassignPage, reassignTotalCount, reassignPageSize);
 
         var waitingTasks = await assignRepository.GetWaitingTasksForAdminAsync(
             (taskPage - 1) * pageSize,
             pageSize,
             cancellationToken);
-        var availableRunners = await assignRepository.GetAvailableRunnersForAdminAsync(
+        var freeRunners = await assignRepository.GetFreeRunnersForAdminAsync(
             (runnerPage - 1) * pageSize,
             pageSize,
-            cancellationToken);
-        var reassignRunners = await assignRepository.GetAvailableRunnersForAdminAsync(
-            0,
-            runnerTotalCount,
-            cancellationToken);
-        var reassignableTasks = await assignRepository.GetReassignableTasksForAdminAsync(
-            reassignKeyword,
-            reassignStatus,
-            (reassignPage - 1) * reassignPageSize,
-            reassignPageSize,
             cancellationToken);
 
         var viewModel = new AdminAssignViewModel
@@ -272,53 +244,15 @@ public sealed class AssignService(
             RunnerPageNumber = runnerPage,
             RunnerTotalPages = GetTotalPages(runnerTotalCount, pageSize),
             RunnerTotalCount = runnerTotalCount,
-            ReassignKeyword = reassignKeyword,
-            ReassignStatus = reassignStatus,
-            ReassignPageNumber = reassignPage,
-            ReassignTotalPages = GetTotalPages(reassignTotalCount, reassignPageSize),
-            PageSize = pageSize
+            PageSize = pageSize,
+            FreeRunners = freeRunners.Select(runner => new AdminRunnerItemViewModel
+            {
+                RunnerId = runner.RunnerId,
+                UserId = runner.UserId,
+                RealName = runner.RealName,
+                CreditScore = runner.CreditScore
+            }).ToList()
         };
-
-        foreach (var task in reassignableTasks)
-        {
-            viewModel.ReassignableTasks.Add(new AdminReassignableTaskViewModel
-            {
-                TaskId = task.TaskId,
-                TaskTitle = task.TaskTitle,
-                TaskStatusDisplayName = DisplayNameService.GetTaskStatusName(task.TaskStatus),
-                ServiceTypeName = task.ServiceTypeName,
-                CreatedAt = task.CreatedAt,
-                CurrentRunnerId = task.CurrentRunnerId,
-                CurrentRunnerName = task.CurrentRunnerName
-            });
-        }
-
-        foreach (var runner in reassignRunners)
-        {
-            viewModel.ReassignRunners.Add(new AdminRunnerOptionViewModel
-            {
-                RunnerId = runner.RunnerId,
-                UserId = runner.UserId,
-                RealName = runner.RealName,
-                ActiveTaskCount = await assignRepository.GetActiveTaskCountByRunnerIdAsync(
-                    runner.RunnerId,
-                    cancellationToken)
-            });
-        }
-
-        foreach (var runner in availableRunners)
-        {
-            viewModel.AvailableRunners.Add(new AdminRunnerItemViewModel
-            {
-                RunnerId = runner.RunnerId,
-                UserId = runner.UserId,
-                RealName = runner.RealName,
-                CreditScore = runner.CreditScore,
-                ActiveTaskCount = await assignRepository.GetActiveTaskCountByRunnerIdAsync(
-                    runner.RunnerId,
-                    cancellationToken)
-            });
-        }
 
         foreach (var task in waitingTasks)
         {
@@ -343,7 +277,7 @@ public sealed class AssignService(
     public async Task<bool> GrabTaskAsync(int taskId, int userId, CancellationToken cancellationToken = default)
     {
         var runner = await assignRepository.GetRunnerByUserIdAsync(userId, cancellationToken);
-        if (runner == null || runner.AuditStatus != "APPROVED" || runner.WorkStatus == "OFFLINE")
+        if (runner == null || runner.AuditStatus != "APPROVED" || runner.WorkStatus != "FREE")
         {
             return false;
         }
@@ -370,7 +304,7 @@ public sealed class AssignService(
             }
 
             var lockedRunner = await assignRepository.GetRunnerWithLockAsync(runner.RunnerId, transaction, cancellationToken);
-            if (lockedRunner == null || lockedRunner.AuditStatus != "APPROVED" || lockedRunner.WorkStatus == "OFFLINE")
+            if (lockedRunner == null || lockedRunner.WorkStatus != "FREE")
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
@@ -418,7 +352,7 @@ public sealed class AssignService(
             }
 
             var runner = await assignRepository.GetRunnerWithLockAsync(runnerId, transaction, cancellationToken);
-            if (runner == null || runner.AuditStatus != "APPROVED" || runner.WorkStatus == "OFFLINE")
+            if (runner == null || runner.AuditStatus != "APPROVED" || runner.WorkStatus != "FREE")
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
@@ -490,7 +424,7 @@ public sealed class AssignService(
             }
 
             var newRunner = await assignRepository.GetRunnerWithLockAsync(newRunnerId, transaction, cancellationToken);
-            if (newRunner == null || newRunner.AuditStatus != "APPROVED" || newRunner.WorkStatus == "OFFLINE")
+            if (newRunner == null || newRunner.AuditStatus != "APPROVED" || newRunner.WorkStatus != "FREE")
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
@@ -506,20 +440,7 @@ public sealed class AssignService(
                 return false;
             }
 
-            int previousRunnerOtherTaskCount = await assignRepository.GetOtherActiveTaskCountByRunnerIdAsync(
-                previousAssign.RunnerId,
-                taskId,
-                transaction,
-                cancellationToken);
-            if (previousRunnerOtherTaskCount == 0)
-            {
-                await assignRepository.UpdateRunnerWorkStatusAsync(
-                    previousAssign.RunnerId,
-                    "FREE",
-                    transaction,
-                    cancellationToken);
-            }
-
+            await assignRepository.UpdateRunnerWorkStatusAsync(previousAssign.RunnerId, "FREE", transaction, cancellationToken);
             await assignRepository.UpdateTaskStatusAsync(taskId, "ASSIGNED", transaction, cancellationToken);
             await assignRepository.UpdateRunnerWorkStatusAsync(newRunnerId, "BUSY", transaction, cancellationToken);
 

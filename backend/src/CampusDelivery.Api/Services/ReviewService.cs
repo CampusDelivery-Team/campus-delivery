@@ -375,7 +375,7 @@ public sealed class ReviewService(
         decimal currentCreditScore,
         decimal requestedDelta)
     {
-        decimal updatedCreditScore = Math.Clamp(currentCreditScore + requestedDelta, 0m, 100m);
+        decimal updatedCreditScore = Math.Max(0m, currentCreditScore + requestedDelta);
         return updatedCreditScore - currentCreditScore;
     }
 
