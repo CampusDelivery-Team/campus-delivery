@@ -186,7 +186,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 | TC049 | 退款 | 已支付任务申请退款 | PAID、FINISHED、有原因 | 退款 APPLY，任务 REFUNDING，写日志 | 支付 `82/83` 均生成 APPLY 退款并写 FINISHED -> REFUNDING 日志 | PASS-DB |
 | TC050 | 退款 | 重复申请 | 已有 APPLY 或 APPROVED 退款 | 拒绝新增第二条有效退款 | 支付 `82` 重复申请后仍仅 1 条退款 | PASS-DB |
 | TC051 | 退款 | 管理员通过/驳回 | APPLY 退款、合法审核理由 | 审核结果、金额、支付和任务状态一致 | 退款 `41` APPROVED/支付 REFUNDED；退款 `42` REJECTED/支付 PAID | PASS-DB |
-| TC052 | 评价 | 已支付完成后评价 | PAID、FINISHED、发布者 | 新增一次评价并调整跑腿员信誉分 | 评价 `1` 为 5 星，runner `321` 信誉分从 100 增至 102 | PASS-DB |
+| TC052 | 评价 | 已支付完成后评价 | PAID、FINISHED、发布者 | 新增一次评价并调整跑腿员信誉分 | 历史共享库验证时评价 `1` 为5星、runner `321` 从100增至102；该结果记录旧规则，009迁移后的当前规则封顶为100 | PASS-DB（历史） |
 | TC053 | 评价 | 重复评价 | 同一任务已有评价 | 拒绝，唯一约束不被触发为 500 | 任务 `181` 重复评价后仍仅 1 条评价 | PASS-DB |
 | TC054 | 评价 | 非法评分/过长评论 | 评分不在 1-5 或评论超长 | 友好校验，不写库 | 评分 6 和 301 字评论均返回校验页，评价表不变 | PASS-DB |
 | TC055 | 投诉 | 发布者投诉已完成服务 | FINISHED、有接派记录 | 生成 SUBMITTED 投诉 | 投诉 `1/2` 均由发布者页面创建 | PASS-DB |
