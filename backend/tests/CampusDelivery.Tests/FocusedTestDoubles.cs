@@ -8,12 +8,15 @@ internal sealed class FakeReviewRepository : IReviewRepository
     public Review? InsertedReview { get; private set; }
     public decimal CreditChange { get; private set; }
     public bool ReviewExists { get; set; }
+    public ReviewWriteContext? WriteContext { get; set; }
+    public Review? UpdatedReview { get; private set; }
+    public int? DeletedReviewId { get; private set; }
 
     public Task<Review?> GetByIdAsync(int reviewId, CancellationToken cancellationToken = default) =>
         Task.FromResult<Review?>(null);
 
     public Task<ReviewWriteContext?> GetWriteContextWithLockAsync(int reviewId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) =>
-        Task.FromResult<ReviewWriteContext?>(null);
+        Task.FromResult(WriteContext?.Review.ReviewId == reviewId ? WriteContext : null);
 
     public Task<IReadOnlyList<Review>> GetByTaskIdAsync(int taskId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<Review>>([]);
@@ -38,11 +41,17 @@ internal sealed class FakeReviewRepository : IReviewRepository
         return Task.FromResult(true);
     }
 
-    public Task<bool> UpdateAsync(Review review, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) =>
-        Task.FromResult(true);
+    public Task<bool> UpdateAsync(Review review, IRepositoryTransaction transaction, CancellationToken cancellationToken = default)
+    {
+        UpdatedReview = review;
+        return Task.FromResult(true);
+    }
 
-    public Task<bool> DeleteAsync(int reviewId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) =>
-        Task.FromResult(true);
+    public Task<bool> DeleteAsync(int reviewId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default)
+    {
+        DeletedReviewId = reviewId;
+        return Task.FromResult(true);
+    }
 
     public Task<bool> UpdateRunnerCreditAsync(int runnerId, decimal creditDelta, IRepositoryTransaction transaction, CancellationToken cancellationToken = default)
     {

@@ -1,9 +1,14 @@
 /*
-  Migration 008 / member 4: business functions.
+  Member 4 database enhancement: business functions and credit-score rules.
 
-  Execute as APPUSER. These functions expose reusable calculations and
-  eligibility checks for SQL, views and stored procedures. They do not replace
-  C# service-layer authorization, transactions, row locks or state changes.
+  Execute once as APPUSER after the base schema and seed data are ready.
+  The functions expose reusable calculations and eligibility checks for SQL,
+  views and stored procedures. They do not replace C# service-layer
+  authorization, transactions, row locks or state changes.
+
+  The final section normalizes historical credit scores above 100 and replaces
+  CK_RUNNERS_CREDIT with a 0..100 constraint. The normalization is intentional
+  and cannot be reversed because the previous excess values are not retained.
 */
 
 CREATE OR REPLACE FUNCTION fn_calculate_task_price (
@@ -28,6 +33,8 @@ BEGIN
      WHERE service_type_id = p_service_type_id
        AND type_status = 'ENABLED';
 
+    -- The service table is the source of truth for the base fee. Callers only
+    -- supply the explicit distance, urgency, weight or complexity surcharge.
     v_calculated_price := ROUND(v_base_price + p_extra_amount, 2);
 
     IF v_calculated_price > 99999999.99 THEN
@@ -76,8 +83,8 @@ CREATE OR REPLACE FUNCTION fn_get_credit_level (
 ) RETURN VARCHAR2 DETERMINISTIC
 IS
 BEGIN
-    IF p_credit_score IS NULL OR p_credit_score < 0 THEN
-        RAISE_APPLICATION_ERROR(-20044, 'Credit score must be zero or greater.');
+    IF p_credit_score IS NULL OR p_credit_score < 0 OR p_credit_score > 100 THEN
+        RAISE_APPLICATION_ERROR(-20044, 'Credit score must be between zero and 100.');
     END IF;
 
     RETURN CASE
@@ -90,4 +97,24 @@ BEGIN
 END;
 /
 
-PROMPT Member 4 functions created. Check USER_OBJECTS and USER_ERRORS before use.
+/*
+  Normalize existing data before tightening the credit-score constraint.
+  Back up rows above 100 and pause review/complaint writes before deployment.
+*/
+UPDATE runners
+   SET credit_score = 100
+ WHERE credit_score > 100;
+
+COMMIT;
+
+ALTER TABLE runners DROP CONSTRAINT ck_runners_credit;
+
+ALTER TABLE runners ADD CONSTRAINT ck_runners_credit
+    CHECK (credit_score BETWEEN 0 AND 100);
+
+COMMENT ON COLUMN runners.credit_score IS
+    '信誉分，范围0至100，默认100';
+
+SELECT 'Member 4 functions and credit-score rules created. Run 05_test.sql next.'
+       AS deployment_result
+  FROM dual;

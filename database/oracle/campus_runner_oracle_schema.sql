@@ -130,7 +130,7 @@ CREATE TABLE runners (
         REFERENCES users(user_id),
     CONSTRAINT ck_runners_audit CHECK (audit_status IN ('PENDING', 'APPROVED', 'REJECTED')),
     CONSTRAINT ck_runners_work CHECK (work_status IN ('FREE', 'BUSY', 'OFFLINE')),
-    CONSTRAINT ck_runners_credit CHECK (credit_score >= 0)
+    CONSTRAINT ck_runners_credit CHECK (credit_score BETWEEN 0 AND 100)
 );
 
 COMMENT ON TABLE runners IS '用户申请成为跑腿员后的资格资料和接单状态';
@@ -140,7 +140,7 @@ COMMENT ON COLUMN runners.real_name IS '真实姓名';
 COMMENT ON COLUMN runners.identity_info IS '身份信息';
 COMMENT ON COLUMN runners.audit_status IS '审核状态：PENDING/APPROVED/REJECTED';
 COMMENT ON COLUMN runners.work_status IS '接单状态：FREE/BUSY/OFFLINE';
-COMMENT ON COLUMN runners.credit_score IS '信誉分，默认100';
+COMMENT ON COLUMN runners.credit_score IS '信誉分，范围0至100，默认100';
 
 /* =========================
    3. 节点、服务类型与适用规则表

@@ -1,8 +1,10 @@
 /*
-  Rollback script for migration 008 / member 4 business functions.
+  Rollback script for member 4 business functions created by
+  04_business_functions_and_credit_rules.sql.
 
-  It only drops functions created by 008_create_business_functions.sql. Base tables, indexes
-  and data are not modified.
+  It only drops the three functions. It intentionally does not remove the
+  0..100 credit-score constraint or attempt to reconstruct historical scores
+  that were truncated to 100, because those previous values were not retained.
 */
 
 BEGIN
@@ -35,4 +37,6 @@ EXCEPTION
 END;
 /
 
-PROMPT Member 4 functions removed. Base tables and data were not changed.
+SELECT 'Member 4 functions removed. Credit-score data and constraint were retained.'
+       AS rollback_result
+  FROM dual;

@@ -123,7 +123,11 @@ internal sealed class FakeAssignRepository : IAssignRepository
 
     public List<TaskStatusLog> InsertedStatusLogs { get; } = [];
 
-    public void AddRunner(int userId, int runnerId, string workStatus = "FREE")
+    public void AddRunner(
+        int userId,
+        int runnerId,
+        string workStatus = "FREE",
+        decimal creditScore = 100m)
     {
         lock (_sync)
         {
@@ -132,7 +136,8 @@ internal sealed class FakeAssignRepository : IAssignRepository
                 UserId = userId,
                 RunnerId = runnerId,
                 AuditStatus = "APPROVED",
-                WorkStatus = workStatus
+                WorkStatus = workStatus,
+                CreditScore = creditScore
             };
         }
     }
