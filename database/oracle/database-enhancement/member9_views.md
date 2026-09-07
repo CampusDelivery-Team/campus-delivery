@@ -4,7 +4,7 @@
 
 ## 执行顺序
 
-1. 确认当前连接用户是 `APPUSER`，或确认当前 schema 指向 `APPUSER`。
+1. 个人调试时可使用自己的数据库账号，但需要已获得 `APPUSER` 基础表的查询权限；最终交付时由数据库负责人统一在 `APPUSER` 下执行。
 2. 执行 `01_views.sql` 创建 4 个业务视图。
 3. 执行 `05_test.sql` 检查视图状态、行数和样例结果。
 4. 如需回滚，仅执行 `06_rollback_views.sql` 删除本次新增视图。
@@ -12,6 +12,8 @@
 这些脚本只创建或删除视图，不会修改基础表数据。
 
 本目录沿用第五阶段分工文档建议的脚本目录。组员 9 当前只维护视图相关内容：`01_views.sql`、`05_test.sql` 中的视图测试部分、`06_rollback_views.sql` 中的视图回滚部分和本文档。`02_functions.sql`、`03_procedures.sql`、`04_triggers.sql` 应由对应负责函数、存储过程和触发器的组员补充，避免多人同时改同一份脚本造成冲突。
+
+`01_views.sql` 中的基础表均显式写为 `APPUSER.表名`。因此个人账号执行时，视图会创建在个人 schema 下，但数据来源仍是 `APPUSER` 的业务表；管理员最终用 `APPUSER` 执行时，视图会创建为正式的 `APPUSER.VW_*` 对象。
 
 ## 视图清单
 
@@ -39,14 +41,6 @@
 
 写入类 SQL 不建议改成视图实现。
 
-## 测试截图建议
-
-组员 10 可以执行 `05_test.sql`，重点截图：
-
-- 4 个视图在 `USER_OBJECTS` 中均为 `VALID`；
-- 4 个视图的行数统计；
-- 每个视图 `FETCH FIRST 10 ROWS ONLY` 的样例查询；
-- `VW_SETTLEMENT_REPORT.DATA_CHECK_RESULT` 显示结算快照和支付明细是否一致。
 
 ## 口径说明
 

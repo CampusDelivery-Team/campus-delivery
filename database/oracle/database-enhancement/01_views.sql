@@ -1,7 +1,8 @@
 /*
   Member 9 database enhancement: business views.
 
-  Execute as APPUSER, or use a schema account whose current schema is APPUSER.
+  Execute as APPUSER for final delivery, or execute as a personal schema user
+  for debugging after APPUSER base-table SELECT privileges are granted.
   These views are read-only query entrances for pages, reports and DB demo.
   They do not replace C# service-layer writes, transactions, locks or permissions.
 */
@@ -20,7 +21,7 @@ WITH latest_assign AS (
                      PARTITION BY ar.task_id
                      ORDER BY ar.assigned_at DESC, ar.record_id DESC
                  ) AS rn
-            FROM assign_records ar
+            FROM APPUSER.assign_records ar
       )
      WHERE rn = 1
 ),
@@ -38,7 +39,7 @@ latest_payment AS (
                      PARTITION BY p.record_id
                      ORDER BY p.payment_id DESC
                  ) AS rn
-            FROM payments p
+            FROM APPUSER.payments p
       )
      WHERE rn = 1
 ),
@@ -55,7 +56,7 @@ latest_refund AS (
                      PARTITION BY rf.payment_id
                      ORDER BY rf.refund_id DESC
                  ) AS rn
-            FROM refunds rf
+            FROM APPUSER.refunds rf
       )
      WHERE rn = 1
 ),
@@ -63,14 +64,14 @@ complaint_stats AS (
     SELECT c.record_id,
            COUNT(*) AS complaint_count,
            SUM(CASE WHEN c.process_status IN ('SUBMITTED', 'PROCESSING') THEN 1 ELSE 0 END) AS active_complaint_count
-      FROM complaints c
+      FROM APPUSER.complaints c
      GROUP BY c.record_id
 ),
 status_log_stats AS (
     SELECT l.record_id,
            COUNT(*) AS status_log_count,
            MAX(l.operated_at) AS last_status_operated_at
-      FROM task_status_logs l
+      FROM APPUSER.task_status_logs l
      GROUP BY l.record_id
 )
 SELECT t.task_id,
@@ -132,24 +133,24 @@ SELECT t.task_id,
        NVL(cs.active_complaint_count, 0) AS active_complaint_count,
        NVL(sls.status_log_count, 0) AS status_log_count,
        sls.last_status_operated_at
-  FROM tasks t
-  JOIN users publisher ON publisher.user_id = t.publisher_user_id
-  JOIN service_types st ON st.service_type_id = t.service_type_id
-  JOIN nodes n ON n.node_id = t.node_id
-  JOIN user_addresses ua ON ua.user_id = t.publisher_user_id
+  FROM APPUSER.tasks t
+  JOIN APPUSER.users publisher ON publisher.user_id = t.publisher_user_id
+  JOIN APPUSER.service_types st ON st.service_type_id = t.service_type_id
+  JOIN APPUSER.nodes n ON n.node_id = t.node_id
+  JOIN APPUSER.user_addresses ua ON ua.user_id = t.publisher_user_id
                         AND ua.address_no = t.address_no
-  LEFT JOIN food_delivery_details fd ON fd.task_id = t.task_id
+  LEFT JOIN APPUSER.food_delivery_details fd ON fd.task_id = t.task_id
                                     AND fd.detail_no = 1
-  LEFT JOIN express_pickup_details ep ON ep.task_id = t.task_id
+  LEFT JOIN APPUSER.express_pickup_details ep ON ep.task_id = t.task_id
                                      AND ep.detail_no = 1
-  LEFT JOIN private_task_details pt ON pt.task_id = t.task_id
+  LEFT JOIN APPUSER.private_task_details pt ON pt.task_id = t.task_id
                                    AND pt.detail_no = 1
   LEFT JOIN latest_assign la ON la.task_id = t.task_id
-  LEFT JOIN runners r ON r.runner_id = la.runner_id
-  LEFT JOIN users runner_user ON runner_user.user_id = r.user_id
+  LEFT JOIN APPUSER.runners r ON r.runner_id = la.runner_id
+  LEFT JOIN APPUSER.users runner_user ON runner_user.user_id = r.user_id
   LEFT JOIN latest_payment lp ON lp.record_id = la.record_id
   LEFT JOIN latest_refund lr ON lr.payment_id = lp.payment_id
-  LEFT JOIN reviews rv ON rv.task_id = t.task_id
+  LEFT JOIN APPUSER.reviews rv ON rv.task_id = t.task_id
   LEFT JOIN complaint_stats cs ON cs.record_id = la.record_id
   LEFT JOIN status_log_stats sls ON sls.record_id = la.record_id;
 
@@ -172,7 +173,7 @@ WITH latest_refund AS (
                      PARTITION BY rf.payment_id
                      ORDER BY rf.refund_id DESC
                  ) AS rn
-            FROM refunds rf
+            FROM APPUSER.refunds rf
       )
      WHERE rn = 1
 ),
@@ -180,7 +181,7 @@ refund_stats AS (
     SELECT payment_id,
            COUNT(*) AS refund_count,
            SUM(CASE WHEN process_status IN ('APPLY', 'APPROVED') THEN 1 ELSE 0 END) AS active_refund_count
-      FROM refunds
+      FROM APPUSER.refunds
      GROUP BY payment_id
 )
 SELECT p.payment_id,
@@ -208,15 +209,15 @@ SELECT p.payment_id,
        NVL(rs.active_refund_count, 0) AS active_refund_count,
        spi.settlement_id,
        CASE WHEN spi.payment_id IS NULL THEN 0 ELSE 1 END AS is_settled
-  FROM payments p
-  JOIN assign_records ar ON ar.record_id = p.record_id
-  JOIN tasks t ON t.task_id = ar.task_id
-  JOIN users publisher ON publisher.user_id = t.publisher_user_id
-  JOIN runners r ON r.runner_id = ar.runner_id
-  JOIN users runner_user ON runner_user.user_id = r.user_id
+  FROM APPUSER.payments p
+  JOIN APPUSER.assign_records ar ON ar.record_id = p.record_id
+  JOIN APPUSER.tasks t ON t.task_id = ar.task_id
+  JOIN APPUSER.users publisher ON publisher.user_id = t.publisher_user_id
+  JOIN APPUSER.runners r ON r.runner_id = ar.runner_id
+  JOIN APPUSER.users runner_user ON runner_user.user_id = r.user_id
   LEFT JOIN latest_refund lr ON lr.payment_id = p.payment_id
   LEFT JOIN refund_stats rs ON rs.payment_id = p.payment_id
-  LEFT JOIN settlement_payment_items spi ON spi.payment_id = p.payment_id;
+  LEFT JOIN APPUSER.settlement_payment_items spi ON spi.payment_id = p.payment_id;
 
 COMMENT ON TABLE vw_payment_refund_overview IS 'Payment and latest refund overview for payment status, refund review and report query.';
 COMMENT ON COLUMN vw_payment_refund_overview.payment_business_time IS 'Report time bucket. The schema has no paid_at column, so task completed_at is used with created_at fallback.';
@@ -232,9 +233,9 @@ WITH task_stats AS (
            NVL(SUM(CASE WHEN p.pay_status = 'PAID' THEN p.pay_amount ELSE 0 END), 0) AS paid_amount,
            MAX(ar.assigned_at) AS latest_assigned_at,
            MAX(t.completed_at) AS latest_completed_at
-      FROM assign_records ar
-      JOIN tasks t ON t.task_id = ar.task_id
-      LEFT JOIN payments p ON p.record_id = ar.record_id
+      FROM APPUSER.assign_records ar
+      JOIN APPUSER.tasks t ON t.task_id = ar.task_id
+      LEFT JOIN APPUSER.payments p ON p.record_id = ar.record_id
      GROUP BY ar.runner_id
 ),
 review_stats AS (
@@ -242,8 +243,8 @@ review_stats AS (
            COUNT(*) AS review_count,
            ROUND(AVG(rv.rating), 2) AS average_rating,
            NVL(SUM(rv.credit_delta), 0) AS review_credit_delta
-      FROM reviews rv
-      JOIN assign_records ar ON ar.record_id = rv.record_id
+      FROM APPUSER.reviews rv
+      JOIN APPUSER.assign_records ar ON ar.record_id = rv.record_id
      GROUP BY ar.runner_id
 ),
 complaint_stats AS (
@@ -251,8 +252,8 @@ complaint_stats AS (
            COUNT(*) AS complaint_count,
            SUM(CASE WHEN c.process_status IN ('SUBMITTED', 'PROCESSING') THEN 1 ELSE 0 END) AS active_complaint_count,
            SUM(CASE WHEN c.process_status = 'DONE' THEN 1 ELSE 0 END) AS finished_complaint_count
-      FROM complaints c
-      JOIN assign_records ar ON ar.record_id = c.record_id
+      FROM APPUSER.complaints c
+      JOIN APPUSER.assign_records ar ON ar.record_id = c.record_id
      GROUP BY ar.runner_id
 ),
 settlement_stats AS (
@@ -264,32 +265,32 @@ settlement_stats AS (
            NVL(SUM(s.order_total), 0) AS settled_order_total,
            NVL(SUM(s.platform_fee), 0) AS settled_platform_fee,
            NVL(SUM(s.net_income), 0) AS settled_net_income
-      FROM settlements s
+      FROM APPUSER.settlements s
      GROUP BY s.runner_id
 ),
 candidate_stats AS (
     SELECT ar.runner_id,
            COUNT(DISTINCT p.payment_id) AS candidate_payment_count,
            NVL(SUM(p.pay_amount), 0) AS candidate_pay_amount
-      FROM payments p
-      JOIN assign_records ar ON ar.record_id = p.record_id
-      JOIN tasks t ON t.task_id = ar.task_id
+      FROM APPUSER.payments p
+      JOIN APPUSER.assign_records ar ON ar.record_id = p.record_id
+      JOIN APPUSER.tasks t ON t.task_id = ar.task_id
      WHERE p.pay_status = 'PAID'
        AND t.task_status = 'FINISHED'
        AND NOT EXISTS (
            SELECT 1
-             FROM settlement_payment_items spi
+             FROM APPUSER.settlement_payment_items spi
             WHERE spi.payment_id = p.payment_id
        )
        AND NOT EXISTS (
            SELECT 1
-             FROM complaints c
+             FROM APPUSER.complaints c
             WHERE c.record_id = p.record_id
               AND c.process_status IN ('SUBMITTED', 'PROCESSING')
        )
        AND NOT EXISTS (
            SELECT 1
-             FROM refunds rf
+             FROM APPUSER.refunds rf
             WHERE rf.payment_id = p.payment_id
               AND rf.process_status IN ('APPLY', 'APPROVED', 'DONE')
        )
@@ -328,8 +329,8 @@ SELECT r.runner_id,
        NVL(cand.candidate_pay_amount, 0) AS candidate_pay_amount,
        ROUND(NVL(cand.candidate_pay_amount, 0) * 0.10, 2) AS estimated_platform_fee,
        ROUND(NVL(cand.candidate_pay_amount, 0) * 0.90, 2) AS estimated_net_income
-  FROM runners r
-  JOIN users u ON u.user_id = r.user_id
+  FROM APPUSER.runners r
+  JOIN APPUSER.users u ON u.user_id = r.user_id
   LEFT JOIN task_stats ts ON ts.runner_id = r.runner_id
   LEFT JOIN review_stats rv ON rv.runner_id = r.runner_id
   LEFT JOIN complaint_stats cs ON cs.runner_id = r.runner_id
@@ -363,13 +364,13 @@ SELECT s.settlement_id,
            WHEN ABS(s.order_total - NVL(SUM(p.pay_amount), 0)) > 0.01 THEN 'AMOUNT_MISMATCH'
            ELSE 'OK'
        END AS data_check_result
-  FROM settlements s
-  JOIN runners r ON r.runner_id = s.runner_id
-  JOIN users u ON u.user_id = r.user_id
-  LEFT JOIN settlement_payment_items spi ON spi.settlement_id = s.settlement_id
-  LEFT JOIN payments p ON p.payment_id = spi.payment_id
-  LEFT JOIN assign_records ar ON ar.record_id = p.record_id
-  LEFT JOIN tasks t ON t.task_id = ar.task_id
+  FROM APPUSER.settlements s
+  JOIN APPUSER.runners r ON r.runner_id = s.runner_id
+  JOIN APPUSER.users u ON u.user_id = r.user_id
+  LEFT JOIN APPUSER.settlement_payment_items spi ON spi.settlement_id = s.settlement_id
+  LEFT JOIN APPUSER.payments p ON p.payment_id = spi.payment_id
+  LEFT JOIN APPUSER.assign_records ar ON ar.record_id = p.record_id
+  LEFT JOIN APPUSER.tasks t ON t.task_id = ar.task_id
  GROUP BY s.settlement_id,
           s.runner_id,
           r.user_id,
