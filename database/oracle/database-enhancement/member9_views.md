@@ -33,11 +33,11 @@
 - 支付确认、退款审核和结算单生成；
 - 权限判断、事务控制和并发保护。
 
-后续如果要让网站真正使用这些视图，可以优先把只读查询改成查视图，例如：
+当前后端已将部分只读查询改为使用这些视图：
 
-- `/Settlement` 的结算列表和结算详情查询；
-- `/Report` 的跑腿员绩效、支付退款明细和结算报表查询；
-- `/Payment/Status`、`/Refund/AdminIndex` 的只读展示部分。
+- `/Payment/Status` 支付列表查询使用 `VW_PAYMENT_REFUND_OVERVIEW`；
+- `/Report` 首页统计、跑腿员绩效、订单报表明细和支付报表明细使用 `VW_TASK_OVERVIEW`、`VW_PAYMENT_REFUND_OVERVIEW`、`VW_RUNNER_PERFORMANCE`、`VW_SETTLEMENT_REPORT`；
+- `/Settlement` 管理员结算列表、结算详情、跑腿员本人结算列表和明细使用 `VW_SETTLEMENT_REPORT`、`VW_PAYMENT_REFUND_OVERVIEW`。
 
 写入类 SQL 不建议改成视图实现。
 
