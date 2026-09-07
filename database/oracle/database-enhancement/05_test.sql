@@ -107,3 +107,34 @@ SELECT runner_id,
   FROM vw_runner_performance
  WHERE candidate_payment_count > 0
  ORDER BY candidate_pay_amount DESC, runner_id;
+
+
+/* 9. Member 3: 测试用户封禁与解封过程 */
+SET SERVEROUTPUT ON;
+DECLARE
+    v_msg VARCHAR2(200);
+BEGIN
+    sp_manage_account_status(41, 'BLOCK', v_msg);
+    DBMS_OUTPUT.PUT_LINE('封禁测试结果: ' || v_msg);
+    sp_manage_account_status(41, 'UNBLOCK', v_msg);
+    DBMS_OUTPUT.PUT_LINE('解封测试结果: ' || v_msg);
+END;
+/
+
+/* 10. Member 3: 测试设置默认地址过程 */
+DECLARE
+    v_msg VARCHAR2(200);
+BEGIN
+    sp_set_default_address(41, 1, v_msg);
+    DBMS_OUTPUT.PUT_LINE('设置默认地址结果: ' || v_msg);
+END;
+/
+
+/* 11. Member 3: 测试配送员审核过程 */
+DECLARE
+    v_msg VARCHAR2(200);
+BEGIN
+    sp_audit_runner(485, 'APPROVED', v_msg);
+    DBMS_OUTPUT.PUT_LINE('审核测试结果: ' || v_msg);
+END;
+/
