@@ -41,11 +41,15 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         await using var command = connection.CreateCommand();
         command.BindByName = true;
         command.CommandText = """
-            SELECT s.settlement_id, s.runner_id, r.real_name, s.order_total,
-                   s.platform_fee, s.net_income, s.settlement_status
-            FROM APPUSER.settlements s
-            JOIN APPUSER.runners r ON r.runner_id = s.runner_id
-            ORDER BY s.settlement_id DESC
+            SELECT settlement_id,
+                   runner_id,
+                   runner_name AS real_name,
+                   order_total,
+                   platform_fee,
+                   net_income,
+                   settlement_status
+            FROM APPUSER.vw_settlement_report
+            ORDER BY settlement_id DESC
             FETCH FIRST 80 ROWS ONLY
             """;
 
@@ -116,11 +120,15 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         await using var command = connection.CreateCommand();
         command.BindByName = true;
         command.CommandText = """
-            SELECT s.settlement_id, s.runner_id, r.real_name, s.order_total,
-                   s.platform_fee, s.net_income, s.settlement_status
-            FROM APPUSER.settlements s
-            JOIN APPUSER.runners r ON r.runner_id = s.runner_id
-            WHERE s.settlement_id = :settlementId
+            SELECT settlement_id,
+                   runner_id,
+                   runner_name AS real_name,
+                   order_total,
+                   platform_fee,
+                   net_income,
+                   settlement_status
+            FROM APPUSER.vw_settlement_report
+            WHERE settlement_id = :settlementId
             """;
         command.Parameters.Add(new OracleParameter("settlementId", settlementId));
 
@@ -161,15 +169,14 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         command.BindByName = true;
         command.CommandText = """
             SELECT COUNT(*) AS settlement_count,
-                   NVL(SUM(CASE WHEN s.settlement_status = 'WAITING' THEN 1 ELSE 0 END), 0) AS waiting_count,
-                   NVL(SUM(CASE WHEN s.settlement_status = 'DONE' THEN 1 ELSE 0 END), 0) AS done_count,
-                   NVL(SUM(CASE WHEN s.settlement_status = 'BLOCKED' THEN 1 ELSE 0 END), 0) AS blocked_count,
-                   NVL(SUM(s.net_income), 0) AS total_net_income,
-                   NVL(SUM(CASE WHEN s.settlement_status = 'WAITING' THEN s.net_income ELSE 0 END), 0) AS waiting_net_income,
-                   NVL(SUM(CASE WHEN s.settlement_status = 'DONE' THEN s.net_income ELSE 0 END), 0) AS done_net_income
-            FROM APPUSER.settlements s
-            JOIN APPUSER.runners r ON r.runner_id = s.runner_id
-            WHERE r.user_id = :userId
+                   NVL(SUM(CASE WHEN settlement_status = 'WAITING' THEN 1 ELSE 0 END), 0) AS waiting_count,
+                   NVL(SUM(CASE WHEN settlement_status = 'DONE' THEN 1 ELSE 0 END), 0) AS done_count,
+                   NVL(SUM(CASE WHEN settlement_status = 'BLOCKED' THEN 1 ELSE 0 END), 0) AS blocked_count,
+                   NVL(SUM(net_income), 0) AS total_net_income,
+                   NVL(SUM(CASE WHEN settlement_status = 'WAITING' THEN net_income ELSE 0 END), 0) AS waiting_net_income,
+                   NVL(SUM(CASE WHEN settlement_status = 'DONE' THEN net_income ELSE 0 END), 0) AS done_net_income
+            FROM APPUSER.vw_settlement_report
+            WHERE runner_user_id = :userId
             """;
         command.Parameters.Add(new OracleParameter("userId", userId));
 
@@ -202,12 +209,16 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         await using var command = connection.CreateCommand();
         command.BindByName = true;
         command.CommandText = """
-            SELECT s.settlement_id, s.runner_id, r.real_name, s.order_total,
-                   s.platform_fee, s.net_income, s.settlement_status
-            FROM APPUSER.settlements s
-            JOIN APPUSER.runners r ON r.runner_id = s.runner_id
-            WHERE r.user_id = :userId
-            ORDER BY s.settlement_id DESC
+            SELECT settlement_id,
+                   runner_id,
+                   runner_name AS real_name,
+                   order_total,
+                   platform_fee,
+                   net_income,
+                   settlement_status
+            FROM APPUSER.vw_settlement_report
+            WHERE runner_user_id = :userId
+            ORDER BY settlement_id DESC
             FETCH FIRST 80 ROWS ONLY
             """;
         command.Parameters.Add(new OracleParameter("userId", userId));
@@ -232,12 +243,16 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         await using var command = connection.CreateCommand();
         command.BindByName = true;
         command.CommandText = """
-            SELECT s.settlement_id, s.runner_id, r.real_name, s.order_total,
-                   s.platform_fee, s.net_income, s.settlement_status
-            FROM APPUSER.settlements s
-            JOIN APPUSER.runners r ON r.runner_id = s.runner_id
-            WHERE s.settlement_id = :settlementId
-              AND r.user_id = :userId
+            SELECT settlement_id,
+                   runner_id,
+                   runner_name AS real_name,
+                   order_total,
+                   platform_fee,
+                   net_income,
+                   settlement_status
+            FROM APPUSER.vw_settlement_report
+            WHERE settlement_id = :settlementId
+              AND runner_user_id = :userId
             """;
         command.Parameters.Add(new OracleParameter("settlementId", settlementId));
         command.Parameters.Add(new OracleParameter("userId", userId));
@@ -257,14 +272,16 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         await using var command = connection.CreateCommand();
         command.BindByName = true;
         command.CommandText = """
-            SELECT spi.settlement_id, spi.payment_id, p.record_id, ar.task_id,
-                   t.task_title, p.pay_amount, p.pay_method
-            FROM APPUSER.settlement_payment_items spi
-            JOIN APPUSER.payments p ON p.payment_id = spi.payment_id
-            JOIN APPUSER.assign_records ar ON ar.record_id = p.record_id
-            JOIN APPUSER.tasks t ON t.task_id = ar.task_id
-            WHERE spi.settlement_id = :settlementId
-            ORDER BY spi.payment_id
+            SELECT settlement_id,
+                   payment_id,
+                   record_id,
+                   task_id,
+                   task_title,
+                   pay_amount,
+                   pay_method
+            FROM APPUSER.vw_payment_refund_overview
+            WHERE settlement_id = :settlementId
+            ORDER BY payment_id
             """;
         command.Parameters.Add(new OracleParameter("settlementId", settlementId));
 
@@ -298,17 +315,18 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         await using var command = connection.CreateCommand();
         command.BindByName = true;
         command.CommandText = """
-            SELECT spi.settlement_id, spi.payment_id, p.record_id, ar.task_id,
-                   t.task_title, p.pay_amount, p.pay_method
-            FROM APPUSER.settlement_payment_items spi
-            JOIN APPUSER.settlements s ON s.settlement_id = spi.settlement_id
-            JOIN APPUSER.runners r ON r.runner_id = s.runner_id
-            JOIN APPUSER.payments p ON p.payment_id = spi.payment_id
-            JOIN APPUSER.assign_records ar ON ar.record_id = p.record_id
-            JOIN APPUSER.tasks t ON t.task_id = ar.task_id
-            WHERE spi.settlement_id = :settlementId
-              AND r.user_id = :userId
-            ORDER BY spi.payment_id
+            SELECT p.settlement_id,
+                   p.payment_id,
+                   p.record_id,
+                   p.task_id,
+                   p.task_title,
+                   p.pay_amount,
+                   p.pay_method
+            FROM APPUSER.vw_payment_refund_overview p
+            JOIN APPUSER.vw_settlement_report s ON s.settlement_id = p.settlement_id
+            WHERE p.settlement_id = :settlementId
+              AND s.runner_user_id = :userId
+            ORDER BY p.payment_id
             """;
         command.Parameters.Add(new OracleParameter("settlementId", settlementId));
         command.Parameters.Add(new OracleParameter("userId", userId));
@@ -329,6 +347,24 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         }
 
         return items;
+    }
+
+    public async Task<bool> IsPaymentSettledAsync(
+        int paymentId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        return await IsPaymentSettledAsync(connection, null, paymentId, cancellationToken);
+    }
+
+    public async Task<bool> IsPaymentSettledAsync(
+        int paymentId,
+        IRepositoryTransaction repositoryTransaction,
+        CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+        return await IsPaymentSettledAsync(connection, transaction, paymentId, cancellationToken);
     }
 
     public async Task<int> InsertSettlementAsync(
@@ -457,6 +493,25 @@ public sealed class SettlementRepository(OracleConnectionFactory connectionFacto
         }
 
         return items;
+    }
+
+    private static async Task<bool> IsPaymentSettledAsync(
+        OracleConnection connection,
+        OracleTransaction? transaction,
+        int paymentId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT 1
+            FROM APPUSER.settlement_payment_items
+            WHERE payment_id = :paymentId
+            FETCH FIRST 1 ROWS ONLY
+            """;
+        command.Parameters.Add(new OracleParameter("paymentId", paymentId));
+        return await command.ExecuteScalarAsync(cancellationToken) is not null;
     }
 
     private static Settlement MapSettlement(OracleDataReader reader)

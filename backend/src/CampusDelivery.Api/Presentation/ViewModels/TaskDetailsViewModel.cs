@@ -7,6 +7,10 @@ public sealed class TaskDetailsViewModel
     public bool CanReview { get; set; }
     public bool HasReview { get; set; }
     public bool CanComplain { get; set; }
+    public bool CanCancel { get; set; }
+    public string? RunnerRealName { get; set; }
+    public decimal? RunnerCreditScore { get; set; }
+    public string? RunnerWorkStatus { get; set; }
     public string PublisherUsername { get; set; } = string.Empty;
     public string TaskKindDisplayName { get; set; } = string.Empty;
     public string ServiceName { get; set; } = string.Empty;

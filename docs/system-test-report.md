@@ -9,7 +9,7 @@
 | 测试人员 | 开发团队 |
 | 自动化测试时间 | 2026-08-22 |
 | 数据库系统测试时间 | 2026-08-22 完成共享库结构核验、MVC 写入型端到端验收及真实双会话并发复核 |
-| 测试结论 | 39 项高价值业务自动化测试和静态门禁全部通过；原 `PENDING-DB` 用例已在共享 Oracle 实际执行并通过，覆盖主链路、权限、并发、退款、评价投诉、结算审计和三类报表导出 |
+| 测试结论 | 39 项高价值业务自动化测试和静态门禁全部通过；原 `PENDING-DB` 用例已在共享 Oracle 实际执行并通过，覆盖主链路、权限、并发、退款、评价投诉、结算审计和三类报表导出。2026-09-01 组员1集成复核：测试已增至 52 项并全部通过（见 9.4 节） |
 
 ## 2. 测试目的
 
@@ -106,7 +106,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 `scripts/run-tests.ps1` 在测试后检查：
 
 - 建表数量不少于 12；当前为 24。
-- 所有 `[HttpPost]` Action 均有 `[ValidateAntiForgeryToken]`；当前为 46/46。
+- 所有 `[HttpPost]` Action 均有 `[ValidateAntiForgeryToken]`；当前为 47/47。
 - Controller 不引用 Repository 接口。
 - Service 中不存在 Oracle Command/Connection 或 `CommandText`。
 - Repository 中存在真实的 `FOR UPDATE` 行锁；当前检出 14 处。
@@ -186,7 +186,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 | TC049 | 退款 | 已支付任务申请退款 | PAID、FINISHED、有原因 | 退款 APPLY，任务 REFUNDING，写日志 | 支付 `82/83` 均生成 APPLY 退款并写 FINISHED -> REFUNDING 日志 | PASS-DB |
 | TC050 | 退款 | 重复申请 | 已有 APPLY 或 APPROVED 退款 | 拒绝新增第二条有效退款 | 支付 `82` 重复申请后仍仅 1 条退款 | PASS-DB |
 | TC051 | 退款 | 管理员通过/驳回 | APPLY 退款、合法审核理由 | 审核结果、金额、支付和任务状态一致 | 退款 `41` APPROVED/支付 REFUNDED；退款 `42` REJECTED/支付 PAID | PASS-DB |
-| TC052 | 评价 | 已支付完成后评价 | PAID、FINISHED、发布者 | 新增一次评价并调整跑腿员信誉分 | 评价 `1` 为 5 星，runner `321` 信誉分从 100 增至 102 | PASS-DB |
+| TC052 | 评价 | 已支付完成后评价 | PAID、FINISHED、发布者 | 新增一次评价并调整跑腿员信誉分 | 历史共享库验证时评价 `1` 为5星、runner `321` 从100增至102；该结果记录旧规则，009迁移后的当前规则封顶为100 | PASS-DB（历史） |
 | TC053 | 评价 | 重复评价 | 同一任务已有评价 | 拒绝，唯一约束不被触发为 500 | 任务 `181` 重复评价后仍仅 1 条评价 | PASS-DB |
 | TC054 | 评价 | 非法评分/过长评论 | 评分不在 1-5 或评论超长 | 友好校验，不写库 | 评分 6 和 301 字评论均返回校验页，评价表不变 | PASS-DB |
 | TC055 | 投诉 | 发布者投诉已完成服务 | FINISHED、有接派记录 | 生成 SUBMITTED 投诉 | 投诉 `1/2` 均由发布者页面创建 | PASS-DB |
@@ -245,6 +245,28 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 
 截至 2026-08-22，本报告原 `PENDING-DB` 用例均已实际执行并通过，可以陈述“本报告范围内的数据库端到端业务验收通过”。该结论不外推为浏览器兼容、压力容量、灾备或生产安全审计结论。
 
+### 9.3 2026-08-30 组员10 回归复核（第五阶段）
+
+2026-08-22 之后，项目经历网站重构（website remake）、退款结算修复（PR #31，禁止已结算订单发起普通退款）、注销账号手机号占用修复、跑腿员多单承接与管理员重派优化，并由组员 3（账户与权限）、组员 4（基础资料）、组员 8（评价、投诉与信誉）按 `test-plan.md` 用例完成本模块测试（用例结论均为通过，证据见 `test-evidence/manual/` 对应目录）。
+
+组员10 于 2026-08-30 在 `test` 分支（`a19562b`）执行回归复核：
+
+| 复核项 | 结果 |
+| --- | --- |
+| Release 构建 | 通过，0 警告 0 错误 |
+| 自动化测试 | 50/50 通过，0 失败 0 跳过（由 2026-08-22 的 39 项增至 50 项） |
+| 模块测试证据归档 | 组员 3、4、8 已提交至 `docs/test-evidence/manual/<负责人>-<模块>/`；组员 1、2、5、6、7、9 待提交 |
+
+```text
+已通过! - 失败: 0，通过: 50，已跳过: 0，总计: 50
+```
+
+已知待办：`docs/test-evidence/manual/2026-08-16/sql/verification.sql` 引用了 `payments.paid_at` 列，该列在当前结构脚本中不存在，复核证据 SQL 时注意与 `docs/database_dictionary.md` 对齐（已登记 Bug 清单）。
+
+### 9.4 2026-09-01 组员1总集成复核（第五阶段）
+
+组员1在 `test` 分支（`61cb6a2`）完成 TC-INT-01～05：公网 HTTPS、四类角色导航、31 个页面/路由、Oracle 状态页和自动化门禁全部通过。Release 构建 0 警告 0 错误，自动化测试 52/52 通过，静态门禁为 24 张表、47/47 POST 防伪、14 处行锁、五层边界和外置连接配置全部通过。证据见 `docs/test-evidence/manual/组员1-总集成与架构/`。
+
 ## 10. 已修复问题与剩余验证
 
 | 编号 | 原级别 | 原问题 | 修复结果 | 剩余验证 |
@@ -260,7 +282,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 后续提交至少满足：
 
 1. `scripts/run-tests.ps1` 全部通过。
-2. 不减少 46/46 POST 防伪覆盖。
+2. 不减少 47/47 POST 防伪覆盖。
 3. 抢单、支付或退款变更必须补充事务/状态回归测试。
 4. 数据库结构变化后更新 24 表统计、数据库字典和测试 SQL。
 5. 评价支付/退款门槛、地址事务、结算状态机和报表生成/导出变更必须保留对应回归测试。

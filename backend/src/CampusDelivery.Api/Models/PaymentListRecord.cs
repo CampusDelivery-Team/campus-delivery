@@ -12,4 +12,5 @@ public sealed class PaymentListRecord
     public string? ThirdTradeNo { get; set; }
     public string PayStatus { get; set; } = "UNPAID";
     public string? RefundProcessStatus { get; set; }
+    public bool IsSettled { get; set; }
 }

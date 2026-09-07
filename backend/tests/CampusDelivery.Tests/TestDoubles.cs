@@ -103,13 +103,31 @@ internal sealed class FakeAssignRepository : IAssignRepository
 
     public List<CampusTask> ActiveTasks { get; } = [];
 
+    public List<ReassignableTaskRecord> ReassignableTasks { get; } = [];
+
+    public string? ReassignKeyword { get; private set; }
+
+    public string? ReassignStatus { get; private set; }
+
+    public int ReassignOffset { get; private set; }
+
+    public int ReassignPageSize { get; private set; }
+
+    public int ReassignTotalCount { get; set; }
+
+    public int OtherActiveTaskCount { get; set; }
+
     public TaskDetailsRecord? ActiveTaskDetails { get; set; }
 
     public List<AssignRecord> InsertedAssignRecords { get; } = [];
 
     public List<TaskStatusLog> InsertedStatusLogs { get; } = [];
 
-    public void AddRunner(int userId, int runnerId, string workStatus = "FREE")
+    public void AddRunner(
+        int userId,
+        int runnerId,
+        string workStatus = "FREE",
+        decimal creditScore = 100m)
     {
         lock (_sync)
         {
@@ -118,7 +136,8 @@ internal sealed class FakeAssignRepository : IAssignRepository
                 UserId = userId,
                 RunnerId = runnerId,
                 AuditStatus = "APPROVED",
-                WorkStatus = workStatus
+                WorkStatus = workStatus,
+                CreditScore = creditScore
             };
         }
     }
@@ -305,6 +324,13 @@ internal sealed class FakeAssignRepository : IAssignRepository
         CancellationToken cancellationToken = default) =>
         Task.FromResult(ActiveTasks.Count);
 
+    public Task<int> GetOtherActiveTaskCountByRunnerIdAsync(
+        int runnerId,
+        int excludedTaskId,
+        IRepositoryTransaction transaction,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(OtherActiveTaskCount);
+
     public Task<TaskDetailsRecord?> GetActiveTaskDetailsAsync(
         int taskId,
         int runnerId,
@@ -332,13 +358,33 @@ internal sealed class FakeAssignRepository : IAssignRepository
     public Task<int> GetWaitingTasksForAdminCountAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(0);
 
-    public Task<IReadOnlyList<Runner>> GetFreeRunnersForAdminAsync(
+    public Task<IReadOnlyList<ReassignableTaskRecord>> GetReassignableTasksForAdminAsync(
+        string? keyword,
+        string? status,
+        int offset,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        ReassignKeyword = keyword;
+        ReassignStatus = status;
+        ReassignOffset = offset;
+        ReassignPageSize = pageSize;
+        return Task.FromResult<IReadOnlyList<ReassignableTaskRecord>>(ReassignableTasks);
+    }
+
+    public Task<int> GetReassignableTasksForAdminCountAsync(
+        string? keyword,
+        string? status,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(ReassignTotalCount == 0 ? ReassignableTasks.Count : ReassignTotalCount);
+
+    public Task<IReadOnlyList<Runner>> GetAvailableRunnersForAdminAsync(
         int offset,
         int pageSize,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<Runner>>([]);
 
-    public Task<int> GetFreeRunnersForAdminCountAsync(CancellationToken cancellationToken = default) =>
+    public Task<int> GetAvailableRunnersForAdminCountAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(0);
 
     public Task<string> GetServiceTypeNameAsync(
@@ -488,6 +534,7 @@ internal sealed class FakePaymentRepository : IPaymentRepository
 internal sealed class FakeRefundRepository : IRefundRepository
 {
     public RefundRecord? ActiveRefund { get; set; }
+    public int InsertCount { get; private set; }
 
     public Task<RefundRecord?> GetByIdAsync(
         int refundId,
@@ -523,8 +570,11 @@ internal sealed class FakeRefundRepository : IRefundRepository
     public Task<int> InsertAsync(
         RefundRecord record,
         IRepositoryTransaction transaction,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(1);
+        CancellationToken cancellationToken = default)
+    {
+        InsertCount++;
+        return Task.FromResult(1);
+    }
 
     public Task UpdateReviewAsync(
         int refundId,

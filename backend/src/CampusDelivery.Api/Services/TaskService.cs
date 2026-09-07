@@ -146,6 +146,14 @@ namespace CampusDelivery.Api.Services
                 return new TaskOperationResult(false, "所选服务类型不可用，请重新选择");
             }
 
+            if (result.Result == TaskCreateResult.PriceBelowMinimum)
+            {
+                string message = result.MinimumPrice.HasValue
+                    ? $"任务价格不得低于基础价 {result.MinimumPrice.Value:F2} 元"
+                    : "任务价格不得低于所选服务类型的基础价";
+                return new TaskOperationResult(false, message);
+            }
+
             if (result.Result == TaskCreateResult.NodeUnavailable)
             {
                 return new TaskOperationResult(false, "所选交接节点不可用，请重新选择");
@@ -237,6 +245,10 @@ namespace CampusDelivery.Api.Services
                 RecordId = record.RecordId,
                 CanReview = !includeAll && record.RecordId.HasValue && task.TaskStatus == "FINISHED",
                 CanComplain = !includeAll && record.RecordId.HasValue && task.TaskStatus == "FINISHED",
+                CanCancel = !includeAll && task.TaskStatus == "WAITING",
+                RunnerRealName = record.RunnerRealName,
+                RunnerCreditScore = record.RunnerCreditScore,
+                RunnerWorkStatus = record.RunnerWorkStatus,
                 PublisherUsername = task.PublisherUsername,
                 TaskKindDisplayName = DisplayNameService.GetTaskKindName(task.TaskKind),
                 ServiceName = task.ServiceName,

@@ -85,4 +85,38 @@ public sealed class ReportServiceTests
         Assert.Contains("有效支付金额", csv);
         Assert.Contains("'=1+1 快递代取", csv);
     }
+
+    [Fact]
+    public async Task DeleteAsync_WhenReportExists_RemovesReportAndCommits()
+    {
+        var repository = new FakeReportRepository
+        {
+            AuditIds = [11, 12]
+        };
+        var transactions = new FakeRepositoryTransactionManager();
+        var service = new ReportService(repository, transactions);
+        await service.GenerateAsync(new ReportGenerateViewModel { ReportType = "ORDER", StatPeriod = "2026-08" });
+
+        ReportOperationResult result = await service.DeleteAsync(801);
+
+        Assert.True(result.Success);
+        Assert.True(repository.DeleteCalled);
+        Assert.Null(repository.StoredReport);
+        Assert.Empty(repository.LinkedAuditIds);
+        Assert.True(transactions.Transactions.Last().WasCommitted);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenReportIsMissing_RejectsBeforeTransaction()
+    {
+        var repository = new FakeReportRepository();
+        var transactions = new FakeRepositoryTransactionManager();
+        var service = new ReportService(repository, transactions);
+
+        ReportOperationResult result = await service.DeleteAsync(801);
+
+        Assert.False(result.Success);
+        Assert.False(repository.DeleteCalled);
+        Assert.Empty(transactions.Transactions);
+    }
 }

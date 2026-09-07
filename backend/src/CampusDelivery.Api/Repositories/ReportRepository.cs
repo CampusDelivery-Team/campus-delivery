@@ -19,25 +19,25 @@ public sealed class ReportRepository(OracleConnectionFactory connectionFactory) 
             new()
             {
                 Name = "任务总数",
-                Value = (await GetScalarAsync(connection, "SELECT COUNT(*) FROM APPUSER.tasks", cancellationToken)).ToString("N0"),
+                Value = (await GetScalarAsync(connection, "SELECT COUNT(*) FROM APPUSER.vw_task_overview", cancellationToken)).ToString("N0"),
                 Note = "系统累计发布任务"
             },
             new()
             {
                 Name = "已完成任务",
-                Value = (await GetScalarAsync(connection, "SELECT COUNT(*) FROM APPUSER.tasks WHERE task_status = 'FINISHED'", cancellationToken)).ToString("N0"),
+                Value = (await GetScalarAsync(connection, "SELECT COUNT(*) FROM APPUSER.vw_task_overview WHERE task_status = 'FINISHED'", cancellationToken)).ToString("N0"),
                 Note = "已收货并完成支付"
             },
             new()
             {
                 Name = "已支付金额",
-                Value = $"¥{(await GetDecimalAsync(connection, "SELECT NVL(SUM(pay_amount), 0) FROM APPUSER.payments WHERE pay_status = 'PAID'", cancellationToken)):F2}",
+                Value = $"¥{(await GetDecimalAsync(connection, "SELECT NVL(SUM(pay_amount), 0) FROM APPUSER.vw_payment_refund_overview WHERE pay_status = 'PAID'", cancellationToken)):F2}",
                 Note = "可作为结算收入来源"
             },
             new()
             {
                 Name = "已结算净收入",
-                Value = $"¥{(await GetDecimalAsync(connection, "SELECT NVL(SUM(net_income), 0) FROM APPUSER.settlements WHERE settlement_status IN ('WAITING', 'DONE')", cancellationToken)):F2}",
+                Value = $"¥{(await GetDecimalAsync(connection, "SELECT NVL(SUM(net_income), 0) FROM APPUSER.vw_settlement_report WHERE settlement_status IN ('WAITING', 'DONE')", cancellationToken)):F2}",
                 Note = "已生成结算单的跑腿员收入"
             },
             new()
@@ -100,19 +100,14 @@ public sealed class ReportRepository(OracleConnectionFactory connectionFactory) 
         await using var command = connection.CreateCommand();
         command.BindByName = true;
         command.CommandText = """
-            SELECT r.runner_id, r.real_name, r.credit_score,
-                   COUNT(DISTINCT CASE WHEN t.task_status = 'FINISHED' THEN t.task_id END) AS finished_count,
-                   NVL(SUM(CASE WHEN p.pay_status = 'PAID' THEN p.pay_amount ELSE 0 END), 0) AS paid_amount,
-                   NVL((SELECT SUM(s.net_income)
-                        FROM APPUSER.settlements s
-                        WHERE s.runner_id = r.runner_id
-                          AND s.settlement_status IN ('WAITING', 'DONE')), 0) AS settled_income
-            FROM APPUSER.runners r
-            LEFT JOIN APPUSER.assign_records ar ON ar.runner_id = r.runner_id
-            LEFT JOIN APPUSER.tasks t ON t.task_id = ar.task_id
-            LEFT JOIN APPUSER.payments p ON p.record_id = ar.record_id
-            GROUP BY r.runner_id, r.real_name, r.credit_score
-            ORDER BY finished_count DESC, paid_amount DESC, r.runner_id
+            SELECT runner_id,
+                   real_name,
+                   credit_score,
+                   finished_task_count AS finished_count,
+                   paid_amount,
+                   settled_net_income AS settled_income
+              FROM APPUSER.vw_runner_performance
+             ORDER BY finished_task_count DESC, paid_amount DESC, runner_id
             FETCH FIRST 10 ROWS ONLY
             """;
 
@@ -191,35 +186,25 @@ public sealed class ReportRepository(OracleConnectionFactory connectionFactory) 
                        CAST(NULL AS VARCHAR2(20 CHAR)) AS secondary_status,
                        t.task_price AS amount,
                        t.created_at AS occurred_at,
-                       st.service_name || ' · ' || n.node_name AS description
-                  FROM APPUSER.tasks t
-                  JOIN APPUSER.service_types st ON st.service_type_id = t.service_type_id
-                  JOIN APPUSER.nodes n ON n.node_id = t.node_id
+                       t.service_name || ' · ' || t.node_name AS description
+                  FROM APPUSER.vw_task_overview t
                  WHERE t.created_at >= :periodStart
                    AND t.created_at < :periodEnd
                  ORDER BY t.created_at, t.task_id
                 """,
             "PAYMENT" => """
-                SELECT p.payment_id AS business_id,
-                       ar.task_id,
-                       t.task_title,
-                       p.pay_status AS primary_status,
-                       latest_refund.process_status AS secondary_status,
-                       p.pay_amount AS amount,
-                       NVL(t.completed_at, t.created_at) AS occurred_at,
-                       p.pay_method AS description
-                  FROM APPUSER.payments p
-                  JOIN APPUSER.assign_records ar ON ar.record_id = p.record_id
-                  JOIN APPUSER.tasks t ON t.task_id = ar.task_id
-                  LEFT JOIN (
-                      SELECT payment_id, process_status,
-                             ROW_NUMBER() OVER (PARTITION BY payment_id ORDER BY refund_id DESC) AS rn
-                        FROM APPUSER.refunds
-                  ) latest_refund ON latest_refund.payment_id = p.payment_id
-                                 AND latest_refund.rn = 1
-                 WHERE NVL(t.completed_at, t.created_at) >= :periodStart
-                   AND NVL(t.completed_at, t.created_at) < :periodEnd
-                 ORDER BY occurred_at, p.payment_id
+                SELECT payment_id AS business_id,
+                       task_id,
+                       task_title,
+                       pay_status AS primary_status,
+                       latest_refund_status AS secondary_status,
+                       pay_amount AS amount,
+                       payment_business_time AS occurred_at,
+                       pay_method AS description
+                  FROM APPUSER.vw_payment_refund_overview
+                 WHERE payment_business_time >= :periodStart
+                   AND payment_business_time < :periodEnd
+                 ORDER BY occurred_at, payment_id
                 """,
             "COMPLAINT" => """
                 SELECT c.complaint_id AS business_id,
@@ -394,6 +379,34 @@ public sealed class ReportRepository(OracleConnectionFactory connectionFactory) 
         command.Parameters.Add(new OracleParameter("reportStatus", reportStatus));
         command.Parameters.Add(new OracleParameter("reportId", reportId));
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
+    public async Task<bool> DeleteAsync(
+        int reportId,
+        IRepositoryTransaction repositoryTransaction,
+        CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+
+        await using var deleteItemsCommand = connection.CreateCommand();
+        deleteItemsCommand.Transaction = transaction;
+        deleteItemsCommand.BindByName = true;
+        deleteItemsCommand.CommandText = """
+            DELETE FROM APPUSER.report_audit_items
+            WHERE report_id = :reportId
+            """;
+        deleteItemsCommand.Parameters.Add(new OracleParameter("reportId", reportId));
+        await deleteItemsCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        await using var deleteReportCommand = connection.CreateCommand();
+        deleteReportCommand.Transaction = transaction;
+        deleteReportCommand.BindByName = true;
+        deleteReportCommand.CommandText = """
+            DELETE FROM APPUSER.reports
+            WHERE report_id = :reportId
+            """;
+        deleteReportCommand.Parameters.Add(new OracleParameter("reportId", reportId));
+        return await deleteReportCommand.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
     private static async Task<int> GetScalarAsync(

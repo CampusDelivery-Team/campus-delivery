@@ -1,0 +1,18 @@
+查询：查看差评及信誉变动
+SELECT review_id, task_id, rating, credit_delta, reviewed_at
+FROM reviews
+WHERE task_id = &tid;
+结果：
+ REVIEW_ID    TASK_ID     RATING CREDIT_DELTA REVIEWED_
+---------- ---------- ---------- ------------ ---------
+        63        273          1            0 27-8月 -26
+
+查询：查看扣减后的信誉分（应不低于 0）
+SELECT runner_id, real_name, credit_score
+FROM runners
+WHERE runner_id = &runner;
+结果：
+ RUNNER_ID REAL_NAME                                          CREDIT_SCORE
+---------- -------------------------------------------------- ------------
+       341 Jason Xie                                                     0
+

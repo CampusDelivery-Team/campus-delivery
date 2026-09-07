@@ -8,12 +8,15 @@ internal sealed class FakeReviewRepository : IReviewRepository
     public Review? InsertedReview { get; private set; }
     public decimal CreditChange { get; private set; }
     public bool ReviewExists { get; set; }
+    public ReviewWriteContext? WriteContext { get; set; }
+    public Review? UpdatedReview { get; private set; }
+    public int? DeletedReviewId { get; private set; }
 
     public Task<Review?> GetByIdAsync(int reviewId, CancellationToken cancellationToken = default) =>
         Task.FromResult<Review?>(null);
 
     public Task<ReviewWriteContext?> GetWriteContextWithLockAsync(int reviewId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) =>
-        Task.FromResult<ReviewWriteContext?>(null);
+        Task.FromResult(WriteContext?.Review.ReviewId == reviewId ? WriteContext : null);
 
     public Task<IReadOnlyList<Review>> GetByTaskIdAsync(int taskId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<Review>>([]);
@@ -38,11 +41,17 @@ internal sealed class FakeReviewRepository : IReviewRepository
         return Task.FromResult(true);
     }
 
-    public Task<bool> UpdateAsync(Review review, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) =>
-        Task.FromResult(true);
+    public Task<bool> UpdateAsync(Review review, IRepositoryTransaction transaction, CancellationToken cancellationToken = default)
+    {
+        UpdatedReview = review;
+        return Task.FromResult(true);
+    }
 
-    public Task<bool> DeleteAsync(int reviewId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) =>
-        Task.FromResult(true);
+    public Task<bool> DeleteAsync(int reviewId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default)
+    {
+        DeletedReviewId = reviewId;
+        return Task.FromResult(true);
+    }
 
     public Task<bool> UpdateRunnerCreditAsync(int runnerId, decimal creditDelta, IRepositoryTransaction transaction, CancellationToken cancellationToken = default)
     {
@@ -209,6 +218,7 @@ internal sealed class FakeAddressRepository : IAddressRepository
 internal sealed class FakeSettlementRepository : ISettlementRepository
 {
     public Settlement? Existing { get; set; }
+    public bool PaymentSettled { get; set; }
     public int UpdateCount { get; private set; }
 
     public Task<IReadOnlyList<Settlement>> GetRecentSettlementsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Settlement>>([]);
@@ -222,6 +232,8 @@ internal sealed class FakeSettlementRepository : ISettlementRepository
     public Task<Settlement?> GetByIdForRunnerUserAsync(int settlementId, int userId, CancellationToken cancellationToken = default) => Task.FromResult<Settlement?>(null);
     public Task<IReadOnlyList<SettlementPaymentItem>> GetItemsAsync(int settlementId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<SettlementPaymentItem>>([]);
     public Task<IReadOnlyList<SettlementPaymentItem>> GetItemsForRunnerUserAsync(int settlementId, int userId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<SettlementPaymentItem>>([]);
+    public Task<bool> IsPaymentSettledAsync(int paymentId, CancellationToken cancellationToken = default) => Task.FromResult(PaymentSettled);
+    public Task<bool> IsPaymentSettledAsync(int paymentId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => Task.FromResult(PaymentSettled);
     public Task<int> InsertSettlementAsync(Settlement settlement, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => Task.FromResult(1);
     public Task InsertSettlementItemAsync(int settlementId, int paymentId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
@@ -244,6 +256,8 @@ internal sealed class FakeReportRepository : IReportRepository
     public IReadOnlyList<int> AuditIds { get; set; } = [];
     public ReportRecord? StoredReport { get; private set; }
     public List<int> LinkedAuditIds { get; } = [];
+    public bool DeleteResult { get; set; } = true;
+    public bool DeleteCalled { get; private set; }
 
     public Task<IReadOnlyList<ReportMetricRecord>> GetMetricsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ReportMetricRecord>>([]);
     public Task<IReadOnlyList<NodeVolumeRecord>> GetNodeVolumesAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<NodeVolumeRecord>>([]);
@@ -276,6 +290,19 @@ internal sealed class FakeReportRepository : IReportRepository
         }
 
         StoredReport.ReportStatus = reportStatus;
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> DeleteAsync(int reportId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default)
+    {
+        DeleteCalled = true;
+        if (!DeleteResult || StoredReport?.ReportId != reportId)
+        {
+            return Task.FromResult(false);
+        }
+
+        StoredReport = null;
+        LinkedAuditIds.Clear();
         return Task.FromResult(true);
     }
 }
