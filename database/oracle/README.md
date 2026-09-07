@@ -13,6 +13,10 @@
 | `005_hash_user_passwords.sql` | 扩展密码字段并迁移基础账号 Identity 哈希 |
 | `006_harden_business_integrity.sql` | 增加单默认地址和服务名称唯一索引 |
 | `007_restore_required_service_node_rules.sql` | 幂等恢复三类基础服务所需的服务节点绑定 |
+| `008_create_business_functions.sql` | 创建任务价格、跑腿员接单资格和信誉等级三个业务函数 |
+| `008_test_business_functions.sql` | 只读验证三个函数的编译状态、正常结果、边界值和异常输入 |
+| `008_rollback_business_functions.sql` | 仅删除 `008` 创建的三个函数，不修改业务表和数据 |
+| `008_business_functions_README.md` | 组员4函数接口、业务口径、执行方法和已知边界 |
 
 ## 新建或重建数据库
 
@@ -55,6 +59,8 @@
 因此 `003` 至 `006` 已完成，不再属于当前迁移待办。
 
 `007_restore_required_service_node_rules.sql` 是针对基础绑定数据漂移的补丁；各环境执行后应确认四条基础绑定均存在。未取得共享库写权限前，不得把“脚本已加入仓库”等同于“共享库已完成迁移”。
+
+`008_create_business_functions.sql` 是第五阶段数据库完善脚本。应先在隔离库执行创建、测试、回滚和再次创建流程；通过后再由数据库负责人使用 `APPUSER` 部署。函数不会由后端启动过程自动创建，脚本加入仓库也不代表共享库已经部署。
 
 ## 密码迁移工具
 
