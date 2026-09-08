@@ -1,14 +1,13 @@
 /*
-  Member 4 database enhancement: business functions and credit-score rules.
+  组员4数据库增强：业务函数与信誉分规则。
 
-  Execute once as APPUSER after the base schema and seed data are ready.
-  The functions expose reusable calculations and eligibility checks for SQL,
-  views and stored procedures. They do not replace C# service-layer
-  authorization, transactions, row locks or state changes.
+  基础表结构和基础数据准备完成后，由APPUSER执行一次本脚本。
+  下列函数为SQL、视图和存储过程提供可复用的计算与资格判断能力，
+  不能替代C#服务层中的身份授权、事务、行锁和业务写入逻辑。
 
-  The final section normalizes historical credit scores above 100 and replaces
-  CK_RUNNERS_CREDIT with a 0..100 constraint. The normalization is intentional
-  and cannot be reversed because the previous excess values are not retained.
+  脚本最后会把历史上超过100的信誉分统一截断为100，并将
+  CK_RUNNERS_CREDIT替换为0至100的检查约束。由于没有保留原始超额值，
+  该数据归一化操作无法反向恢复。
 */
 
 CREATE OR REPLACE FUNCTION fn_calculate_task_price (
@@ -33,8 +32,8 @@ BEGIN
      WHERE service_type_id = p_service_type_id
        AND type_status = 'ENABLED';
 
-    -- The service table is the source of truth for the base fee. Callers only
-    -- supply the explicit distance, urgency, weight or complexity surcharge.
+    -- 服务类型表中的基础价格是唯一数据来源，调用方只传入明确的
+    -- 距离、加急、重量或复杂度附加费。
     v_calculated_price := ROUND(v_base_price + p_extra_amount, 2);
 
     IF v_calculated_price > 99999999.99 THEN
@@ -98,8 +97,8 @@ END;
 /
 
 /*
-  Normalize existing data before tightening the credit-score constraint.
-  Back up rows above 100 and pause review/complaint writes before deployment.
+  收紧信誉分约束前先归一化已有数据。
+  部署前必须备份信誉分超过100的记录，并暂停评价和投诉相关写入。
 */
 UPDATE runners
    SET credit_score = 100
