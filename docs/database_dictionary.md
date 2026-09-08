@@ -113,7 +113,7 @@ database/oracle/002_init_base_data.sql
 ```text
 database/oracle/004_add_review_integrity.sql
 database/oracle/006_harden_business_integrity.sql
-database/oracle/database-enhancement/04_business_functions_and_credit_rules.sql
+database/oracle/database-enhancement/04_functions.sql
 ```
 
 ## 维护建议

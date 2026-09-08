@@ -15,7 +15,7 @@
 | `007_restore_required_service_node_rules.sql` | 幂等恢复三类基础服务所需的服务节点绑定 |
 | `database-enhancement/01_views.sql` | 创建第五阶段业务查询视图 |
 | `database-enhancement/03_procedures.sql` | 创建第五阶段业务存储过程 |
-| `database-enhancement/04_business_functions_and_credit_rules.sql` | 创建三个业务函数，将历史超分归一到100并收紧信誉分约束 |
+| `database-enhancement/04_functions.sql` | 创建三个业务函数，将历史超分归一到100并收紧信誉分约束 |
 | `database-enhancement/05_test.sql` | 集中验证第五阶段视图、过程、函数和信誉分约束 |
 | `database-enhancement/06_rollback_*.sql` | 按对象类型回滚第五阶段对象；信誉分归一化不提供伪恢复 |
 | `database-enhancement/member4_functions.md` | 组员4函数接口、业务口径、执行方法和已知边界 |
@@ -45,10 +45,10 @@
 007_restore_required_service_node_rules.sql
 database-enhancement/01_views.sql
 database-enhancement/03_procedures.sql
-database-enhancement/04_business_functions_and_credit_rules.sql
+database-enhancement/04_functions.sql
 ```
 
-随后执行 `database-enhancement/05_test.sql`。`04_business_functions_and_credit_rules.sql` 会把已有的超分记录统一截断为100，该归一化不会保存旧的超额部分，执行前必须备份并暂停评价、投诉等信誉写入。脚本中的其他数据冲突检查失败时，应先分析并修复历史数据，不得通过删除约束或跳过检查强行继续。
+随后执行 `database-enhancement/05_test.sql`。`04_functions.sql` 会把已有的超分记录统一截断为100，该归一化不会保存旧的超额部分，执行前必须备份并暂停评价、投诉等信誉写入。脚本中的其他数据冲突检查失败时，应先分析并修复历史数据，不得通过删除约束或跳过检查强行继续。
 
 ## 共享库当前状态
 
@@ -65,9 +65,9 @@ database-enhancement/04_business_functions_and_credit_rules.sql
 
 `007_restore_required_service_node_rules.sql` 是针对基础绑定数据漂移的补丁；各环境执行后应确认四条基础绑定均存在。未取得共享库写权限前，不得把“脚本已加入仓库”等同于“共享库已完成迁移”。
 
-`database-enhancement/04_business_functions_and_credit_rules.sql` 是组员4的第五阶段数据库完善脚本。应先在隔离库执行创建、测试、函数回滚和再次创建流程；通过后再由数据库负责人使用 `APPUSER` 部署。函数不会由后端启动过程自动创建，脚本加入仓库也不代表共享库已经部署。
+`database-enhancement/04_functions.sql` 是组员4的第五阶段数据库完善脚本。应先在隔离库执行创建、测试、函数回滚和再次创建流程；通过后再由数据库负责人使用应用 schema 部署。函数不会由后端启动过程自动创建，脚本加入仓库也不代表共享库已经部署。
 
-该脚本同时包含信誉分0至100约束迁移。应在暂停相关写入并备份超分记录后执行，再部署包含同样上下限规则的后端；`database-enhancement/05_test.sql` 通过后才能恢复写入。`06_business_functions_and_credit_rules.sql` 只删除三个函数，不删除新约束，也不尝试恢复未留存的历史超分。
+该脚本同时包含信誉分0至100约束迁移。应在暂停相关写入并备份超分记录后执行，再部署包含同样上下限规则的后端；`database-enhancement/05_test.sql` 通过后才能恢复写入。`06_rollback_functions.sql` 只删除三个函数，不删除新约束，也不尝试恢复未留存的历史超分。
 
 ## 密码迁移工具
 

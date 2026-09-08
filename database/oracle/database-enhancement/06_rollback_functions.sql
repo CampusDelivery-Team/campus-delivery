@@ -1,6 +1,6 @@
 /*
   Rollback script for member 4 business functions created by
-  04_business_functions_and_credit_rules.sql.
+  04_functions.sql.
 
   It only drops the three functions. It intentionally does not remove the
   0..100 credit-score constraint or attempt to reconstruct historical scores
