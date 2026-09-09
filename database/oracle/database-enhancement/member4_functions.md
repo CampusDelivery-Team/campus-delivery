@@ -1,13 +1,14 @@
 # 组员 4：数据库函数说明
 
-本文说明第五阶段数据库完善中组员 4 负责的三个 Oracle 函数。函数用于提供可复用的价格计算、接单资格判断和信誉等级展示口径，不替代 C# Service 的身份授权、事务、行锁与业务写入。
+本文说明第五阶段数据库完善中组员 4 负责的三个 Oracle 函数，以及与接单函数配套的一个原子接单过程。函数提供可复用的价格计算、接单资格判断和服务节点适用判断；`SP_ACCEPT_TASK_ATOMIC` 才负责锁行并完成接单写入。
 
 ## 文件与执行顺序
 
 1. 使用隔离测试库，并确认当前连接用户为 `APPUSER`。
-2. 执行 `04_functions.sql` 创建或替换三个函数，并收紧信誉分约束。
-3. 执行 `05_test.sql` 中的组员4测试，检查函数、边界值、异常输入和信誉分约束。
-4. 如需删除函数，执行 `06_rollback_functions.sql`；信誉分约束和已经归一化的数据不会回滚。
+2. 执行 `03_procedures.sql` 创建或替换原子接单过程及其他成员过程。
+3. 执行 `04_functions.sql` 创建或替换三个函数、清理旧版 `FN_GET_CREDIT_LEVEL`，并收紧信誉分约束。
+4. 执行 `05_test.sql`，检查过程与函数状态、计价和资格边界、重复接单防护及信誉分约束。
+5. 如需删除对象，分别执行 `06_rollback_procedures.sql` 和 `06_rollback_functions.sql`；信誉分约束和已经归一化的数据不会回滚。
 
 脚本中的函数定义不会修改业务数据；但同一文件中的信誉分迁移会把历史超分截断为100并替换检查约束。第一次执行应先使用隔离库；共享库部署前必须备份超分记录、暂停评价和投诉写入，并由负责人使用 `APPUSER` 统一执行。
 
@@ -39,7 +40,7 @@ fn_calculate_task_price(
 SELECT fn_calculate_task_price(1, 2.50) AS task_price FROM dual;
 ```
 
-当前网页发布任务仍由发布者填写最终总价，后端只强制总价不得低于所选服务类型基础价；它不会自动调用该函数，也不会自动推导附加费。
+当前网页由发布者填写非负附加费并实时预览“基础费 + 附加费”。后端不信任页面预览值，而是在创建任务的数据库事务中调用本函数，以数据库当前基础费重新计算并写入最终总价。系统仍不自动推导距离、重量、加急或复杂度费用。
 
 ### `FN_RUNNER_CAN_ACCEPT_TASK`
 
@@ -58,7 +59,7 @@ fn_runner_can_accept_task(
 - 任务状态为 `WAITING`；
 - 跑腿员不是任务发布者。
 
-`BUSY` 可以继续接单是 2026-08-25 多单承接功能确定的当前规则。函数只做瞬时只读判断；真正抢单仍须由 `AssignService` 在事务中锁定任务和跑腿员，防止并发重复接单。
+`BUSY` 可以继续接单是 2026-08-25 多单承接功能确定的当前规则。函数只做瞬时只读判断；真正抢单由后端在事务中调用 `SP_ACCEPT_TASK_ATOMIC`，过程取得任务行锁后再次检查状态，防止并发重复接单。
 
 示例：
 
@@ -66,47 +67,45 @@ fn_runner_can_accept_task(
 SELECT fn_runner_can_accept_task(1, 100) AS can_accept FROM dual;
 ```
 
-### `FN_GET_CREDIT_LEVEL`
+### `FN_SERVICE_NODE_ALLOWED`
 
 ```sql
-fn_get_credit_level(
-    p_credit_score IN runners.credit_score%TYPE
-) RETURN VARCHAR2
+fn_service_node_allowed(
+    p_service_type_id IN service_types.service_type_id%TYPE,
+    p_node_id         IN nodes.node_id%TYPE
+) RETURN NUMBER
 ```
 
-第五阶段新增的只读展示分级：
-
-| 分数 | 返回代码 | 中文展示建议 |
-| --- | --- | --- |
-| `>= 90` | `EXCELLENT` | 优秀 |
-| `80-89` | `GOOD` | 良好 |
-| `70-79` | `NORMAL` | 正常 |
-| `60-69` | `WATCH` | 需关注 |
-| `0-59` | `RISK` | 风险 |
-
-信誉分业务范围为0至100，评价按星级产生 `-2` 到 `+2` 的理论变动，实际生效值同时受上下限截断。这组等级阈值是本次数据库完善新增的展示口径，不用于自动封禁、禁止接单或阻断结算；如项目负责人以后调整阈值，应同步修改函数、测试和本文。
-
-负数、大于100或空分数抛出 `-20044`。
+服务类型处于 `ENABLED`、节点处于 `NORMAL`，且 `service_node_rules` 中存在对应绑定时返回 `1`，否则返回 `0`。空值和不存在的编号同样返回 `0`。任务发布后端使用该函数作为服务类型与交接节点的统一校验入口。
 
 示例：
 
 ```sql
-SELECT runner_id,
-       credit_score,
-       fn_get_credit_level(credit_score) AS credit_level
-  FROM runners;
+SELECT fn_service_node_allowed(1, 3) AS is_allowed FROM dual;
 ```
 
 ## 与其他成员的交付关系
 
 - 组员 3 的存储过程可以调用价格或资格函数，但写入前仍需锁行并重新验证状态。
-- 组员 9 的视图可以调用信誉等级函数作为只读展示字段。
+- 原子接单过程 `SP_ACCEPT_TASK_ATOMIC` 负责最终锁行和写入；资格函数用于快速失败判断，不能单独保证并发安全。
 - 组员 10 应在隔离库中依次验证创建、重复创建、测试、回滚、再次创建，并保存 `USER_OBJECTS`、`USER_ERRORS` 和结果集截图。
 - 组员 2 最终确认对象命名、执行账号、脚本总顺序及共享库部署窗口。
+
+## 原子接单过程
+
+`SP_ACCEPT_TASK_ATOMIC` 接收任务、跑腿员、操作者和 `SELF/ADMIN` 操作类型。在同一个调用中完成以下操作：
+
+1. 对任务行执行 `SELECT ... FOR UPDATE`，等待其他接单事务结束；
+2. 取得锁后重新确认任务仍是 `WAITING`；
+3. 锁定并重新检查跑腿员、账号和操作者资格；
+4. 将任务改为 `ASSIGNED`、跑腿员改为 `BUSY`，并写入接派记录与状态日志；
+5. 通过输出参数返回稳定结果码。
+
+过程故意不执行 `COMMIT` 或 `ROLLBACK`，事务最终由 ASP.NET Core 后端统一提交或回滚。两个会话抢同一任务时，后到者会在任务行锁处等待；先到者提交后，后到者读到的状态已不是 `WAITING`，因此返回 `TASK_NOT_WAITING`，不会生成第二条接派记录。
 
 ## 已知边界
 
 - 价格函数不解析自然语言计价规则，不调用地图或距离服务。
 - 价格函数使用数据库当前基础价；如管理员调价，后续计算会立即使用新值。
 - 资格函数返回 `1` 不保证随后抢单一定成功，最终结果取决于写入事务取得行锁后的状态。
-- 信誉等级是展示分类，不是信用认证或风险预测结论。
+- 服务节点函数返回的是调用瞬间的配置状态，任务写入仍必须处于后端事务中。

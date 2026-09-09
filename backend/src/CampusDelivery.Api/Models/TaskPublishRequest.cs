@@ -12,6 +12,8 @@ public sealed class TaskPublishRequest
 
     public string TaskTitle { get; set; } = string.Empty;
 
+    public decimal ExtraAmount { get; set; }
+
     public decimal TaskPrice { get; set; }
 
     public string UrgentFlag { get; set; } = "N";

@@ -29,10 +29,10 @@ public sealed class TaskCreateViewModel : IValidatableObject
     [Display(Name = "任务标题")]
     public string TaskTitle { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "请填写任务价格")]
-    [Range(typeof(decimal), "0", "99999999.99", ErrorMessage = "任务价格必须大于等于 0")]
-    [Display(Name = "任务价格")]
-    public decimal? TaskPrice { get; set; }
+    [Required(ErrorMessage = "请填写附加费，没有附加费时填写 0")]
+    [Range(typeof(decimal), "0", "99999999.99", ErrorMessage = "附加费必须在 0 到 99999999.99 之间")]
+    [Display(Name = "附加费")]
+    public decimal? ExtraAmount { get; set; } = 0m;
 
     [RegularExpression("Y|N", ErrorMessage = "加急标志不合法")]
     public string UrgentFlag { get; set; } = "N";

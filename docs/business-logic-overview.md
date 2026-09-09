@@ -191,8 +191,8 @@ users / user_addresses / service_types / nodes
 业务规则：
 
 - 只有 `audit_status = 'APPROVED'` 的跑腿员可以接单。
-- 跑腿员接单前应处于 `work_status = 'FREE'`。
-- 接单后进入 `BUSY`。
+- 跑腿员接单前应处于 `work_status = 'FREE'` 或 `BUSY`；`BUSY` 代表已有进行中任务，但当前规则允许多单承接。
+- 接单后进入或保持 `BUSY`。
 - 完成任务后恢复为 `FREE`。
 
 ### 节点、服务类型和适用规则
@@ -235,6 +235,7 @@ users / user_addresses / service_types / nodes
 ```text
 用户选择服务类型、地址和节点
 -> 系统校验服务类型、地址、节点和适用规则
+-> 数据库函数按基础费和用户填写的非负附加费计算最终总价
 -> 插入 tasks
 -> 插入对应任务明细
 -> 任务状态进入 WAITING
@@ -246,7 +247,8 @@ users / user_addresses / service_types / nodes
 - 发布任务时不创建接派记录。
 - 发布任务时不创建支付记录。
 - 发布任务时不写状态日志。
-- 任务价格由发布者填写，必须大于等于所选服务类型的基础价格；允许显式加价，但本轮不自动计算距离、重量、加急或复杂度附加费。
+- 发布者填写非负附加费，页面展示“基础费 + 附加费”的预计总价；后端在发布事务中调用 `FN_CALCULATE_TASK_PRICE`，按数据库当前基础费重新计算最终任务价格。
+- 本轮不自动计算距离、重量、加急或复杂度附加费，发布者需要把认可的附加费用显式填写出来。
 - 如果系统没有草稿流程，发布成功后任务状态应为 `WAITING`。
 
 ## 任务状态逻辑
@@ -302,6 +304,8 @@ WAITING -> ASSIGNED -> PICKED_UP -> DELIVERING -> WAIT_CONFIRM -> FINISHED
 ```text
 任务处于 WAITING
 -> 跑腿员抢单或管理员派单
+-> 后端调用 SP_ACCEPT_TASK_ATOMIC
+-> 过程锁定任务与跑腿员并在锁内重新校验
 -> 插入 assign_records
 -> 更新任务为 ASSIGNED
 -> 更新跑腿员为 BUSY
@@ -319,6 +323,7 @@ WAITING -> ASSIGNED -> PICKED_UP -> DELIVERING -> WAIT_CONFIRM -> FINISHED
 业务规则：
 
 - 已经接单的任务不能再作为普通待接单任务展示。
+- 两名跑腿员同时接一单时，任务行锁使请求串行化；后到请求在取得锁后发现任务不再是 `WAITING`，不会写入第二条接派记录。
 - 同一任务可能因为重派产生多条 `assign_records`。
 - 当前接派记录按业务有效性取最新记录。
 - 查询当前接派记录时，默认按 `assigned_at DESC, record_id DESC` 取最新有效记录。

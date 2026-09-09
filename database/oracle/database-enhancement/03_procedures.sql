@@ -195,6 +195,155 @@ EXCEPTION
 END sp_audit_runner;
 /
 
+-- =============================================
+-- 过程名称: sp_accept_task_atomic
+-- 功能描述: 原子完成跑腿员抢单或管理员派单。过程内部不提交或回滚，
+--           事务边界由调用方控制。
+-- 输入参数: 任务、跑腿员、操作者和操作类型（SELF/ADMIN）
+-- 输出参数: 结果代码和成功时生成的接派记录编号
+-- =============================================
+CREATE OR REPLACE PROCEDURE sp_accept_task_atomic (
+    p_task_id          IN tasks.task_id%TYPE,
+    p_runner_id        IN runners.runner_id%TYPE,
+    p_operator_user_id IN users.user_id%TYPE,
+    p_operation_type   IN assign_records.operation_type%TYPE,
+    p_result_code      OUT VARCHAR2,
+    p_record_id        OUT assign_records.record_id%TYPE
+) AS
+    v_task_status       tasks.task_status%TYPE;
+    v_publisher_user_id tasks.publisher_user_id%TYPE;
+    v_runner_user_id    runners.user_id%TYPE;
+    v_runner_role       users.user_role%TYPE;
+    v_account_status    users.account_status%TYPE;
+    v_audit_status      runners.audit_status%TYPE;
+    v_work_status       runners.work_status%TYPE;
+    v_operator_count    PLS_INTEGER;
+BEGIN
+    p_result_code := 'FAILED';
+    p_record_id := NULL;
+
+    IF p_operation_type IS NULL OR p_operation_type NOT IN ('SELF', 'ADMIN') THEN
+        p_result_code := 'INVALID_OPERATION';
+        RETURN;
+    END IF;
+
+    BEGIN
+        SELECT task_status, publisher_user_id
+          INTO v_task_status, v_publisher_user_id
+          FROM tasks
+         WHERE task_id = p_task_id
+         FOR UPDATE;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            p_result_code := 'TASK_NOT_FOUND';
+            RETURN;
+    END;
+
+    IF v_task_status <> 'WAITING' THEN
+        p_result_code := 'TASK_NOT_WAITING';
+        RETURN;
+    END IF;
+
+    BEGIN
+        SELECT r.user_id,
+               u.user_role,
+               u.account_status,
+               r.audit_status,
+               r.work_status
+          INTO v_runner_user_id,
+               v_runner_role,
+               v_account_status,
+               v_audit_status,
+               v_work_status
+          FROM runners r
+          JOIN users u ON u.user_id = r.user_id
+         WHERE r.runner_id = p_runner_id
+         FOR UPDATE OF r.work_status, u.account_status;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            p_result_code := 'RUNNER_NOT_FOUND';
+            RETURN;
+    END;
+
+    IF v_runner_role <> 'RUNNER'
+       OR v_account_status <> 'NORMAL'
+       OR v_audit_status <> 'APPROVED'
+       OR v_work_status NOT IN ('FREE', 'BUSY') THEN
+        p_result_code := 'RUNNER_INELIGIBLE';
+        RETURN;
+    END IF;
+
+    IF v_publisher_user_id = v_runner_user_id THEN
+        p_result_code := 'PUBLISHER_CANNOT_ACCEPT';
+        RETURN;
+    END IF;
+
+    IF p_operation_type = 'SELF' THEN
+        IF p_operator_user_id IS NULL OR p_operator_user_id <> v_runner_user_id THEN
+            p_result_code := 'SELF_OPERATOR_MISMATCH';
+            RETURN;
+        END IF;
+    ELSE
+        SELECT COUNT(*)
+          INTO v_operator_count
+          FROM users
+         WHERE user_id = p_operator_user_id
+           AND user_role = 'ADMIN'
+           AND account_status = 'NORMAL';
+
+        IF v_operator_count <> 1 THEN
+            p_result_code := 'ADMIN_OPERATOR_INVALID';
+            RETURN;
+        END IF;
+    END IF;
+
+    UPDATE tasks
+       SET task_status = 'ASSIGNED'
+     WHERE task_id = p_task_id
+       AND task_status = 'WAITING';
+
+    IF SQL%ROWCOUNT <> 1 THEN
+        p_result_code := 'TASK_NOT_WAITING';
+        RETURN;
+    END IF;
+
+    UPDATE runners
+       SET work_status = 'BUSY'
+     WHERE runner_id = p_runner_id;
+
+    INSERT INTO assign_records (
+        task_id,
+        runner_id,
+        operation_type,
+        assigned_at,
+        reassign_reason
+    ) VALUES (
+        p_task_id,
+        p_runner_id,
+        p_operation_type,
+        SYSDATE,
+        NULL
+    )
+    RETURNING record_id INTO p_record_id;
+
+    INSERT INTO task_status_logs (
+        record_id,
+        status_before,
+        status_after,
+        operator_user_id,
+        operated_at
+    ) VALUES (
+        p_record_id,
+        'WAITING',
+        'ASSIGNED',
+        p_operator_user_id,
+        SYSDATE
+    );
+
+    p_result_code := 'SUCCESS';
+END sp_accept_task_atomic;
+/
+
 -- 【调用示例】(已注释，仅作文档参考。真实测试代码见 05_test.sql)
 -- DECLARE
 --     v_msg VARCHAR2(200);

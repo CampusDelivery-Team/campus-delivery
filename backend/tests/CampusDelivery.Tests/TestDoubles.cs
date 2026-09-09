@@ -159,6 +159,94 @@ internal sealed class FakeAssignRepository : IAssignRepository
         }
     }
 
+    public Task<bool> CanRunnerAcceptTaskAsync(
+        int runnerId,
+        int taskId,
+        CancellationToken cancellationToken = default)
+    {
+        lock (_sync)
+        {
+            Runner? runner = _runnersByUserId.Values.SingleOrDefault(item => item.RunnerId == runnerId);
+            return Task.FromResult(
+                taskId == TaskId
+                && TaskStatus == "WAITING"
+                && runner is { AuditStatus: "APPROVED" }
+                && runner.WorkStatus is "FREE" or "BUSY"
+                && runner.UserId != PublisherUserId);
+        }
+    }
+
+    public async Task<AtomicAssignResult> AcceptTaskAtomicAsync(
+        int taskId,
+        int runnerId,
+        int operatorUserId,
+        string operationType,
+        IRepositoryTransaction transaction,
+        CancellationToken cancellationToken = default)
+    {
+        await GetTransaction(transaction).AcquireTaskRowAsync(cancellationToken);
+
+        lock (_sync)
+        {
+            if (operationType is not ("SELF" or "ADMIN"))
+            {
+                return AtomicAssignResult.InvalidOperation;
+            }
+
+            if (taskId != TaskId)
+            {
+                return AtomicAssignResult.TaskNotFound;
+            }
+
+            if (TaskStatus != "WAITING")
+            {
+                return AtomicAssignResult.TaskNotWaiting;
+            }
+
+            Runner? runner = _runnersByUserId.Values.SingleOrDefault(item => item.RunnerId == runnerId);
+            if (runner == null)
+            {
+                return AtomicAssignResult.RunnerNotFound;
+            }
+
+            if (runner.AuditStatus != "APPROVED" || runner.WorkStatus is not ("FREE" or "BUSY"))
+            {
+                return AtomicAssignResult.RunnerIneligible;
+            }
+
+            if (runner.UserId == PublisherUserId)
+            {
+                return AtomicAssignResult.PublisherCannotAccept;
+            }
+
+            if (operationType == "SELF" && operatorUserId != runner.UserId)
+            {
+                return AtomicAssignResult.OperatorInvalid;
+            }
+
+            TaskStatus = "ASSIGNED";
+            runner.WorkStatus = "BUSY";
+            var record = new AssignRecord
+            {
+                RecordId = 900 + InsertedAssignRecords.Count,
+                TaskId = taskId,
+                RunnerId = runnerId,
+                OperationType = operationType,
+                AssignedAt = DateTime.Now
+            };
+            InsertedAssignRecords.Add(record);
+            LatestAssignRecord = record;
+            InsertedStatusLogs.Add(new TaskStatusLog
+            {
+                RecordId = record.RecordId,
+                StatusBefore = "WAITING",
+                StatusAfter = "ASSIGNED",
+                OperatorUserId = operatorUserId
+            });
+            return AtomicAssignResult.Success;
+        }
+    }
+
     public async Task<string?> GetTaskStatusWithLockAsync(
         int taskId,
         IRepositoryTransaction transaction,

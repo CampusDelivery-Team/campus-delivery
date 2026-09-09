@@ -41,6 +41,19 @@ public sealed class TaskServiceTests
     }
 
     [Fact]
+    public void Validate_WhenExtraAmountIsNegative_ReturnsFieldError()
+    {
+        TaskCreateViewModel model = CreateValidModel("FOOD");
+        model.ExtraAmount = -0.01m;
+
+        List<ValidationResult> results = Validate(model);
+
+        Assert.Contains(
+            results,
+            result => result.MemberNames.Contains(nameof(TaskCreateViewModel.ExtraAmount)));
+    }
+
+    [Fact]
     public async Task CreateAsync_WhenServiceNodeRuleDoesNotMatch_ReturnsBusinessMessage()
     {
         var repository = new FakeTaskRepository
@@ -56,20 +69,18 @@ public sealed class TaskServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_WhenPriceIsBelowBasePrice_ReturnsMinimumPriceMessage()
+    public async Task CreateAsync_WhenDatabasePriceCalculationFails_ReturnsFriendlyMessage()
     {
         var repository = new FakeTaskRepository
         {
-            CreateResult = new TaskCreateWriteResult(
-                TaskCreateResult.PriceBelowMinimum,
-                minimumPrice: 4m)
+            CreateResult = new TaskCreateWriteResult(TaskCreateResult.PriceCalculationFailed)
         };
         TaskService service = CreateService(repository);
 
         var result = await service.CreateAsync(501, CreateValidModel("EXPRESS"));
 
         Assert.False(result.Success);
-        Assert.Equal("任务价格不得低于基础价 4.00 元", result.ErrorMessage);
+        Assert.Equal("基础费与附加费合计超出可保存金额，请降低附加费", result.ErrorMessage);
     }
 
     [Fact]
@@ -88,6 +99,7 @@ public sealed class TaskServiceTests
         Assert.Equal("测试外卖配送", repository.CapturedCreateRequest?.TaskTitle);
         Assert.Equal("测试商家", repository.CapturedCreateRequest?.MerchantName);
         Assert.Null(repository.CapturedCreateRequest?.PlatformOrderNo);
+        Assert.Equal(2.5m, repository.CapturedCreateRequest?.ExtraAmount);
     }
 
     [Fact]
@@ -115,7 +127,7 @@ public sealed class TaskServiceTests
         AddressNo = 1,
         NodeId = 1,
         TaskTitle = "测试任务",
-        TaskPrice = 10m,
+        ExtraAmount = 2.5m,
         UrgentFlag = "N",
         MerchantName = "测试商家",
         ExpressCompany = "测试快递",

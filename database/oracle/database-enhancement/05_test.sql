@@ -2,9 +2,16 @@
   Database-enhancement verification script.
 
   Execute as APPUSER after the numbered creation scripts. Sections 1-8 verify
-  views, sections 9-11 verify procedures, and sections 12 onward verify member
-  4 business functions and the credit-score constraint. Enable DBMS Output in
+  views, sections 9-11 verify the original procedures, section 12 verifies the
+  atomic acceptance procedure, and sections 13 onward verify member 4 business
+  functions and the credit-score constraint. Enable DBMS Output in
   DBeaver and execute this file as a script (Alt+X).
+
+  IMPORTANT: sections 9-11 are legacy member 3 write tests whose procedures
+  commit internally and use environment-specific ids. Execute the whole file
+  only in an isolated database with matching fixtures. On a shared database,
+  skip sections 9-11 and run the object checks plus sections 12-20 only after
+  the database owner has reviewed the selected runner/task data.
 */
 
 /* 1. Check whether all member 9 views are valid. */
@@ -141,14 +148,128 @@ BEGIN
 END;
 /
 
-/* 12. Member 4: all three functions must be VALID. */
+/* The atomic assignment procedure must compile before the backend uses it. */
+SELECT object_name, object_type, status
+  FROM user_objects
+ WHERE object_type = 'PROCEDURE'
+   AND object_name = 'SP_ACCEPT_TASK_ATOMIC';
+
+/* Must return no rows. */
+SELECT name, type, line, position, text
+  FROM user_errors
+ WHERE type = 'PROCEDURE'
+   AND name = 'SP_ACCEPT_TASK_ATOMIC'
+ ORDER BY sequence;
+
+/*
+  12. Member 4: one transaction may create only one acceptance for a task.
+
+  This rollback-only functional check verifies the procedure contract and the
+  repeated-call guard. The two-session blocking behavior is covered by the
+  backend concurrency regression and should also be rerun in an isolated Oracle
+  database before shared deployment.
+*/
+DECLARE
+    v_runner_id         runners.runner_id%TYPE;
+    v_runner_user_id    runners.user_id%TYPE;
+    v_task_id           tasks.task_id%TYPE;
+    v_first_result      VARCHAR2(40);
+    v_second_result     VARCHAR2(40);
+    v_first_record_id   assign_records.record_id%TYPE;
+    v_second_record_id  assign_records.record_id%TYPE;
+BEGIN
+    sp_accept_task_atomic(
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        v_first_result,
+        v_first_record_id);
+
+    IF v_first_result <> 'INVALID_OPERATION' OR v_first_record_id IS NOT NULL THEN
+        RAISE_APPLICATION_ERROR(
+            -20983,
+            'NULL operation type was not rejected: ' || v_first_result);
+    END IF;
+
+    BEGIN
+        SELECT runner_id, runner_user_id, task_id
+          INTO v_runner_id, v_runner_user_id, v_task_id
+          FROM (
+              SELECT r.runner_id,
+                     r.user_id AS runner_user_id,
+                     t.task_id
+                FROM runners r
+                JOIN users u ON u.user_id = r.user_id
+               CROSS JOIN tasks t
+               WHERE u.user_role = 'RUNNER'
+                 AND u.account_status = 'NORMAL'
+                 AND r.audit_status = 'APPROVED'
+                 AND r.work_status IN ('FREE', 'BUSY')
+                 AND t.task_status = 'WAITING'
+                 AND t.publisher_user_id <> r.user_id
+               ORDER BY t.task_id, r.runner_id
+          )
+         WHERE ROWNUM = 1;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            v_task_id := NULL;
+    END;
+
+    IF v_task_id IS NULL THEN
+        DBMS_OUTPUT.PUT_LINE(
+            'SKIP atomic acceptance functional check: no eligible runner/task pair exists.');
+    ELSE
+        SAVEPOINT before_atomic_acceptance_test;
+        BEGIN
+            sp_accept_task_atomic(
+                v_task_id,
+                v_runner_id,
+                v_runner_user_id,
+                'SELF',
+                v_first_result,
+                v_first_record_id);
+
+            sp_accept_task_atomic(
+                v_task_id,
+                v_runner_id,
+                v_runner_user_id,
+                'SELF',
+                v_second_result,
+                v_second_record_id);
+
+            IF v_first_result <> 'SUCCESS' OR v_first_record_id IS NULL THEN
+                RAISE_APPLICATION_ERROR(
+                    -20984,
+                    'First atomic acceptance did not succeed: ' || v_first_result);
+            END IF;
+
+            IF v_second_result <> 'TASK_NOT_WAITING' OR v_second_record_id IS NOT NULL THEN
+                RAISE_APPLICATION_ERROR(
+                    -20985,
+                    'Repeated atomic acceptance was not rejected: ' || v_second_result);
+            END IF;
+
+            DBMS_OUTPUT.PUT_LINE(
+                'PASS atomic acceptance: first call succeeded and repeated call was rejected.');
+            ROLLBACK TO before_atomic_acceptance_test;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ROLLBACK TO before_atomic_acceptance_test;
+                RAISE;
+        END;
+    END IF;
+END;
+/
+
+/* 13. Member 4: all three functions must be VALID. */
 SELECT object_name, object_type, status
   FROM user_objects
  WHERE object_type = 'FUNCTION'
    AND object_name IN (
        'FN_CALCULATE_TASK_PRICE',
        'FN_RUNNER_CAN_ACCEPT_TASK',
-       'FN_GET_CREDIT_LEVEL'
+       'FN_SERVICE_NODE_ALLOWED'
    )
  ORDER BY object_name;
 
@@ -159,11 +280,27 @@ SELECT name, type, line, position, text
    AND name IN (
        'FN_CALCULATE_TASK_PRICE',
        'FN_RUNNER_CAN_ACCEPT_TASK',
-       'FN_GET_CREDIT_LEVEL'
+       'FN_SERVICE_NODE_ALLOWED'
    )
  ORDER BY name, sequence;
 
-/* 13. Member 4: configured base fees and caller-supplied surcharge. */
+/* The removed credit-level function must not remain from an earlier deployment. */
+DECLARE
+    v_legacy_function_count PLS_INTEGER;
+BEGIN
+    SELECT COUNT(*)
+      INTO v_legacy_function_count
+      FROM user_objects
+     WHERE object_type = 'FUNCTION'
+       AND object_name = 'FN_GET_CREDIT_LEVEL';
+
+    IF v_legacy_function_count <> 0 THEN
+        RAISE_APPLICATION_ERROR(-20992, 'FN_GET_CREDIT_LEVEL still exists.');
+    END IF;
+END;
+/
+
+/* 14. Member 4: configured base fees and caller-supplied surcharge. */
 SELECT service_type_id,
        service_name,
        base_price,
@@ -208,7 +345,7 @@ BEGIN
 END;
 /
 
-/* 14. Member 4: a disabled service type must be rejected when one exists. */
+/* 15. Member 4: a disabled service type must be rejected when one exists. */
 DECLARE
     v_disabled_service_type_id service_types.service_type_id%TYPE;
     v_result                   NUMBER;
@@ -235,7 +372,7 @@ BEGIN
 END;
 /
 
-/* 15. Member 4: invalid price inputs and oversized results are rejected. */
+/* 16. Member 4: invalid price inputs and oversized results are rejected. */
 DECLARE
     v_service_type_id service_types.service_type_id%TYPE;
     v_result          NUMBER;
@@ -302,7 +439,7 @@ BEGIN
 END;
 /
 
-/* 16. Member 4: runner eligibility samples and independent comparison. */
+/* 17. Member 4: runner eligibility samples and independent comparison. */
 SELECT r.runner_id,
        t.task_id,
        r.audit_status,
@@ -347,62 +484,58 @@ SELECT fn_runner_can_accept_task(NULL, NULL) AS null_result,
        fn_runner_can_accept_task(-1, -1) AS missing_result
   FROM dual;
 
-/* 17. Member 4: credit-level boundaries. */
-SELECT score,
-       fn_get_credit_level(score) AS credit_level
-  FROM (
-      SELECT 0 AS score FROM dual
-      UNION ALL SELECT 59 FROM dual
-      UNION ALL SELECT 60 FROM dual
-      UNION ALL SELECT 69 FROM dual
-      UNION ALL SELECT 70 FROM dual
-      UNION ALL SELECT 79 FROM dual
-      UNION ALL SELECT 80 FROM dual
-      UNION ALL SELECT 89 FROM dual
-      UNION ALL SELECT 90 FROM dual
-      UNION ALL SELECT 100 FROM dual
-  )
- ORDER BY score;
+/* 18. Member 4: service-node eligibility must match the underlying rules. */
+SELECT st.service_type_id,
+       st.service_name,
+       n.node_id,
+       n.node_name,
+       CASE
+           WHEN st.type_status = 'ENABLED'
+            AND n.node_status = 'NORMAL'
+            AND EXISTS (
+                SELECT 1
+                  FROM service_node_rules snr
+                 WHERE snr.service_type_id = st.service_type_id
+                   AND snr.node_id = n.node_id
+            )
+           THEN 1 ELSE 0
+       END AS expected_result,
+       fn_service_node_allowed(st.service_type_id, n.node_id) AS actual_result
+  FROM service_types st
+ CROSS JOIN nodes n
+ ORDER BY st.service_type_id, n.node_id;
 
 DECLARE
-    v_result VARCHAR2(20);
+    v_mismatch_count PLS_INTEGER;
 BEGIN
-    BEGIN
-        v_result := fn_get_credit_level(-1);
-        RAISE_APPLICATION_ERROR(-20992, 'Negative credit was unexpectedly accepted.');
-    EXCEPTION
-        WHEN OTHERS THEN
-            IF SQLCODE != -20044 THEN
-                RAISE;
-            END IF;
-            DBMS_OUTPUT.PUT_LINE('PASS negative-credit check: ' || SQLERRM);
-    END;
+    SELECT COUNT(*)
+      INTO v_mismatch_count
+      FROM service_types st
+      CROSS JOIN nodes n
+     WHERE fn_service_node_allowed(st.service_type_id, n.node_id) <>
+           CASE
+               WHEN st.type_status = 'ENABLED'
+                AND n.node_status = 'NORMAL'
+                AND EXISTS (
+                    SELECT 1
+                      FROM service_node_rules snr
+                     WHERE snr.service_type_id = st.service_type_id
+                       AND snr.node_id = n.node_id
+                )
+               THEN 1 ELSE 0
+           END;
 
-    BEGIN
-        v_result := fn_get_credit_level(NULL);
-        RAISE_APPLICATION_ERROR(-20993, 'NULL credit was unexpectedly accepted.');
-    EXCEPTION
-        WHEN OTHERS THEN
-            IF SQLCODE != -20044 THEN
-                RAISE;
-            END IF;
-            DBMS_OUTPUT.PUT_LINE('PASS null-credit check: ' || SQLERRM);
-    END;
-
-    BEGIN
-        v_result := fn_get_credit_level(101);
-        RAISE_APPLICATION_ERROR(-20998, 'Credit above 100 was unexpectedly accepted.');
-    EXCEPTION
-        WHEN OTHERS THEN
-            IF SQLCODE != -20044 THEN
-                RAISE;
-            END IF;
-            DBMS_OUTPUT.PUT_LINE('PASS credit upper-bound check: ' || SQLERRM);
-    END;
+    IF v_mismatch_count <> 0 THEN
+        RAISE_APPLICATION_ERROR(-20993, 'FN_SERVICE_NODE_ALLOWED disagrees with base tables.');
+    END IF;
 END;
 /
 
-/* 18. Member 4: credit scores and constraint must both enforce 0..100. */
+SELECT fn_service_node_allowed(NULL, NULL) AS null_result,
+       fn_service_node_allowed(-1, -1) AS missing_result
+  FROM dual;
+
+/* 19. Member 4: credit scores and constraint must both enforce 0..100. */
 SELECT COUNT(*) AS out_of_range_credit_count
   FROM runners
  WHERE credit_score < 0
@@ -455,7 +588,7 @@ SELECT runner_id, credit_score
  ORDER BY runner_id;
 
 /*
-  19. Member 4: complaint-style credit updates stay inside 0..100.
+  20. Member 4: complaint-style credit updates stay inside 0..100.
 
   This uses the same LEAST/GREATEST expression as ComplaintRepository. A
   savepoint restores the selected runner's original score before the block

@@ -343,7 +343,10 @@ public sealed class AssignService(
     public async Task<bool> GrabTaskAsync(int taskId, int userId, CancellationToken cancellationToken = default)
     {
         var runner = await assignRepository.GetRunnerByUserIdAsync(userId, cancellationToken);
-        if (runner == null || runner.AuditStatus != "APPROVED" || runner.WorkStatus == "OFFLINE")
+        if (runner == null || !await assignRepository.CanRunnerAcceptTaskAsync(
+                runner.RunnerId,
+                taskId,
+                cancellationToken))
         {
             return false;
         }
@@ -352,47 +355,18 @@ public sealed class AssignService(
 
         try
         {
-            var currentStatus = await assignRepository.GetTaskStatusWithLockAsync(taskId, transaction, cancellationToken);
-            if (currentStatus != "WAITING")
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                return false;
-            }
-
-            var publisherUserId = await assignRepository.GetTaskPublisherUserIdAsync(
+            AtomicAssignResult result = await assignRepository.AcceptTaskAtomicAsync(
                 taskId,
+                runner.RunnerId,
+                userId,
+                "SELF",
                 transaction,
                 cancellationToken);
-            if (publisherUserId == userId)
+            if (result != AtomicAssignResult.Success)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
-
-            var lockedRunner = await assignRepository.GetRunnerWithLockAsync(runner.RunnerId, transaction, cancellationToken);
-            if (lockedRunner == null || lockedRunner.AuditStatus != "APPROVED" || lockedRunner.WorkStatus == "OFFLINE")
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                return false;
-            }
-
-            await assignRepository.UpdateTaskStatusAsync(taskId, "ASSIGNED", transaction, cancellationToken);
-            await assignRepository.UpdateRunnerWorkStatusAsync(runner.RunnerId, "BUSY", transaction, cancellationToken);
-
-            var record = new AssignRecord
-            {
-                TaskId = taskId,
-                RunnerId = runner.RunnerId,
-                OperationType = "SELF"
-            };
-            int recordId = await assignRepository.InsertAssignRecordAsync(record, transaction, cancellationToken);
-            await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
-            {
-                RecordId = recordId,
-                StatusBefore = "WAITING",
-                StatusAfter = "ASSIGNED",
-                OperatorUserId = userId
-            }, transaction, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
             return true;
@@ -406,51 +380,27 @@ public sealed class AssignService(
 
     public async Task<bool> AssignTaskAsync(int taskId, int runnerId, int adminUserId, CancellationToken cancellationToken = default)
     {
+        if (!await assignRepository.CanRunnerAcceptTaskAsync(runnerId, taskId, cancellationToken))
+        {
+            return false;
+        }
+
         await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
 
         try
         {
-            var currentStatus = await assignRepository.GetTaskStatusWithLockAsync(taskId, transaction, cancellationToken);
-            if (currentStatus != "WAITING")
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                return false;
-            }
-
-            var runner = await assignRepository.GetRunnerWithLockAsync(runnerId, transaction, cancellationToken);
-            if (runner == null || runner.AuditStatus != "APPROVED" || runner.WorkStatus == "OFFLINE")
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                return false;
-            }
-
-            var publisherUserId = await assignRepository.GetTaskPublisherUserIdAsync(
+            AtomicAssignResult result = await assignRepository.AcceptTaskAtomicAsync(
                 taskId,
+                runnerId,
+                adminUserId,
+                "ADMIN",
                 transaction,
                 cancellationToken);
-            if (publisherUserId == runner.UserId)
+            if (result != AtomicAssignResult.Success)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
-
-            await assignRepository.UpdateTaskStatusAsync(taskId, "ASSIGNED", transaction, cancellationToken);
-            await assignRepository.UpdateRunnerWorkStatusAsync(runnerId, "BUSY", transaction, cancellationToken);
-
-            var record = new AssignRecord
-            {
-                TaskId = taskId,
-                RunnerId = runnerId,
-                OperationType = "ADMIN"
-            };
-            int recordId = await assignRepository.InsertAssignRecordAsync(record, transaction, cancellationToken);
-            await assignRepository.InsertTaskStatusLogAsync(new TaskStatusLog
-            {
-                RecordId = recordId,
-                StatusBefore = "WAITING",
-                StatusAfter = "ASSIGNED",
-                OperatorUserId = adminUserId
-            }, transaction, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
             return true;

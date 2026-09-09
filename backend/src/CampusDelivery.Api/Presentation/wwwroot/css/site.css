@@ -1631,6 +1631,84 @@ textarea {
     outline: none;
 }
 
+.field-hint {
+    color: #71829d;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.task-price-preview {
+    background:
+        radial-gradient(circle at top right, rgba(216, 70, 145, 0.14), transparent 42%),
+        linear-gradient(135deg, #f7f9ff 0%, #fff8fc 100%);
+    border: 1px solid #d7e0f3;
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(28, 51, 94, 0.08);
+    display: grid;
+    gap: 16px;
+    padding: 20px 22px;
+}
+
+.task-price-preview__heading {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+}
+
+.task-price-preview__heading .eyebrow {
+    margin-bottom: 2px;
+}
+
+.task-price-preview__heading strong {
+    color: #10224a;
+    font-size: 18px;
+}
+
+.task-price-preview__icon {
+    align-items: center;
+    background: linear-gradient(135deg, #ff3008, #d84691);
+    border-radius: 9px;
+    box-shadow: 0 8px 18px rgba(216, 70, 145, 0.2);
+    color: #ffffff;
+    display: inline-flex;
+    font-size: 20px;
+    font-weight: 900;
+    height: 42px;
+    justify-content: center;
+    width: 42px;
+}
+
+.task-price-preview__formula {
+    align-items: center;
+    color: #536784;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.task-price-preview__formula strong {
+    color: #203a66;
+    margin-left: 4px;
+}
+
+.task-price-preview__operator {
+    color: #93a1b7;
+    font-weight: 900;
+}
+
+.task-price-preview__total {
+    color: #ce347e;
+    font-size: 24px;
+    font-weight: 900;
+}
+
+.task-price-preview > p {
+    color: #71829d;
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 0;
+}
+
 .address-default-choice {
     align-items: center;
     color: #385071;

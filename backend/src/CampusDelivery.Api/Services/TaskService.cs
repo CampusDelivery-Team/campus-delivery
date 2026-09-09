@@ -64,7 +64,8 @@ namespace CampusDelivery.Api.Services
                 serviceTypeOptions.Add(new TaskOptionViewModel
                 {
                     Value = serviceType.ServiceTypeId,
-                    Text = $"{serviceType.ServiceName}（{serviceType.BasePrice:F2} 元起）"
+                    Text = $"{serviceType.ServiceName}（基础费 {serviceType.BasePrice:F2} 元）",
+                    BasePrice = serviceType.BasePrice
                 });
             }
 
@@ -113,7 +114,7 @@ namespace CampusDelivery.Api.Services
                 AddressNo = model.AddressNo!.Value,
                 NodeId = model.NodeId!.Value,
                 TaskTitle = model.TaskTitle.Trim(),
-                TaskPrice = model.TaskPrice!.Value,
+                ExtraAmount = model.ExtraAmount!.Value,
                 UrgentFlag = model.UrgentFlag == "Y" ? "Y" : "N",
                 TaskKind = model.TaskKind,
                 MerchantName = NormalizeText(model.MerchantName),
@@ -146,12 +147,9 @@ namespace CampusDelivery.Api.Services
                 return new TaskOperationResult(false, "所选服务类型不可用，请重新选择");
             }
 
-            if (result.Result == TaskCreateResult.PriceBelowMinimum)
+            if (result.Result == TaskCreateResult.PriceCalculationFailed)
             {
-                string message = result.MinimumPrice.HasValue
-                    ? $"任务价格不得低于基础价 {result.MinimumPrice.Value:F2} 元"
-                    : "任务价格不得低于所选服务类型的基础价";
-                return new TaskOperationResult(false, message);
+                return new TaskOperationResult(false, "基础费与附加费合计超出可保存金额，请降低附加费");
             }
 
             if (result.Result == TaskCreateResult.NodeUnavailable)

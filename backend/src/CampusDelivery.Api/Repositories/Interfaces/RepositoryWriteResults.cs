@@ -52,16 +52,26 @@ public enum RunnerWorkStatusWriteResult
     Unavailable
 }
 
+public enum AtomicAssignResult
+{
+    Success,
+    TaskNotFound,
+    TaskNotWaiting,
+    RunnerNotFound,
+    RunnerIneligible,
+    PublisherCannotAccept,
+    OperatorInvalid,
+    InvalidOperation,
+    Failed
+}
+
 public sealed class TaskCreateWriteResult(
     TaskCreateResult result,
-    int taskId = 0,
-    decimal? minimumPrice = null)
+    int taskId = 0)
 {
     public TaskCreateResult Result { get; } = result;
 
     public int TaskId { get; } = taskId;
-
-    public decimal? MinimumPrice { get; } = minimumPrice;
 }
 
 public enum TaskCreateResult
@@ -69,7 +79,7 @@ public enum TaskCreateResult
     Success,
     AddressNotFound,
     ServiceTypeUnavailable,
-    PriceBelowMinimum,
+    PriceCalculationFailed,
     NodeUnavailable,
     RuleNotMatched
 }

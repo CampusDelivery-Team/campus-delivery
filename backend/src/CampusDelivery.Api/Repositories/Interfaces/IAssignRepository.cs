@@ -7,6 +7,8 @@ public interface IAssignRepository
     Task<IReadOnlyList<CampusTask>> GetGrabableTasksAsync(int offset, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetGrabableCountAsync(CancellationToken cancellationToken = default);
     Task<Runner?> GetRunnerByUserIdAsync(int userId, CancellationToken cancellationToken = default);
+    Task<bool> CanRunnerAcceptTaskAsync(int runnerId, int taskId, CancellationToken cancellationToken = default);
+    Task<AtomicAssignResult> AcceptTaskAtomicAsync(int taskId, int runnerId, int operatorUserId, string operationType, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CampusTask>> GetActiveTasksByRunnerIdAsync(int runnerId, int offset, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetActiveTaskCountByRunnerIdAsync(int runnerId, CancellationToken cancellationToken = default);
     Task<int> GetOtherActiveTaskCountByRunnerIdAsync(int runnerId, int excludedTaskId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);

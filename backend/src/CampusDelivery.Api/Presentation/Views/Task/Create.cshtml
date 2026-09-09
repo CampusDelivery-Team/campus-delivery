@@ -36,11 +36,14 @@
             </div>
             <div class="address-form__field">
                 <label asp-for="ServiceTypeId">服务类型</label>
-                <select asp-for="ServiceTypeId">
+                <select asp-for="ServiceTypeId" id="service-type-select">
                     <option value="">请选择服务类型</option>
                     @foreach (var option in Model.ServiceTypeOptions)
                     {
-                        <option value="@option.Value">@option.Text</option>
+                        <option value="@option.Value"
+                                data-base-price="@option.BasePrice?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)">
+                            @option.Text
+                        </option>
                     }
                 </select>
                 <span asp-validation-for="ServiceTypeId" class="validation-message"></span>
@@ -80,9 +83,17 @@
 
         <div class="address-form__grid">
             <div class="address-form__field">
-                <label asp-for="TaskPrice">任务价格</label>
-                <input asp-for="TaskPrice" type="number" min="0" step="0.01" placeholder="例如：5.00" />
-                <span asp-validation-for="TaskPrice" class="validation-message"></span>
+                <label asp-for="ExtraAmount">附加费</label>
+                <input asp-for="ExtraAmount"
+                       id="extra-amount-input"
+                       type="number"
+                       min="0"
+                       max="99999999.99"
+                       step="0.01"
+                       inputmode="decimal"
+                       placeholder="例如：2.50" />
+                <span asp-validation-for="ExtraAmount" class="validation-message"></span>
+                <small class="field-hint">可填写距离、重量、加急或复杂度产生的额外费用。</small>
             </div>
             <div class="address-form__field">
                 <label>加急选项</label>
@@ -93,6 +104,24 @@
                 </label>
             </div>
         </div>
+
+        <aside class="task-price-preview" aria-live="polite">
+            <div class="task-price-preview__heading">
+                <span class="task-price-preview__icon" aria-hidden="true">¥</span>
+                <div>
+                    <p class="eyebrow">PRICE PREVIEW</p>
+                    <strong>预计任务总价</strong>
+                </div>
+            </div>
+            <div class="task-price-preview__formula">
+                <span>基础费 <strong id="base-price-preview">--</strong></span>
+                <span class="task-price-preview__operator">+</span>
+                <span>附加费 <strong id="extra-price-preview">¥0.00</strong></span>
+                <span class="task-price-preview__operator">=</span>
+                <span class="task-price-preview__total" id="total-price-preview">--</span>
+            </div>
+            <p>页面金额仅供预览，发布时由 Oracle 计价函数按最新基础费重新计算。</p>
+        </aside>
 
         <section id="food-fields" class="panel">
             <div class="section-header">
@@ -203,6 +232,11 @@
             const foodFields = document.getElementById("food-fields");
             const expressFields = document.getElementById("express-fields");
             const privateFields = document.getElementById("private-fields");
+            const serviceTypeSelect = document.getElementById("service-type-select");
+            const extraAmountInput = document.getElementById("extra-amount-input");
+            const basePricePreview = document.getElementById("base-price-preview");
+            const extraPricePreview = document.getElementById("extra-price-preview");
+            const totalPricePreview = document.getElementById("total-price-preview");
 
             const render = () => {
                 const value = selector.value;
@@ -213,6 +247,28 @@
 
             selector.addEventListener("change", render);
             render();
+
+            const formatMoney = value => `¥${value.toFixed(2)}`;
+            const renderPrice = () => {
+                const selectedOption = serviceTypeSelect.options[serviceTypeSelect.selectedIndex];
+                const basePrice = Number.parseFloat(selectedOption?.dataset.basePrice ?? "");
+                const parsedExtra = Number.parseFloat(extraAmountInput.value);
+                const extraAmount = Number.isFinite(parsedExtra) && parsedExtra >= 0 ? parsedExtra : 0;
+
+                extraPricePreview.textContent = formatMoney(extraAmount);
+                if (!Number.isFinite(basePrice)) {
+                    basePricePreview.textContent = "--";
+                    totalPricePreview.textContent = "请选择服务类型";
+                    return;
+                }
+
+                basePricePreview.textContent = formatMoney(basePrice);
+                totalPricePreview.textContent = formatMoney(basePrice + extraAmount);
+            };
+
+            serviceTypeSelect.addEventListener("change", renderPrice);
+            extraAmountInput.addEventListener("input", renderPrice);
+            renderPrice();
         })();
     </script>
 }

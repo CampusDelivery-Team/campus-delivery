@@ -55,7 +55,7 @@
 - 作用：保存任务主单公共字段
 - 外键：发布用户、服务类型、地址、交接节点
 - 关键字段：`task_title`、`task_price`、`urgent_flag`、`task_status`、`created_at`、`completed_at`
-- `task_price` 是发布者填写的最终总价，应用层保证其不得低于关联服务类型的 `base_price`
+- `task_price` 是数据库计价函数按当前 `service_types.base_price` 加发布者填写的非负附加费生成的最终总价；页面预览值不直接入库
 
 ### `assign_records`
 

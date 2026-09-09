@@ -1,8 +1,9 @@
+using System.Data;
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
-using System.Data;
+using Oracle.ManagedDataAccess.Types;
 
 namespace CampusDelivery.Api.Repositories;
 
@@ -70,6 +71,76 @@ public sealed class AssignRepository(OracleConnectionFactory connectionFactory) 
             return MapRunner(reader);
         }
         return null;
+    }
+
+    public async Task<bool> CanRunnerAcceptTaskAsync(
+        int runnerId,
+        int taskId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = "SELECT APPUSER.fn_runner_can_accept_task(:runnerId, :taskId) FROM dual";
+        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
+        command.Parameters.Add(new OracleParameter("taskId", taskId));
+
+        object result = (await command.ExecuteScalarAsync(cancellationToken))!;
+        int numericResult = result is OracleDecimal oracleDecimal
+            ? oracleDecimal.ToInt32()
+            : Convert.ToInt32(result);
+        return numericResult == 1;
+    }
+
+    public async Task<AtomicAssignResult> AcceptTaskAtomicAsync(
+        int taskId,
+        int runnerId,
+        int operatorUserId,
+        string operationType,
+        IRepositoryTransaction repositoryTransaction,
+        CancellationToken cancellationToken = default)
+    {
+        var (connection, transaction) = repositoryTransaction.GetOracle();
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.BindByName = true;
+        command.CommandType = CommandType.StoredProcedure;
+        command.CommandText = "APPUSER.sp_accept_task_atomic";
+        command.Parameters.Add(new OracleParameter("p_task_id", taskId));
+        command.Parameters.Add(new OracleParameter("p_runner_id", runnerId));
+        command.Parameters.Add(new OracleParameter("p_operator_user_id", operatorUserId));
+        command.Parameters.Add(new OracleParameter("p_operation_type", operationType));
+
+        var resultCode = new OracleParameter("p_result_code", OracleDbType.Varchar2, 40)
+        {
+            Direction = ParameterDirection.Output
+        };
+        command.Parameters.Add(resultCode);
+        command.Parameters.Add(new OracleParameter("p_record_id", OracleDbType.Int32)
+        {
+            Direction = ParameterDirection.Output
+        });
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+
+        string code = resultCode.Value is OracleString oracleString
+            ? oracleString.Value
+            : Convert.ToString(resultCode.Value) ?? string.Empty;
+
+        return code.Trim() switch
+        {
+            "SUCCESS" => AtomicAssignResult.Success,
+            "TASK_NOT_FOUND" => AtomicAssignResult.TaskNotFound,
+            "TASK_NOT_WAITING" => AtomicAssignResult.TaskNotWaiting,
+            "RUNNER_NOT_FOUND" => AtomicAssignResult.RunnerNotFound,
+            "RUNNER_INELIGIBLE" => AtomicAssignResult.RunnerIneligible,
+            "PUBLISHER_CANNOT_ACCEPT" => AtomicAssignResult.PublisherCannotAccept,
+            "SELF_OPERATOR_MISMATCH" or "ADMIN_OPERATOR_INVALID" => AtomicAssignResult.OperatorInvalid,
+            "INVALID_OPERATION" => AtomicAssignResult.InvalidOperation,
+            _ => AtomicAssignResult.Failed
+        };
     }
 
     public async Task<IReadOnlyList<CampusTask>> GetActiveTasksByRunnerIdAsync(
