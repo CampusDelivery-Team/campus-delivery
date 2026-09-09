@@ -14,7 +14,7 @@
 | `006_harden_business_integrity.sql` | 增加单默认地址和服务名称唯一索引 |
 | `007_restore_required_service_node_rules.sql` | 幂等恢复三类基础服务所需的服务节点绑定 |
 | `database-enhancement/01_views.sql` | 创建第五阶段业务查询视图 |
-| `database-enhancement/03_procedures.sql` | 创建第五阶段业务存储过程，包括供后端调用的原子接单过程 |
+| `database-enhancement/03_procedures.sql` | 创建账号封禁/解封、默认地址、跑腿员审核和原子接单四个后端业务过程 |
 | `database-enhancement/04_functions.sql` | 创建计价、接单资格和服务节点校验三个函数，清理旧信誉等级函数，并收紧信誉分约束 |
 | `database-enhancement/05_test.sql` | 集中验证第五阶段视图、过程、函数和信誉分约束 |
 | `database-enhancement/06_rollback_*.sql` | 按对象类型回滚第五阶段对象；信誉分归一化不提供伪恢复 |
@@ -48,7 +48,7 @@ database-enhancement/03_procedures.sql
 database-enhancement/04_functions.sql
 ```
 
-随后在隔离库执行完整的 `database-enhancement/05_test.sql`。其中第9至11节是会由旧过程内部提交的组员3写入测试，并依赖环境特定编号，不能未经核对就在共享库整文件运行；共享库只选择对象检查及第12至20节执行。`04_functions.sql` 会把已有的超分记录统一截断为100，该归一化不会保存旧的超额部分，执行前必须备份并暂停评价、投诉等信誉写入。脚本中的其他数据冲突检查失败时，应先分析并修复历史数据，不得通过删除约束或跳过检查强行继续。
+随后执行 `database-enhancement/05_test.sql`。过程测试会动态选择可用记录，并通过保存点回滚所有测试写入；但测试期间仍会短暂取得行锁，共享库应在低流量维护窗口执行。`04_functions.sql` 会把已有的超分记录统一截断为100，该归一化不会保存旧的超额部分，执行前必须备份并暂停评价、投诉等信誉写入。脚本中的其他数据冲突检查失败时，应先分析并修复历史数据，不得通过删除约束或跳过检查强行继续。
 
 ## 共享库当前状态
 
@@ -65,7 +65,7 @@ database-enhancement/04_functions.sql
 
 `007_restore_required_service_node_rules.sql` 是针对基础绑定数据漂移的补丁；各环境执行后应确认四条基础绑定均存在。未取得共享库写权限前，不得把“脚本已加入仓库”等同于“共享库已完成迁移”。
 
-`database-enhancement/03_procedures.sql` 中的 `SP_ACCEPT_TASK_ATOMIC` 与 `04_functions.sql` 中的三个函数已由后端直接调用。应先在隔离库执行创建、测试、回滚和再次创建流程；通过后再由数据库负责人使用应用 schema 部署。数据库对象不会由后端启动过程自动创建，脚本加入仓库也不代表共享库已经部署。若未先部署这些对象，新版后端的任务发布和接单入口会因对象不存在而失败。
+`database-enhancement/03_procedures.sql` 中的四个过程与 `04_functions.sql` 中的三个函数均已由后端直接调用。所有写过程只返回稳定结果码，不在过程内部提交或回滚，最终事务由 Repository 控制。应先在隔离库执行创建、测试、回滚和再次创建流程；通过后再由数据库负责人使用应用 schema 部署。数据库对象不会由后端启动过程自动创建，脚本加入仓库也不代表共享库已经部署。若未先部署这些对象，新版后端的账号管理、默认地址、跑腿员审核、任务发布和接单入口会因对象不存在而失败。
 
 该脚本同时包含信誉分0至100约束迁移。应在暂停相关写入并备份超分记录后执行，再部署包含同样上下限规则的后端；`database-enhancement/05_test.sql` 通过后才能恢复写入。`06_rollback_functions.sql` 只删除三个函数，不删除新约束，也不尝试恢复未留存的历史超分。
 

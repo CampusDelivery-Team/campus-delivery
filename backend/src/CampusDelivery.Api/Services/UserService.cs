@@ -284,13 +284,13 @@ namespace CampusDelivery.Api.Services
 
         public UserAccountOperationResult BlockAccount(int userId) =>
             ExecuteAccountOperation(
-                () => _userRepository.UpdateAccountStatus(userId, AccountStatusCodes.Blocked, AccountStatusCodes.Normal),
+                () => _userRepository.ManageAccountStatus(userId, "BLOCK") == AccountStatusProcedureResult.Success,
                 "账号已封控",
                 "账号无法封控，可能已被处理或不是可管理账号");
 
         public UserAccountOperationResult UnblockAccount(int userId) =>
             ExecuteAccountOperation(
-                () => _userRepository.UpdateAccountStatus(userId, AccountStatusCodes.Normal, AccountStatusCodes.Blocked),
+                () => _userRepository.ManageAccountStatus(userId, "UNBLOCK") == AccountStatusProcedureResult.Success,
                 "账号已解除封控",
                 "账号无法解除封控");
 

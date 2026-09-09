@@ -32,17 +32,27 @@ public sealed class AddressService(
                 transaction,
                 cancellationToken);
             bool makeDefault = address.IsDefault == "Y" || nextAddressNo == 1;
-            if (makeDefault)
-            {
-                await addressRepository.ClearDefaultAddressesAsync(address.UserId, transaction, cancellationToken);
-            }
 
             address.AddressNo = nextAddressNo;
-            address.IsDefault = makeDefault ? "Y" : "N";
+            address.IsDefault = "N";
             if (!await addressRepository.InsertAddressAsync(address, transaction, cancellationToken))
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return (false, "地址保存失败，请稍后再试");
+            }
+
+            if (makeDefault)
+            {
+                DefaultAddressProcedureResult defaultResult = await addressRepository.SetDefaultAddressAsync(
+                    address.UserId,
+                    address.AddressNo,
+                    transaction,
+                    cancellationToken);
+                if (defaultResult != DefaultAddressProcedureResult.Success)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return (false, "默认地址设置失败，本次新增未保存");
+                }
             }
 
             await transaction.CommitAsync(cancellationToken);
@@ -87,12 +97,12 @@ public sealed class AddressService(
 
             if (address.IsDefault == "Y" && existing.IsDefault != "Y")
             {
-                await addressRepository.ClearDefaultAddressesAsync(address.UserId, transaction, cancellationToken);
-                if (!await addressRepository.SetDefaultAddressAsync(
-                        address.UserId,
-                        address.AddressNo,
-                        transaction,
-                        cancellationToken))
+                DefaultAddressProcedureResult defaultResult = await addressRepository.SetDefaultAddressAsync(
+                    address.UserId,
+                    address.AddressNo,
+                    transaction,
+                    cancellationToken);
+                if (defaultResult != DefaultAddressProcedureResult.Success)
                 {
                     await transaction.RollbackAsync(cancellationToken);
                     return (false, "默认地址设置失败，本次修改未保存");
@@ -163,38 +173,26 @@ public sealed class AddressService(
         await using IRepositoryTransaction transaction = await transactionManager.BeginAsync(cancellationToken);
         try
         {
-            if (!await addressRepository.LockUserAsync(userId, transaction, cancellationToken))
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                return (false, "当前用户不存在，无法设置默认地址");
-            }
-
-            UserAddress? target = await addressRepository.GetAddressWithLockAsync(
+            DefaultAddressProcedureResult result = await addressRepository.SetDefaultAddressAsync(
                 userId,
                 addressNo,
                 transaction,
                 cancellationToken);
-            if (target == null)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                return (false, "目标地址不存在，原默认地址保持不变");
-            }
 
-            if (target.IsDefault == "Y")
+            if (result is DefaultAddressProcedureResult.Success or DefaultAddressProcedureResult.AlreadyDefault)
             {
                 await transaction.CommitAsync(cancellationToken);
-                return (true, "该地址已经是默认地址");
+                return result == DefaultAddressProcedureResult.AlreadyDefault
+                    ? (true, "该地址已经是默认地址")
+                    : (true, string.Empty);
             }
 
-            await addressRepository.ClearDefaultAddressesAsync(userId, transaction, cancellationToken);
-            if (!await addressRepository.SetDefaultAddressAsync(userId, addressNo, transaction, cancellationToken))
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                return (false, "默认地址设置失败，原默认地址保持不变");
-            }
-
-            await transaction.CommitAsync(cancellationToken);
-            return (true, string.Empty);
+            await transaction.RollbackAsync(cancellationToken);
+            return result == DefaultAddressProcedureResult.UserNotFound
+                ? (false, "当前用户不存在，无法设置默认地址")
+                : result == DefaultAddressProcedureResult.AddressNotFound
+                    ? (false, "目标地址不存在，原默认地址保持不变")
+                    : (false, "默认地址设置失败，原默认地址保持不变");
         }
         catch
         {

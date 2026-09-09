@@ -52,6 +52,25 @@ public enum RunnerWorkStatusWriteResult
     Unavailable
 }
 
+public enum AccountStatusProcedureResult
+{
+    Success,
+    NotFound,
+    RoleNotManageable,
+    InvalidState,
+    InvalidAction,
+    Failed
+}
+
+public enum DefaultAddressProcedureResult
+{
+    Success,
+    AlreadyDefault,
+    UserNotFound,
+    AddressNotFound,
+    Failed
+}
+
 public enum AtomicAssignResult
 {
     Success,

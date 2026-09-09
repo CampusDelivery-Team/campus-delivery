@@ -1,9 +1,10 @@
 using System;
 using System.Data;
-using Oracle.ManagedDataAccess.Client;
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Repositories.Interfaces;
+using Oracle.ManagedDataAccess.Client;
+using Oracle.ManagedDataAccess.Types;
 
 namespace CampusDelivery.Api.Repositories
 {
@@ -350,6 +351,59 @@ namespace CampusDelivery.Api.Repositories
                 throw new RepositorySchemaException(
                     "账号状态约束尚未升级。",
                     exception);
+            }
+        }
+
+        public AccountStatusProcedureResult ManageAccountStatus(int userId, string action)
+        {
+            using OracleConnection connection = _connectionFactory.CreateConnection();
+            connection.Open();
+            using OracleTransaction transaction = connection.BeginTransaction();
+
+            try
+            {
+                using OracleCommand command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.BindByName = true;
+                command.CommandType = CommandType.StoredProcedure;
+                command.CommandText = "APPUSER.sp_manage_account_status";
+                command.Parameters.Add(new OracleParameter("p_user_id", userId));
+                command.Parameters.Add(new OracleParameter("p_action", action));
+                var resultParameter = new OracleParameter("p_result", OracleDbType.Varchar2, 40)
+                {
+                    Direction = ParameterDirection.Output
+                };
+                command.Parameters.Add(resultParameter);
+                command.ExecuteNonQuery();
+
+                string result = resultParameter.Value is OracleString oracleString
+                    ? oracleString.Value
+                    : Convert.ToString(resultParameter.Value) ?? string.Empty;
+                AccountStatusProcedureResult mappedResult = result.Trim() switch
+                {
+                    "SUCCESS" => AccountStatusProcedureResult.Success,
+                    "NOT_FOUND" => AccountStatusProcedureResult.NotFound,
+                    "ROLE_NOT_MANAGEABLE" => AccountStatusProcedureResult.RoleNotManageable,
+                    "NOT_NORMAL" or "NOT_BLOCKED" => AccountStatusProcedureResult.InvalidState,
+                    "INVALID_ACTION" => AccountStatusProcedureResult.InvalidAction,
+                    _ => AccountStatusProcedureResult.Failed
+                };
+
+                if (mappedResult == AccountStatusProcedureResult.Success)
+                {
+                    transaction.Commit();
+                }
+                else
+                {
+                    transaction.Rollback();
+                }
+
+                return mappedResult;
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
             }
         }
 

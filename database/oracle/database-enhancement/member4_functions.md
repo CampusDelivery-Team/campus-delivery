@@ -86,7 +86,7 @@ SELECT fn_service_node_allowed(1, 3) AS is_allowed FROM dual;
 
 ## 与其他成员的交付关系
 
-- 组员 3 的存储过程可以调用价格或资格函数，但写入前仍需锁行并重新验证状态。
+- `SP_MANAGE_ACCOUNT_STATUS`、`SP_SET_DEFAULT_ADDRESS` 和 `SP_AUDIT_RUNNER` 也已分别接入账号管理、地址和跑腿员审核仓储；它们与原子接单过程采用相同的“过程写入、Repository 提交”事务约定。
 - 原子接单过程 `SP_ACCEPT_TASK_ATOMIC` 负责最终锁行和写入；资格函数用于快速失败判断，不能单独保证并发安全。
 - 组员 10 应在隔离库中依次验证创建、重复创建、测试、回滚、再次创建，并保存 `USER_OBJECTS`、`USER_ERRORS` 和结果集截图。
 - 组员 2 最终确认对象命名、执行账号、脚本总顺序及共享库部署窗口。

@@ -66,7 +66,6 @@ internal sealed class FakeAddressRepository : IAddressRepository
     private readonly List<UserAddress> _addresses = [];
 
     public int UserId { get; set; } = 501;
-    public int ClearDefaultCallCount { get; private set; }
 
     public IReadOnlyList<UserAddress> Snapshot()
     {
@@ -151,32 +150,33 @@ internal sealed class FakeAddressRepository : IAddressRepository
         }
     }
 
-    public Task ClearDefaultAddressesAsync(int userId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default)
+    public async Task<DefaultAddressProcedureResult> SetDefaultAddressAsync(int userId, int addressNo, IRepositoryTransaction transaction, CancellationToken cancellationToken = default)
     {
+        await ((FakeRepositoryTransaction)transaction).AcquireTaskRowAsync(cancellationToken);
         lock (_sync)
         {
-            ClearDefaultCallCount++;
-            foreach (UserAddress item in _addresses.Where(item => item.UserId == userId))
+            if (userId != UserId)
             {
-                item.IsDefault = "N";
+                return DefaultAddressProcedureResult.UserNotFound;
             }
-        }
 
-        return Task.CompletedTask;
-    }
-
-    public Task<bool> SetDefaultAddressAsync(int userId, int addressNo, IRepositoryTransaction transaction, CancellationToken cancellationToken = default)
-    {
-        lock (_sync)
-        {
             UserAddress? item = _addresses.SingleOrDefault(address => address.UserId == userId && address.AddressNo == addressNo);
             if (item is null)
             {
-                return Task.FromResult(false);
+                return DefaultAddressProcedureResult.AddressNotFound;
             }
 
+            if (item.IsDefault == "Y")
+            {
+                return DefaultAddressProcedureResult.AlreadyDefault;
+            }
+
+            foreach (UserAddress address in _addresses.Where(address => address.UserId == userId))
+            {
+                address.IsDefault = "N";
+            }
             item.IsDefault = "Y";
-            return Task.FromResult(true);
+            return DefaultAddressProcedureResult.Success;
         }
     }
 

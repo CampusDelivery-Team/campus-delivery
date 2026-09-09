@@ -106,8 +106,8 @@ public sealed class RunnerService(IRunnerRepository runnerRepository) : IRunnerS
     {
         var writeResult = decision switch
         {
-            "APPROVED" => await runnerRepository.ReviewAsync(runnerId, "APPROVED", "FREE", cancellationToken),
-            "REJECTED" => await runnerRepository.ReviewAsync(runnerId, "REJECTED", "OFFLINE", cancellationToken),
+            "APPROVED" => await runnerRepository.ReviewAsync(runnerId, "APPROVED", cancellationToken),
+            "REJECTED" => await runnerRepository.ReviewAsync(runnerId, "REJECTED", cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(decision))
         };
 

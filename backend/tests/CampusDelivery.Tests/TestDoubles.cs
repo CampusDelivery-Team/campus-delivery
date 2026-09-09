@@ -683,8 +683,7 @@ internal sealed class NotUsedAddressRepository : IAddressRepository
     public Task<bool> InsertAddressAsync(UserAddress address, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
     public Task<UserAddress?> GetAddressWithLockAsync(int userId, int addressNo, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
     public Task<bool> UpdateAddressAsync(UserAddress address, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
-    public Task ClearDefaultAddressesAsync(int userId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
-    public Task<bool> SetDefaultAddressAsync(int userId, int addressNo, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
+    public Task<DefaultAddressProcedureResult> SetDefaultAddressAsync(int userId, int addressNo, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
     public Task<bool> DeleteAddressAsync(int userId, int addressNo, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
     public Task<bool> SetFirstAddressAsDefaultAsync(int userId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default) => throw NotUsed();
 

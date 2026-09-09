@@ -7,11 +7,9 @@
   functions and the credit-score constraint. Enable DBMS Output in
   DBeaver and execute this file as a script (Alt+X).
 
-  IMPORTANT: sections 9-11 are legacy member 3 write tests whose procedures
-  commit internally and use environment-specific ids. Execute the whole file
-  only in an isolated database with matching fixtures. On a shared database,
-  skip sections 9-11 and run the object checks plus sections 12-20 only after
-  the database owner has reviewed the selected runner/task data.
+  Procedure write tests use dynamic fixtures and roll back to savepoints. They
+  leave no committed test data, but should still run during a quiet maintenance
+  window because their FOR UPDATE locks can briefly block application writes.
 */
 
 /* 1. Check whether all member 9 views are valid. */
@@ -118,48 +116,213 @@ SELECT runner_id,
  ORDER BY candidate_pay_amount DESC, runner_id;
 
 
-/* 9. Member 3: 测试用户封禁与解封过程 */
-SET SERVEROUTPUT ON;
-DECLARE
-    v_msg VARCHAR2(200);
-BEGIN
-    sp_manage_account_status(41, 'BLOCK', v_msg);
-    DBMS_OUTPUT.PUT_LINE('封禁测试结果: ' || v_msg);
-    sp_manage_account_status(41, 'UNBLOCK', v_msg);
-    DBMS_OUTPUT.PUT_LINE('解封测试结果: ' || v_msg);
-END;
-/
-
-/* 10. Member 3: 测试设置默认地址过程 */
-DECLARE
-    v_msg VARCHAR2(200);
-BEGIN
-    sp_set_default_address(41, 1, v_msg);
-    DBMS_OUTPUT.PUT_LINE('设置默认地址结果: ' || v_msg);
-END;
-/
-
-/* 11. Member 3: 测试配送员审核过程 */
-DECLARE
-    v_msg VARCHAR2(200);
-BEGIN
-    sp_audit_runner(485, 'APPROVED', v_msg);
-    DBMS_OUTPUT.PUT_LINE('审核测试结果: ' || v_msg);
-END;
-/
-
-/* The atomic assignment procedure must compile before the backend uses it. */
+/* All four backend procedures must be VALID, and USER_ERRORS must be empty. */
 SELECT object_name, object_type, status
   FROM user_objects
  WHERE object_type = 'PROCEDURE'
-   AND object_name = 'SP_ACCEPT_TASK_ATOMIC';
+   AND object_name IN (
+       'SP_MANAGE_ACCOUNT_STATUS',
+       'SP_SET_DEFAULT_ADDRESS',
+       'SP_AUDIT_RUNNER',
+       'SP_ACCEPT_TASK_ATOMIC'
+   )
+ ORDER BY object_name;
 
-/* Must return no rows. */
 SELECT name, type, line, position, text
   FROM user_errors
  WHERE type = 'PROCEDURE'
-   AND name = 'SP_ACCEPT_TASK_ATOMIC'
- ORDER BY sequence;
+   AND name IN (
+       'SP_MANAGE_ACCOUNT_STATUS',
+       'SP_SET_DEFAULT_ADDRESS',
+       'SP_AUDIT_RUNNER',
+       'SP_ACCEPT_TASK_ATOMIC'
+   )
+ ORDER BY name, sequence;
+
+/* 9. Account block/unblock procedure: linked runner goes offline. */
+SET SERVEROUTPUT ON;
+DECLARE
+    v_user_id       users.user_id%TYPE;
+    v_result        VARCHAR2(40);
+    v_account_state users.account_status%TYPE;
+    v_online_runner_count PLS_INTEGER;
+BEGIN
+    SELECT MIN(u.user_id)
+      INTO v_user_id
+      FROM users u
+     WHERE u.user_role IN ('USER', 'RUNNER')
+       AND u.account_status = 'NORMAL'
+       AND EXISTS (
+           SELECT 1
+             FROM runners r
+            WHERE r.user_id = u.user_id
+       );
+
+    IF v_user_id IS NULL THEN
+        DBMS_OUTPUT.PUT_LINE('SKIP account-status procedure check: no manageable NORMAL runner account.');
+    ELSE
+        SAVEPOINT before_account_status_test;
+        BEGIN
+            sp_manage_account_status(v_user_id, 'BLOCK', v_result);
+            SELECT account_status INTO v_account_state FROM users WHERE user_id = v_user_id;
+            SELECT COUNT(*)
+              INTO v_online_runner_count
+              FROM runners
+             WHERE user_id = v_user_id
+               AND work_status <> 'OFFLINE';
+
+            IF v_result <> 'SUCCESS'
+               OR v_account_state <> 'BLOCKED'
+               OR v_online_runner_count <> 0 THEN
+                RAISE_APPLICATION_ERROR(-20970, 'Account BLOCK procedure verification failed.');
+            END IF;
+
+            sp_manage_account_status(v_user_id, 'UNBLOCK', v_result);
+            SELECT account_status INTO v_account_state FROM users WHERE user_id = v_user_id;
+            IF v_result <> 'SUCCESS' OR v_account_state <> 'NORMAL' THEN
+                RAISE_APPLICATION_ERROR(-20971, 'Account UNBLOCK procedure verification failed.');
+            END IF;
+
+            DBMS_OUTPUT.PUT_LINE('PASS account BLOCK/UNBLOCK procedure check.');
+            ROLLBACK TO before_account_status_test;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ROLLBACK TO before_account_status_test;
+                RAISE;
+        END;
+    END IF;
+END;
+/
+
+/* 10. Default-address procedure: exactly one selected address becomes default. */
+DECLARE
+    v_user_id       user_addresses.user_id%TYPE;
+    v_address_no    user_addresses.address_no%TYPE;
+    v_result        VARCHAR2(40);
+    v_default_count PLS_INTEGER;
+BEGIN
+    BEGIN
+        SELECT user_id, address_no
+          INTO v_user_id, v_address_no
+          FROM (
+              SELECT user_id, address_no
+                FROM user_addresses
+               WHERE is_default = 'N'
+               ORDER BY user_id, address_no
+          )
+         WHERE ROWNUM = 1;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            v_user_id := NULL;
+    END;
+
+    IF v_user_id IS NULL THEN
+        DBMS_OUTPUT.PUT_LINE('SKIP default-address procedure check: no non-default address exists.');
+    ELSE
+        SAVEPOINT before_default_address_test;
+        BEGIN
+            sp_set_default_address(v_user_id, v_address_no, v_result);
+
+            SELECT COUNT(*)
+              INTO v_default_count
+              FROM user_addresses
+             WHERE user_id = v_user_id
+               AND is_default = 'Y';
+
+            IF v_result <> 'SUCCESS' OR v_default_count <> 1 THEN
+                RAISE_APPLICATION_ERROR(-20972, 'Default-address procedure verification failed.');
+            END IF;
+
+            sp_set_default_address(v_user_id, v_address_no, v_result);
+            IF v_result <> 'ALREADY_DEFAULT' THEN
+                RAISE_APPLICATION_ERROR(-20973, 'Default-address repeat-call check failed.');
+            END IF;
+
+            DBMS_OUTPUT.PUT_LINE('PASS default-address procedure check.');
+            ROLLBACK TO before_default_address_test;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ROLLBACK TO before_default_address_test;
+                RAISE;
+        END;
+    END IF;
+END;
+/
+
+/* 11. Runner-audit procedure: approval/rejection linkage and repeat guard. */
+DECLARE
+    v_runner_id   runners.runner_id%TYPE;
+    v_user_id     runners.user_id%TYPE;
+    v_result      VARCHAR2(40);
+    v_audit_state runners.audit_status%TYPE;
+    v_work_state  runners.work_status%TYPE;
+    v_user_role   users.user_role%TYPE;
+BEGIN
+    BEGIN
+        SELECT runner_id, user_id
+          INTO v_runner_id, v_user_id
+          FROM (
+              SELECT r.runner_id, r.user_id
+                FROM runners r
+                JOIN users u ON u.user_id = r.user_id
+               WHERE r.audit_status = 'PENDING'
+                 AND u.account_status = 'NORMAL'
+                 AND u.user_role <> 'ADMIN'
+               ORDER BY r.runner_id
+          )
+         WHERE ROWNUM = 1;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            v_runner_id := NULL;
+    END;
+
+    IF v_runner_id IS NULL THEN
+        DBMS_OUTPUT.PUT_LINE('SKIP runner-audit procedure check: no eligible PENDING application.');
+    ELSE
+        SAVEPOINT before_runner_audit_test;
+        BEGIN
+            sp_audit_runner(v_runner_id, 'APPROVED', v_result);
+            SELECT audit_status, work_status
+              INTO v_audit_state, v_work_state
+              FROM runners
+             WHERE runner_id = v_runner_id;
+            SELECT user_role INTO v_user_role FROM users WHERE user_id = v_user_id;
+
+            IF v_result <> 'SUCCESS'
+               OR v_audit_state <> 'APPROVED'
+               OR v_work_state <> 'FREE'
+               OR v_user_role <> 'RUNNER' THEN
+                RAISE_APPLICATION_ERROR(-20974, 'Runner approval procedure verification failed.');
+            END IF;
+
+            sp_audit_runner(v_runner_id, 'APPROVED', v_result);
+            IF v_result <> 'ALREADY_REVIEWED' THEN
+                RAISE_APPLICATION_ERROR(-20975, 'Runner repeat-review guard failed.');
+            END IF;
+
+            ROLLBACK TO before_runner_audit_test;
+
+            sp_audit_runner(v_runner_id, 'REJECTED', v_result);
+            SELECT audit_status, work_status
+              INTO v_audit_state, v_work_state
+              FROM runners
+             WHERE runner_id = v_runner_id;
+            IF v_result <> 'SUCCESS'
+               OR v_audit_state <> 'REJECTED'
+               OR v_work_state <> 'OFFLINE' THEN
+                RAISE_APPLICATION_ERROR(-20976, 'Runner rejection procedure verification failed.');
+            END IF;
+
+            DBMS_OUTPUT.PUT_LINE('PASS runner approval/rejection procedure check.');
+            ROLLBACK TO before_runner_audit_test;
+        EXCEPTION
+            WHEN OTHERS THEN
+                ROLLBACK TO before_runner_audit_test;
+                RAISE;
+        END;
+    END IF;
+END;
+/
 
 /*
   12. Member 4: one transaction may create only one acceptance for a task.

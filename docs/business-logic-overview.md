@@ -163,8 +163,8 @@ users / user_addresses / service_types / nodes
 
 - 注册密码由 Service 使用 ASP.NET Core `PasswordHasher<User>` 生成带盐哈希后保存，登录使用 `VerifyHashedPassword` 校验。
 - Controller、View 和 Repository 不实现密码算法；数据库不保存原始密码。
-- 封禁账号 `account_status = 'BLOCKED'` 和注销账号 `account_status = 'CANCELLED'` 不允许登录；正常账号状态为 `NORMAL`。Cookie 每次认证时重新读取账号状态和角色，封禁后的旧登录态不能继续访问业务接口。
-- 地址只属于对应用户，不允许跨用户使用；新增地址先锁定所属用户行再分配 `address_no`，默认地址切换、删除后的默认补位均在同一事务完成。
+- 封禁账号 `account_status = 'BLOCKED'` 和注销账号 `account_status = 'CANCELLED'` 不允许登录；正常账号状态为 `NORMAL`。Cookie 每次认证时重新读取账号状态和角色，封禁后的旧登录态不能继续访问业务接口。管理员封禁和解封通过 `SP_MANAGE_ACCOUNT_STATUS` 完成，封禁跑腿员时同步置为 `OFFLINE`。
+- 地址只属于对应用户，不允许跨用户使用；新增地址先锁定所属用户行再分配 `address_no`，默认地址切换由 `SP_SET_DEFAULT_ADDRESS` 原子完成，删除后的默认补位仍在同一 Repository 事务完成。
 - 数据库函数唯一索引保证同一用户最多一条默认地址；设置不存在的地址时必须在清空原默认地址之前失败。
 - 页面显示中文名称，数据库保存英文状态代码。
 
@@ -190,7 +190,7 @@ users / user_addresses / service_types / nodes
 
 业务规则：
 
-- 只有 `audit_status = 'APPROVED'` 的跑腿员可以接单。
+- 跑腿员审核由 `SP_AUDIT_RUNNER` 在同一事务中联动更新申请状态、工作状态和用户角色；只有 `audit_status = 'APPROVED'` 的跑腿员可以接单。
 - 跑腿员接单前应处于 `work_status = 'FREE'` 或 `BUSY`；`BUSY` 代表已有进行中任务，但当前规则允许多单承接。
 - 接单后进入或保持 `BUSY`。
 - 完成任务后恢复为 `FREE`。

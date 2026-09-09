@@ -1,7 +1,9 @@
+using System.Data;
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
+using Oracle.ManagedDataAccess.Types;
 
 namespace CampusDelivery.Api.Repositories;
 
@@ -148,21 +150,7 @@ public sealed class AddressRepository(OracleConnectionFactory connectionFactory)
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
-    public async Task ClearDefaultAddressesAsync(
-        int userId,
-        IRepositoryTransaction repositoryTransaction,
-        CancellationToken cancellationToken = default)
-    {
-        var (connection, transaction) = repositoryTransaction.GetOracle();
-        await using OracleCommand command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.BindByName = true;
-        command.CommandText = "UPDATE APPUSER.user_addresses SET is_default = 'N' WHERE user_id = :userId AND is_default = 'Y'";
-        command.Parameters.Add(new OracleParameter("userId", userId));
-        await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    public async Task<bool> SetDefaultAddressAsync(
+    public async Task<DefaultAddressProcedureResult> SetDefaultAddressAsync(
         int userId,
         int addressNo,
         IRepositoryTransaction repositoryTransaction,
@@ -172,15 +160,29 @@ public sealed class AddressRepository(OracleConnectionFactory connectionFactory)
         await using OracleCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.BindByName = true;
-        command.CommandText = """
-            UPDATE APPUSER.user_addresses
-               SET is_default = 'Y'
-             WHERE user_id = :userId
-               AND address_no = :addressNo
-            """;
-        command.Parameters.Add(new OracleParameter("userId", userId));
-        command.Parameters.Add(new OracleParameter("addressNo", addressNo));
-        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+        command.CommandType = CommandType.StoredProcedure;
+        command.CommandText = "APPUSER.sp_set_default_address";
+        command.Parameters.Add(new OracleParameter("p_user_id", userId));
+        command.Parameters.Add(new OracleParameter("p_address_no", addressNo));
+        var resultParameter = new OracleParameter("p_result", OracleDbType.Varchar2, 40)
+        {
+            Direction = ParameterDirection.Output
+        };
+        command.Parameters.Add(resultParameter);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+
+        string result = resultParameter.Value is OracleString oracleString
+            ? oracleString.Value
+            : Convert.ToString(resultParameter.Value) ?? string.Empty;
+        return result.Trim() switch
+        {
+            "SUCCESS" => DefaultAddressProcedureResult.Success,
+            "ALREADY_DEFAULT" => DefaultAddressProcedureResult.AlreadyDefault,
+            "USER_NOT_FOUND" => DefaultAddressProcedureResult.UserNotFound,
+            "ADDRESS_NOT_FOUND" => DefaultAddressProcedureResult.AddressNotFound,
+            _ => DefaultAddressProcedureResult.Failed
+        };
     }
 
     public async Task<bool> DeleteAddressAsync(

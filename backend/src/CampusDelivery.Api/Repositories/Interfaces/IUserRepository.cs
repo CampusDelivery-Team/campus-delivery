@@ -13,6 +13,7 @@ public interface IUserRepository
     UserPhoneUpdateWriteResult UpdateUserPhone(int userId, string newPhone);
     UserAddress? GetPrimaryAddress(int userId);
     List<ManagedAccount> GetManagedAccounts();
+    AccountStatusProcedureResult ManageAccountStatus(int userId, string action);
     bool UpdateAccountStatus(int userId, string nextStatus, params string[] allowedCurrentStatuses);
     bool RevokeRunnerQualification(int userId);
 }
