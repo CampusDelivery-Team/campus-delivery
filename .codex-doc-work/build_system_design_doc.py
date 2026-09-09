@@ -134,8 +134,8 @@ def add_body(doc, text):
 
 def add_heading(doc, text, level):
     if text.startswith("附录"):
-        doc.add_page_break()
-        p = doc.add_paragraph(text, style="附录" if "附录" in [s.name for s in doc.styles] else "Heading 1")
+        appendix_title = re.sub(r"^附录\s*A\s*", "", text).strip()
+        p = doc.add_paragraph(appendix_title, style="附录" if "附录" in [s.name for s in doc.styles] else "Heading 1")
         p.paragraph_format.keep_with_next = True
         ppr = p._p.get_or_add_pPr()
         outline = ppr.find(qn("w:outlineLvl"))
@@ -145,6 +145,13 @@ def add_heading(doc, text, level):
         outline.set(qn("w:val"), "0")
         for run in p.runs:
             font(run, east="黑体", latin="Arial", size=15, bold=True)
+        return
+    if text in ("图索引", "表索引"):
+        p = doc.add_paragraph()
+        p.paragraph_format.keep_with_next = True
+        p.paragraph_format.space_before = Pt(12)
+        p.paragraph_format.space_after = Pt(6)
+        font(p.add_run(text), east="黑体", latin="Arial", size=14, bold=True)
         return
     text = re.sub(r"^\d+(?:\.\d+)*\s+", "", text)
     if level == 1 and len([p for p in doc.paragraphs if p.style.name == "Heading 1"]) > 0:
@@ -182,7 +189,9 @@ def add_picture(doc, rel_path, caption, width):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.keep_with_next = True
-    p.add_run().add_picture(str(ROOT / rel_path), width=Inches(float(width)))
+    shape = p.add_run().add_picture(str(ROOT / rel_path), width=Inches(float(width)))
+    shape._inline.docPr.set("descr", caption)
+    shape._inline.docPr.set("title", caption)
     c = doc.add_paragraph(style="Caption")
     c.alignment = WD_ALIGN_PARAGRAPH.CENTER
     c.paragraph_format.space_before = Pt(2)
