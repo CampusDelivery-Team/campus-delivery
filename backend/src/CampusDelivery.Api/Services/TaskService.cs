@@ -11,17 +11,20 @@ namespace CampusDelivery.Api.Services
         private readonly IAddressRepository _addressRepository;
         private readonly IServiceTypeRepository _serviceTypeRepository;
         private readonly INodeRepository _nodeRepository;
+        private readonly IServiceNodeRuleRepository _serviceNodeRuleRepository;
 
         public TaskService(
             ITaskRepository taskRepository,
             IAddressRepository addressRepository,
             IServiceTypeRepository serviceTypeRepository,
-            INodeRepository nodeRepository)
+            INodeRepository nodeRepository,
+            IServiceNodeRuleRepository serviceNodeRuleRepository)
         {
             _taskRepository = taskRepository;
             _addressRepository = addressRepository;
             _serviceTypeRepository = serviceTypeRepository;
             _nodeRepository = nodeRepository;
+            _serviceNodeRuleRepository = serviceNodeRuleRepository;
         }
 
         public async Task<TaskCreateViewModel> BuildCreateModelAsync(
@@ -41,6 +44,8 @@ namespace CampusDelivery.Api.Services
             List<UserAddress> addresses = _addressRepository.GetAddressesByUserId(userId);
             IReadOnlyList<ServiceType> serviceTypes = await _serviceTypeRepository.GetAllAsync(cancellationToken);
             IReadOnlyList<Node> nodes = await _nodeRepository.GetAllAsync(cancellationToken);
+            IReadOnlyList<ServiceNodeRule> serviceNodeRules =
+                await _serviceNodeRuleRepository.GetAllAsync(cancellationToken);
 
             List<TaskOptionViewModel> addressOptions = new List<TaskOptionViewModel>();
             foreach (UserAddress address in addresses)
@@ -56,7 +61,8 @@ namespace CampusDelivery.Api.Services
             List<TaskOptionViewModel> serviceTypeOptions = new List<TaskOptionViewModel>();
             foreach (ServiceType serviceType in serviceTypes)
             {
-                if (serviceType.TypeStatus != "ENABLED")
+                if (serviceType.TypeStatus != "ENABLED"
+                    || !TaskKindCodes.TryFromServiceName(serviceType.ServiceName, out string taskKind))
                 {
                     continue;
                 }
@@ -65,14 +71,34 @@ namespace CampusDelivery.Api.Services
                 {
                     Value = serviceType.ServiceTypeId,
                     Text = $"{serviceType.ServiceName}（基础费 {serviceType.BasePrice:F2} 元）",
-                    BasePrice = serviceType.BasePrice
+                    BasePrice = serviceType.BasePrice,
+                    TaskKind = taskKind
                 });
             }
+
+            HashSet<int> availableServiceTypeIds = serviceTypeOptions
+                .Select(option => option.Value)
+                .ToHashSet();
+            Dictionary<int, IReadOnlyList<int>> allowedServiceTypeIdsByNode = serviceNodeRules
+                .Where(rule => rule.ServiceTypeStatus == "ENABLED"
+                    && rule.NodeStatus == "NORMAL"
+                    && availableServiceTypeIds.Contains(rule.ServiceTypeId))
+                .GroupBy(rule => rule.NodeId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => (IReadOnlyList<int>)group
+                        .Select(rule => rule.ServiceTypeId)
+                        .Distinct()
+                        .OrderBy(serviceTypeId => serviceTypeId)
+                        .ToList());
 
             List<TaskOptionViewModel> nodeOptions = new List<TaskOptionViewModel>();
             foreach (Node node in nodes)
             {
-                if (node.NodeStatus != "NORMAL")
+                if (node.NodeStatus != "NORMAL"
+                    || !allowedServiceTypeIdsByNode.TryGetValue(
+                        node.NodeId,
+                        out IReadOnlyList<int>? allowedServiceTypeIds))
                 {
                     continue;
                 }
@@ -80,7 +106,8 @@ namespace CampusDelivery.Api.Services
                 nodeOptions.Add(new TaskOptionViewModel
                 {
                     Value = node.NodeId,
-                    Text = $"{node.NodeName} · {DisplayNameService.GetNodeTypeName(node.NodeType)}"
+                    Text = $"{node.NodeName} · {DisplayNameService.GetNodeTypeName(node.NodeType)}",
+                    AllowedServiceTypeIds = allowedServiceTypeIds
                 });
             }
 
@@ -107,6 +134,22 @@ namespace CampusDelivery.Api.Services
             TaskCreateViewModel model,
             CancellationToken cancellationToken = default)
         {
+            IReadOnlyList<ServiceType> serviceTypes = await _serviceTypeRepository.GetAllAsync(cancellationToken);
+            ServiceType? selectedServiceType = serviceTypes.SingleOrDefault(
+                serviceType => serviceType.ServiceTypeId == model.ServiceTypeId
+                    && serviceType.TypeStatus == "ENABLED");
+            if (selectedServiceType == null
+                || !TaskKindCodes.TryFromServiceName(selectedServiceType.ServiceName, out string taskKind))
+            {
+                return new TaskOperationResult(false, "所选任务类型不可用，请重新选择");
+            }
+
+            string? detailError = ValidateTaskDetails(model, taskKind);
+            if (detailError != null)
+            {
+                return new TaskOperationResult(false, detailError);
+            }
+
             TaskPublishRequest request = new TaskPublishRequest
             {
                 PublisherUserId = userId,
@@ -116,7 +159,7 @@ namespace CampusDelivery.Api.Services
                 TaskTitle = model.TaskTitle.Trim(),
                 ExtraAmount = model.ExtraAmount!.Value,
                 UrgentFlag = model.UrgentFlag == "Y" ? "Y" : "N",
-                TaskKind = model.TaskKind,
+                TaskKind = taskKind,
                 MerchantName = NormalizeText(model.MerchantName),
                 PlatformOrderNo = NormalizeText(model.PlatformOrderNo),
                 FoodPickupNote = NormalizeText(model.FoodPickupNote),
@@ -144,7 +187,7 @@ namespace CampusDelivery.Api.Services
 
             if (result.Result == TaskCreateResult.ServiceTypeUnavailable)
             {
-                return new TaskOperationResult(false, "所选服务类型不可用，请重新选择");
+                return new TaskOperationResult(false, "所选任务类型不可用，请重新选择");
             }
 
             if (result.Result == TaskCreateResult.PriceCalculationFailed)
@@ -157,7 +200,53 @@ namespace CampusDelivery.Api.Services
                 return new TaskOperationResult(false, "所选交接节点不可用，请重新选择");
             }
 
-            return new TaskOperationResult(false, "服务类型与交接节点不匹配，当前规则不允许发布该任务");
+            return new TaskOperationResult(false, "任务类型与交接节点不匹配，当前规则不允许发布该任务");
+        }
+
+        private static string? ValidateTaskDetails(TaskCreateViewModel model, string taskKind)
+        {
+            if (taskKind == TaskKindCodes.Food && string.IsNullOrWhiteSpace(model.MerchantName))
+            {
+                return "请填写商家名称";
+            }
+
+            if (taskKind == TaskKindCodes.Express)
+            {
+                if (string.IsNullOrWhiteSpace(model.ExpressCompany))
+                {
+                    return "请填写快递公司";
+                }
+
+                if (string.IsNullOrWhiteSpace(model.WaybillNo))
+                {
+                    return "请填写物流单号";
+                }
+
+                if (string.IsNullOrWhiteSpace(model.PickupCode))
+                {
+                    return "请填写取件码";
+                }
+            }
+
+            if (taskKind == TaskKindCodes.Private)
+            {
+                if (string.IsNullOrWhiteSpace(model.ItemCategory))
+                {
+                    return "请填写物品类别";
+                }
+
+                if (string.IsNullOrWhiteSpace(model.PickupLocation))
+                {
+                    return "请填写取货地点";
+                }
+
+                if (string.IsNullOrWhiteSpace(model.DeliveryLocation))
+                {
+                    return "请填写送达地点";
+                }
+            }
+
+            return null;
         }
 
         public async Task<TaskIndexViewModel> GetIndexAsync(
