@@ -660,6 +660,84 @@ textarea {
     table-layout: fixed;
 }
 
+.task-list-table {
+    min-width: 1328px;
+}
+
+.task-list-table-admin {
+    min-width: 1458px;
+}
+
+.task-list-table th,
+.task-list-table td {
+    overflow: hidden;
+}
+
+.task-list-col-id {
+    width: 72px;
+}
+
+.task-list-col-publisher {
+    width: 130px;
+}
+
+.task-list-col-kind {
+    width: 110px;
+}
+
+.task-list-col-title {
+    width: 190px;
+}
+
+.task-list-col-service {
+    width: 140px;
+}
+
+.task-list-col-price {
+    width: 96px;
+}
+
+.task-list-col-status {
+    width: 100px;
+}
+
+.task-list-col-address {
+    width: 220px;
+}
+
+.task-list-col-node {
+    width: 160px;
+}
+
+.task-list-col-created {
+    width: 136px;
+}
+
+.task-list-col-actions {
+    width: 104px;
+}
+
+.task-list-cell,
+.task-list-subtext {
+    display: block;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.task-list-title {
+    color: #061a33;
+    font-weight: 700;
+}
+
+.task-list-subtext {
+    color: #6b7893;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
 .service-type-id-column {
     width: 6%;
 }
