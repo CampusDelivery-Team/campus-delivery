@@ -2,16 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CampusDelivery.Api.Presentation.ViewModels;
 
-public sealed class TaskCreateViewModel : IValidatableObject
+public sealed class TaskCreateViewModel
 {
     [Required(ErrorMessage = "请选择任务类型")]
-    [RegularExpression("FOOD|EXPRESS|PRIVATE", ErrorMessage = "任务类型不合法")]
+    [Range(1, int.MaxValue, ErrorMessage = "请选择任务类型")]
     [Display(Name = "任务类型")]
-    public string TaskKind { get; set; } = "FOOD";
-
-    [Required(ErrorMessage = "请选择服务类型")]
-    [Range(1, int.MaxValue, ErrorMessage = "请选择服务类型")]
-    [Display(Name = "服务类型")]
     public int? ServiceTypeId { get; set; }
 
     [Required(ErrorMessage = "请选择收货地址")]
@@ -89,51 +84,4 @@ public sealed class TaskCreateViewModel : IValidatableObject
     public IReadOnlyList<TaskOptionViewModel> ServiceTypeOptions { get; set; } = new List<TaskOptionViewModel>();
 
     public IReadOnlyList<TaskOptionViewModel> NodeOptions { get; set; } = new List<TaskOptionViewModel>();
-
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-    {
-        if (TaskKind == "FOOD")
-        {
-            if (string.IsNullOrWhiteSpace(MerchantName))
-            {
-                yield return new ValidationResult("请填写商家名称", new[] { nameof(MerchantName) });
-            }
-        }
-
-        if (TaskKind == "EXPRESS")
-        {
-            if (string.IsNullOrWhiteSpace(ExpressCompany))
-            {
-                yield return new ValidationResult("请填写快递公司", new[] { nameof(ExpressCompany) });
-            }
-
-            if (string.IsNullOrWhiteSpace(WaybillNo))
-            {
-                yield return new ValidationResult("请填写物流单号", new[] { nameof(WaybillNo) });
-            }
-
-            if (string.IsNullOrWhiteSpace(PickupCode))
-            {
-                yield return new ValidationResult("请填写取件码", new[] { nameof(PickupCode) });
-            }
-        }
-
-        if (TaskKind == "PRIVATE")
-        {
-            if (string.IsNullOrWhiteSpace(ItemCategory))
-            {
-                yield return new ValidationResult("请填写物品类别", new[] { nameof(ItemCategory) });
-            }
-
-            if (string.IsNullOrWhiteSpace(PickupLocation))
-            {
-                yield return new ValidationResult("请填写取货地点", new[] { nameof(PickupLocation) });
-            }
-
-            if (string.IsNullOrWhiteSpace(DeliveryLocation))
-            {
-                yield return new ValidationResult("请填写送达地点", new[] { nameof(DeliveryLocation) });
-            }
-        }
-    }
 }

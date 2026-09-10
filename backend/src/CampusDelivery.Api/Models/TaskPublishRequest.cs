@@ -18,7 +18,7 @@ public sealed class TaskPublishRequest
 
     public string UrgentFlag { get; set; } = "N";
 
-    public string TaskKind { get; set; } = "FOOD";
+    public string TaskKind { get; set; } = string.Empty;
 
     public string? MerchantName { get; set; }
 

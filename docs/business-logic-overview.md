@@ -215,6 +215,8 @@ users / user_addresses / service_types / nodes
 
 任务发布以 `tasks` 为主单，三类任务明细表保存不同任务类型的专有字段。
 
+发布页面只提供一个“任务类型”下拉框，其选项实际来自 `service_types`，提交和保存的值仍为 `service_type_id`。后端根据固定的三类服务名称推导内部 `TaskKind`，决定显示及写入哪一张明细表，不接受客户端自行指定明细类型。交接节点选项按照 `service_node_rules` 随任务类型联动，只展示该类型允许使用的正常节点；后端仍在写入事务中再次校验。
+
 相关表：
 
 - `tasks`
@@ -233,7 +235,7 @@ users / user_addresses / service_types / nodes
 发布流程：
 
 ```text
-用户选择服务类型、地址和节点
+用户选择任务类型（对应 service_type_id）、地址和节点
 -> 系统校验服务类型、地址、节点和适用规则
 -> 数据库函数按基础费和用户填写的非负附加费计算最终总价
 -> 插入 tasks
