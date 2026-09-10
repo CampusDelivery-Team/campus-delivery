@@ -43,10 +43,8 @@
                 {
                     <a class="@NavClass("Task", "Hall")" asp-controller="Task" asp-action="Hall"><span class="dd-nav-ico">🏪</span>任务大厅</a>
                 }
-                else
-                {
-                    <a class="@NavClass("Task", "Index")" asp-controller="Task" asp-action="Index"><span class="dd-nav-ico">📋</span>我的任务</a>
-                }
+
+                <a class="@NavClass("Task", "Index")" asp-controller="Task" asp-action="Index"><span class="dd-nav-ico">📋</span>我的任务</a>
 
                 <a class="@NavClass("Task", "Receipt")" asp-controller="Task" asp-action="Receipt"><span class="dd-nav-ico">✅</span>确认收货</a>
                 <a class="@NavClass("Review", "MyReviews")" asp-controller="Review" asp-action="MyReviews"><span class="dd-nav-ico">⭐</span>我的评价</a>

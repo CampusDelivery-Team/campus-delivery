@@ -15,7 +15,7 @@ from docx.shared import Inches, Pt, RGBColor
 ROOT = Path(r"D:\delivery-backend")
 REFERENCE = ROOT / ".codex-doc-work" / "系统设计与实现文档模板.docx"
 CONTENT = ROOT / ".codex-doc-work" / "system_design_content.md"
-OUTPUT = ROOT / "docs" / "校园中转分发与跑腿服务管理系统-系统设计与实现文档.docx"
+OUTPUT = ROOT / "docs" / "校园综合跑腿与代取服务管理系统-系统设计与实现文档.docx"
 
 
 def font(run, east="宋体", latin="Times New Roman", size=10.5, bold=None):
@@ -216,7 +216,7 @@ def section_setup(section, page_format="decimal", start=None, show_page=True):
     clear(section.header)
     ht = section.header.add_table(rows=1, cols=2, width=Inches(6.45))
     ht.autofit = False
-    for i, text in enumerate(("校园跑腿系统", "设计与实现文档")):
+    for i, text in enumerate(("校园综合跑腿与代取服务管理系统", "设计与实现文档")):
         cell = ht.cell(0, i)
         margins(cell, 0, 0, 45, 0)
         cell_border(cell, "bottom")
@@ -325,7 +325,7 @@ def build():
     for _ in range(6):
         doc.add_paragraph()
     p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    font(p.add_run("校园中转分发与跑腿服务管理系统"), east="黑体", size=24, bold=True)
+    font(p.add_run("校园综合跑腿与代取服务管理系统"), east="黑体", size=24, bold=True)
     p.paragraph_format.space_after = Pt(12)
     p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     font(p.add_run("系统设计与实现文档"), east="黑体", size=20, bold=True)
@@ -345,7 +345,7 @@ def build():
     section_setup(main, "decimal", 1, True)
     parse_content(doc)
     props = doc.core_properties
-    props.title = "校园中转分发与跑腿服务管理系统 系统设计与实现文档"
+    props.title = "校园综合跑腿与代取服务管理系统 系统设计与实现文档"
     props.subject = "数据库课程设计"
     props.author = "刘相成、唐独彪、桑治、崔少坤、薛毓哲、赵崇治、韩昊苏、李柏言、谢智行、蒋昊沄"
     settings = doc.settings._element
