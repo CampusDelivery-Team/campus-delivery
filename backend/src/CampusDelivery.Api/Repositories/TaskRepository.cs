@@ -30,10 +30,10 @@ namespace CampusDelivery.Api.Repositories
                 return new TaskCreateWriteResult(TaskCreateResult.AddressNotFound);
             }
 
-            if (!await LockAvailableServiceTypeAsync(
+            if (!await LockedServiceTypeMatchesTaskKindAsync(
                 connection,
                 transaction,
-                request.ServiceTypeId,
+                request,
                 cancellationToken))
             {
                 transaction.Rollback();
@@ -325,25 +325,27 @@ namespace CampusDelivery.Api.Repositories
             return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
         }
 
-        private static async Task<bool> LockAvailableServiceTypeAsync(
+        private static async Task<bool> LockedServiceTypeMatchesTaskKindAsync(
             OracleConnection connection,
             OracleTransaction transaction,
-            int serviceTypeId,
+            TaskPublishRequest request,
             CancellationToken cancellationToken)
         {
             await using OracleCommand command = connection.CreateCommand();
             command.BindByName = true;
             command.Transaction = transaction;
             command.CommandText = """
-                SELECT service_type_id
+                SELECT service_name
                 FROM service_types
                 WHERE service_type_id = :serviceTypeId
                   AND type_status = 'ENABLED'
                 FOR UPDATE
                 """;
-            command.Parameters.Add(new OracleParameter("serviceTypeId", serviceTypeId));
+            command.Parameters.Add(new OracleParameter("serviceTypeId", request.ServiceTypeId));
 
-            return await command.ExecuteScalarAsync(cancellationToken) is not null;
+            string? serviceName = Convert.ToString(await command.ExecuteScalarAsync(cancellationToken));
+            return TaskKindCodes.TryFromServiceName(serviceName, out string lockedTaskKind)
+                && string.Equals(lockedTaskKind, request.TaskKind, StringComparison.Ordinal);
         }
 
         private static async Task<bool> NodeAvailableAsync(
@@ -469,19 +471,25 @@ namespace CampusDelivery.Api.Repositories
             TaskPublishRequest request,
             CancellationToken cancellationToken)
         {
-            if (request.TaskKind == "FOOD")
+            if (request.TaskKind == TaskKindCodes.Food)
             {
                 await InsertFoodDetailAsync(connection, transaction, taskId, request, cancellationToken);
                 return;
             }
 
-            if (request.TaskKind == "EXPRESS")
+            if (request.TaskKind == TaskKindCodes.Express)
             {
                 await InsertExpressDetailAsync(connection, transaction, taskId, request, cancellationToken);
                 return;
             }
 
-            await InsertPrivateDetailAsync(connection, transaction, taskId, request, cancellationToken);
+            if (request.TaskKind == TaskKindCodes.Private)
+            {
+                await InsertPrivateDetailAsync(connection, transaction, taskId, request, cancellationToken);
+                return;
+            }
+
+            throw new InvalidOperationException("Unsupported internal task kind.");
         }
 
         private static async Task InsertFoodDetailAsync(
