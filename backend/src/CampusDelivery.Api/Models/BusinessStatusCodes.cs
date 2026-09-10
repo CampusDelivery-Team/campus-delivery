@@ -1,25 +1,5 @@
 namespace CampusDelivery.Api.Models;
 
-public static class TaskKindCodes
-{
-    public const string Food = "FOOD";
-    public const string Express = "EXPRESS";
-    public const string Private = "PRIVATE";
-
-    public static bool TryFromServiceName(string? serviceName, out string taskKind)
-    {
-        taskKind = serviceName?.Trim() switch
-        {
-            "外卖分发" => Food,
-            "快递代取" => Express,
-            "私人跑腿" => Private,
-            _ => string.Empty
-        };
-
-        return taskKind.Length > 0;
-    }
-}
-
 public static class TaskStatusCodes
 {
     public const string WaitConfirm = "WAIT_CONFIRM";

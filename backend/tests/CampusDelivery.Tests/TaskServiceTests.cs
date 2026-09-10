@@ -1,53 +1,43 @@
 using System.ComponentModel.DataAnnotations;
-using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Presentation.ViewModels;
 using CampusDelivery.Api.Repositories.Interfaces;
 using CampusDelivery.Api.Services;
-using CampusDelivery.Api.Services.Interfaces;
 
 namespace CampusDelivery.Tests;
 
 public sealed class TaskServiceTests
 {
     [Theory]
-    [InlineData("FOOD", nameof(TaskCreateViewModel.MerchantName), "商家名称")]
-    [InlineData("EXPRESS", nameof(TaskCreateViewModel.ExpressCompany), "快递公司")]
-    [InlineData("EXPRESS", nameof(TaskCreateViewModel.WaybillNo), "物流单号")]
-    [InlineData("EXPRESS", nameof(TaskCreateViewModel.PickupCode), "取件码")]
-    [InlineData("PRIVATE", nameof(TaskCreateViewModel.ItemCategory), "物品类别")]
-    [InlineData("PRIVATE", nameof(TaskCreateViewModel.PickupLocation), "取货地点")]
-    [InlineData("PRIVATE", nameof(TaskCreateViewModel.DeliveryLocation), "送达地点")]
-    public async Task CreateAsync_WhenRequiredTypedDetailIsMissing_ReturnsBusinessError(
+    [InlineData("FOOD", nameof(TaskCreateViewModel.MerchantName))]
+    [InlineData("EXPRESS", nameof(TaskCreateViewModel.ExpressCompany))]
+    [InlineData("EXPRESS", nameof(TaskCreateViewModel.WaybillNo))]
+    [InlineData("EXPRESS", nameof(TaskCreateViewModel.PickupCode))]
+    [InlineData("PRIVATE", nameof(TaskCreateViewModel.ItemCategory))]
+    [InlineData("PRIVATE", nameof(TaskCreateViewModel.PickupLocation))]
+    [InlineData("PRIVATE", nameof(TaskCreateViewModel.DeliveryLocation))]
+    public void Validate_WhenRequiredTypedDetailIsMissing_ReturnsFieldError(
         string taskKind,
-        string missingField,
-        string expectedMessage)
+        string missingField)
     {
-        var repository = new FakeTaskRepository();
-        TaskService service = CreateService(repository);
         TaskCreateViewModel model = CreateValidModel(taskKind);
         typeof(TaskCreateViewModel).GetProperty(missingField)!.SetValue(model, null);
 
-        TaskOperationResult result = await service.CreateAsync(501, model);
+        List<ValidationResult> results = Validate(model);
 
-        Assert.False(result.Success);
-        Assert.Contains(expectedMessage, result.ErrorMessage);
-        Assert.Null(repository.CapturedCreateRequest);
+        Assert.Contains(results, result => result.MemberNames.Contains(missingField));
     }
 
     [Theory]
     [InlineData("FOOD")]
     [InlineData("EXPRESS")]
     [InlineData("PRIVATE")]
-    public async Task CreateAsync_WhenTypedDetailsAreComplete_DerivesTaskKindFromService(string taskKind)
+    public void Validate_WhenTypedDetailsAreComplete_HasNoValidationErrors(string taskKind)
     {
-        var repository = new FakeTaskRepository();
-        TaskService service = CreateService(repository);
         TaskCreateViewModel model = CreateValidModel(taskKind);
 
-        TaskOperationResult result = await service.CreateAsync(501, model);
+        List<ValidationResult> results = Validate(model);
 
-        Assert.True(result.Success);
-        Assert.Equal(taskKind, repository.CapturedCreateRequest?.TaskKind);
+        Assert.Empty(results);
     }
 
     [Fact]
@@ -64,46 +54,6 @@ public sealed class TaskServiceTests
     }
 
     [Fact]
-    public async Task PopulateCreateOptionsAsync_MapsNodesToTheirAllowedServiceTypes()
-    {
-        IReadOnlyList<Node> nodes =
-        [
-            new() { NodeId = 10, NodeName = "南门", NodeType = "GATE", NodeStatus = "NORMAL" },
-            new() { NodeId = 20, NodeName = "驿站", NodeType = "STATION", NodeStatus = "NORMAL" },
-            new() { NodeId = 30, NodeName = "停用节点", NodeType = "GATE", NodeStatus = "CLOSED" }
-        ];
-        IReadOnlyList<ServiceNodeRule> rules =
-        [
-            new() { ServiceTypeId = 1, NodeId = 10, ServiceTypeStatus = "ENABLED", NodeStatus = "NORMAL" },
-            new() { ServiceTypeId = 3, NodeId = 10, ServiceTypeStatus = "ENABLED", NodeStatus = "NORMAL" },
-            new() { ServiceTypeId = 2, NodeId = 20, ServiceTypeStatus = "ENABLED", NodeStatus = "NORMAL" },
-            new() { ServiceTypeId = 1, NodeId = 30, ServiceTypeStatus = "ENABLED", NodeStatus = "CLOSED" }
-        ];
-        var service = new TaskService(
-            new FakeTaskRepository(),
-            new FakeAddressRepository(),
-            new FixedServiceTypeRepository(),
-            new FixedNodeRepository(nodes),
-            new FixedServiceNodeRuleRepository(rules));
-        var model = new TaskCreateViewModel();
-
-        await service.PopulateCreateOptionsAsync(model, 501);
-
-        Assert.Collection(
-            model.NodeOptions,
-            option =>
-            {
-                Assert.Equal(10, option.Value);
-                Assert.Equal([1, 3], option.AllowedServiceTypeIds);
-            },
-            option =>
-            {
-                Assert.Equal(20, option.Value);
-                Assert.Equal([2], option.AllowedServiceTypeIds);
-            });
-    }
-
-    [Fact]
     public async Task CreateAsync_WhenServiceNodeRuleDoesNotMatch_ReturnsBusinessMessage()
     {
         var repository = new FakeTaskRepository
@@ -116,21 +66,6 @@ public sealed class TaskServiceTests
 
         Assert.False(result.Success);
         Assert.Contains("不匹配", result.ErrorMessage);
-    }
-
-    [Fact]
-    public async Task CreateAsync_WhenServiceTypeHasNoKnownTaskKind_RejectsBeforeWrite()
-    {
-        var repository = new FakeTaskRepository();
-        TaskService service = CreateService(repository);
-        TaskCreateViewModel model = CreateValidModel("FOOD");
-        model.ServiceTypeId = 999;
-
-        TaskOperationResult result = await service.CreateAsync(501, model);
-
-        Assert.False(result.Success);
-        Assert.Contains("任务类型不可用", result.ErrorMessage);
-        Assert.Null(repository.CapturedCreateRequest);
     }
 
     [Fact]
@@ -182,19 +117,13 @@ public sealed class TaskServiceTests
         new(
             repository,
             new NotUsedAddressRepository(),
-            new FixedServiceTypeRepository(),
-            new NotUsedNodeRepository(),
-            new NotUsedServiceNodeRuleRepository());
+            new NotUsedServiceTypeRepository(),
+            new NotUsedNodeRepository());
 
     private static TaskCreateViewModel CreateValidModel(string taskKind) => new()
     {
-        ServiceTypeId = taskKind switch
-        {
-            TaskKindCodes.Food => 1,
-            TaskKindCodes.Express => 2,
-            TaskKindCodes.Private => 3,
-            _ => 999
-        },
+        TaskKind = taskKind,
+        ServiceTypeId = 1,
         AddressNo = 1,
         NodeId = 1,
         TaskTitle = "测试任务",
@@ -214,94 +143,5 @@ public sealed class TaskServiceTests
         var results = new List<ValidationResult>();
         Validator.TryValidateObject(model, new ValidationContext(model), results, validateAllProperties: true);
         return results;
-    }
-
-    private sealed class FixedServiceTypeRepository : IServiceTypeRepository
-    {
-        private static readonly IReadOnlyList<ServiceType> ServiceTypes =
-        [
-            new() { ServiceTypeId = 1, ServiceName = "外卖分发", BasePrice = 3m, TypeStatus = "ENABLED" },
-            new() { ServiceTypeId = 2, ServiceName = "快递代取", BasePrice = 4m, TypeStatus = "ENABLED" },
-            new() { ServiceTypeId = 3, ServiceName = "私人跑腿", BasePrice = 5m, TypeStatus = "ENABLED" }
-        ];
-
-        public Task<IReadOnlyList<ServiceType>> GetAllAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(ServiceTypes);
-
-        public Task<bool> ExistsByNameAsync(string serviceName, int? excludedServiceTypeId = null, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<ServiceTypeRepositoryWriteResult> InsertAsync(ServiceType serviceType, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<ServiceTypeRepositoryWriteResult> UpdateAsync(ServiceType serviceType, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<bool> UpdateStatusAsync(int serviceTypeId, string typeStatus, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<ServiceTypeDeleteResult> DeleteAsync(int serviceTypeId, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class NotUsedServiceNodeRuleRepository : IServiceNodeRuleRepository
-    {
-        public Task<IReadOnlyList<ServiceNodeRule>> GetAllAsync(CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<bool> ExistsAsync(int serviceTypeId, int nodeId, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<bool> InsertAsync(int serviceTypeId, int nodeId, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<CampusDelivery.Api.Repositories.Interfaces.ServiceNodeRuleRemoveResult> RemoveAsync(
-            int serviceTypeId,
-            int nodeId,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class FixedNodeRepository(IReadOnlyList<Node> nodes) : INodeRepository
-    {
-        public Task<IReadOnlyList<Node>> GetAllAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(nodes);
-
-        public Task<Node?> GetByIdAsync(int nodeId, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<bool> ExistsByNameAsync(string nodeName, int? excludedNodeId = null, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task InsertAsync(Node node, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<bool> UpdateAsync(Node node, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<bool> UpdateStatusAsync(int nodeId, string nodeStatus, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<NodeDeleteResult> DeleteAsync(int nodeId, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class FixedServiceNodeRuleRepository(IReadOnlyList<ServiceNodeRule> rules)
-        : IServiceNodeRuleRepository
-    {
-        public Task<IReadOnlyList<ServiceNodeRule>> GetAllAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(rules);
-
-        public Task<bool> ExistsAsync(int serviceTypeId, int nodeId, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<bool> InsertAsync(int serviceTypeId, int nodeId, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-
-        public Task<CampusDelivery.Api.Repositories.Interfaces.ServiceNodeRuleRemoveResult> RemoveAsync(
-            int serviceTypeId,
-            int nodeId,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
     }
 }
