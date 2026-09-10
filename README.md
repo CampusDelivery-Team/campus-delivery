@@ -107,7 +107,7 @@ dotnet build backend/CampusDelivery.sln
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-tests.ps1
 ```
 
-2026-08-22 的 Release 结果为 39/39 项自动化测试通过；此后随第五阶段修复与补充用例持续增长，2026-09-01 复核为 52/52 通过，2026-09-07 在任务最低价和信誉分边界加固后本地 Release 回归为 58/58 通过。2026-09-09 接入全部四个数据库过程及三个函数后，本地 Release 门禁为 60/60 通过；2026-09-10 合并任务类型选择、增加服务端推导校验及服务节点联动后为 62/62 通过。静态检查确认 24 张关系表、47/47 个 POST Action 有防伪令牌、Repository 中14处行锁语句，且 Controller/Service 未越过五层边界；过程内部的行锁由 Oracle 脚本单独核验。
+2026-08-22 的 Release 结果为 39/39 项自动化测试通过；此后随第五阶段修复与补充用例持续增长，2026-09-01 复核为 52/52 通过，2026-09-07 在任务最低价和信誉分边界加固后本地 Release 回归为 58/58 通过。2026-09-09 接入全部四个数据库过程及三个函数后，本地 Release 门禁为 60/60 通过。静态检查确认 24 张关系表、47/47 个 POST Action 有防伪令牌、Repository 中14处行锁语句，且 Controller/Service 未越过五层边界；过程内部的行锁由 Oracle 脚本单独核验。
 
 ## 文档入口
 

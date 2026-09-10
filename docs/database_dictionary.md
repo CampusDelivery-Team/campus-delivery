@@ -47,7 +47,6 @@
 - 作用：保存服务类型及价格规则
 - 关键字段：`service_name`、`base_price`、`distance_rule`、`urgent_rule`、`type_status`
 - 基础数据中的外卖分发、快递代取、私人跑腿基础价分别为3元、4元、5元；运行时以表中当前值为准
-- 发布页只展示这三种固定服务，并分别映射到外卖、快递和私人跑腿明细表；页面不再另行接收任务明细类型
 - 函数唯一索引：`uk_service_types_name_ci`，对 `UPPER(TRIM(service_name))` 唯一，防止并发请求写入语义相同的名称
 
 ### `tasks`
