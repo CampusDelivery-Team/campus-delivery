@@ -47,6 +47,7 @@
 - 作用：保存服务类型及价格规则
 - 关键字段：`service_name`、`base_price`、`distance_rule`、`urgent_rule`、`type_status`
 - 基础数据中的外卖分发、快递代取、私人跑腿基础价分别为3元、4元、5元；运行时以表中当前值为准
+- 发布页只展示这三种固定服务，并分别映射到外卖、快递和私人跑腿明细表；页面不再另行接收任务明细类型
 - 函数唯一索引：`uk_service_types_name_ci`，对 `UPPER(TRIM(service_name))` 唯一，防止并发请求写入语义相同的名称
 
 ### `tasks`
@@ -55,7 +56,7 @@
 - 作用：保存任务主单公共字段
 - 外键：发布用户、服务类型、地址、交接节点
 - 关键字段：`task_title`、`task_price`、`urgent_flag`、`task_status`、`created_at`、`completed_at`
-- `task_price` 是发布者填写的最终总价，应用层保证其不得低于关联服务类型的 `base_price`
+- `task_price` 是数据库计价函数按当前 `service_types.base_price` 加发布者填写的非负附加费生成的最终总价；页面预览值不直接入库
 
 ### `assign_records`
 

@@ -6,7 +6,7 @@
 
 > 实现边界（2026-08-22）：账户、地址、配置、资格审核、任务、接派、配送、收货支付、退款、评价、投诉、结算、审计和报表均已有 MVC 路由及五层实现。当前已验证项和剩余数据库验收边界以 `system-test-report.md` 为准。
 
-本项目是一个**校园中转分发与跑腿服务管理系统**。系统围绕校园内外卖分发、快递代取、私人跑腿等任务展开，支持用户发布任务、跑腿员接单配送、管理员派单和审核、送达后付款、评价投诉、退款售后、跑腿员结算、审计和报表。
+本项目是一个**校园综合跑腿与代取服务管理系统**。系统围绕校园内外卖分发、快递代取、私人跑腿等任务展开，支持用户发布任务、跑腿员接单配送、管理员派单和审核、送达后付款、评价投诉、退款售后、跑腿员结算、审计和报表。
 
 ## 核心业务定位
 
@@ -163,8 +163,8 @@ users / user_addresses / service_types / nodes
 
 - 注册密码由 Service 使用 ASP.NET Core `PasswordHasher<User>` 生成带盐哈希后保存，登录使用 `VerifyHashedPassword` 校验。
 - Controller、View 和 Repository 不实现密码算法；数据库不保存原始密码。
-- 封禁账号 `account_status = 'BLOCKED'` 和注销账号 `account_status = 'CANCELLED'` 不允许登录；正常账号状态为 `NORMAL`。Cookie 每次认证时重新读取账号状态和角色，封禁后的旧登录态不能继续访问业务接口。
-- 地址只属于对应用户，不允许跨用户使用；新增地址先锁定所属用户行再分配 `address_no`，默认地址切换、删除后的默认补位均在同一事务完成。
+- 封禁账号 `account_status = 'BLOCKED'` 和注销账号 `account_status = 'CANCELLED'` 不允许登录；正常账号状态为 `NORMAL`。Cookie 每次认证时重新读取账号状态和角色，封禁后的旧登录态不能继续访问业务接口。管理员封禁和解封通过 `SP_MANAGE_ACCOUNT_STATUS` 完成，封禁跑腿员时同步置为 `OFFLINE`。
+- 地址只属于对应用户，不允许跨用户使用；新增地址先锁定所属用户行再分配 `address_no`，默认地址切换由 `SP_SET_DEFAULT_ADDRESS` 原子完成，删除后的默认补位仍在同一 Repository 事务完成。
 - 数据库函数唯一索引保证同一用户最多一条默认地址；设置不存在的地址时必须在清空原默认地址之前失败。
 - 页面显示中文名称，数据库保存英文状态代码。
 
@@ -190,9 +190,9 @@ users / user_addresses / service_types / nodes
 
 业务规则：
 
-- 只有 `audit_status = 'APPROVED'` 的跑腿员可以接单。
-- 跑腿员接单前应处于 `work_status = 'FREE'`。
-- 接单后进入 `BUSY`。
+- 跑腿员审核由 `SP_AUDIT_RUNNER` 在同一事务中联动更新申请状态、工作状态和用户角色；只有 `audit_status = 'APPROVED'` 的跑腿员可以接单。
+- 跑腿员接单前应处于 `work_status = 'FREE'` 或 `BUSY`；`BUSY` 代表已有进行中任务，但当前规则允许多单承接。
+- 接单后进入或保持 `BUSY`。
 - 完成任务后恢复为 `FREE`。
 
 ### 节点、服务类型和适用规则
@@ -215,6 +215,8 @@ users / user_addresses / service_types / nodes
 
 任务发布以 `tasks` 为主单，三类任务明细表保存不同任务类型的专有字段。
 
+发布页面只提供一个“任务类型”下拉框，其选项实际来自 `service_types`，提交和保存的值仍为 `service_type_id`。后端根据固定的三类服务名称推导内部 `TaskKind`，决定显示及写入哪一张明细表，不接受客户端自行指定明细类型。交接节点选项按照 `service_node_rules` 随任务类型联动，只展示该类型允许使用的正常节点；后端仍在写入事务中再次校验。
+
 相关表：
 
 - `tasks`
@@ -233,8 +235,9 @@ users / user_addresses / service_types / nodes
 发布流程：
 
 ```text
-用户选择服务类型、地址和节点
+用户选择任务类型（对应 service_type_id）、地址和节点
 -> 系统校验服务类型、地址、节点和适用规则
+-> 数据库函数按基础费和用户填写的非负附加费计算最终总价
 -> 插入 tasks
 -> 插入对应任务明细
 -> 任务状态进入 WAITING
@@ -246,7 +249,8 @@ users / user_addresses / service_types / nodes
 - 发布任务时不创建接派记录。
 - 发布任务时不创建支付记录。
 - 发布任务时不写状态日志。
-- 任务价格由发布者填写，必须大于等于所选服务类型的基础价格；允许显式加价，但本轮不自动计算距离、重量、加急或复杂度附加费。
+- 发布者填写非负附加费，页面展示“基础费 + 附加费”的预计总价；后端在发布事务中调用 `FN_CALCULATE_TASK_PRICE`，按数据库当前基础费重新计算最终任务价格。
+- 本轮不自动计算距离、重量、加急或复杂度附加费，发布者需要把认可的附加费用显式填写出来。
 - 如果系统没有草稿流程，发布成功后任务状态应为 `WAITING`。
 
 ## 任务状态逻辑
@@ -302,6 +306,8 @@ WAITING -> ASSIGNED -> PICKED_UP -> DELIVERING -> WAIT_CONFIRM -> FINISHED
 ```text
 任务处于 WAITING
 -> 跑腿员抢单或管理员派单
+-> 后端调用 SP_ACCEPT_TASK_ATOMIC
+-> 过程锁定任务与跑腿员并在锁内重新校验
 -> 插入 assign_records
 -> 更新任务为 ASSIGNED
 -> 更新跑腿员为 BUSY
@@ -319,6 +325,7 @@ WAITING -> ASSIGNED -> PICKED_UP -> DELIVERING -> WAIT_CONFIRM -> FINISHED
 业务规则：
 
 - 已经接单的任务不能再作为普通待接单任务展示。
+- 两名跑腿员同时接一单时，任务行锁使请求串行化；后到请求在取得锁后发现任务不再是 `WAITING`，不会写入第二条接派记录。
 - 同一任务可能因为重派产生多条 `assign_records`。
 - 当前接派记录按业务有效性取最新记录。
 - 查询当前接派记录时，默认按 `assigned_at DESC, record_id DESC` 取最新有效记录。

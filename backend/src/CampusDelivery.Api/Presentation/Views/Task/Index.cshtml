@@ -20,7 +20,23 @@
     }
 
     <div class="table-wrap">
-        <table class="service-type-table">
+        <table class="service-type-table task-list-table @(Model.IsAdminView ? "task-list-table-admin" : "task-list-table-user")">
+            <colgroup>
+                <col class="task-list-col-id" />
+                @if (Model.IsAdminView)
+                {
+                    <col class="task-list-col-publisher" />
+                }
+                <col class="task-list-col-kind" />
+                <col class="task-list-col-title" />
+                <col class="task-list-col-service" />
+                <col class="task-list-col-price" />
+                <col class="task-list-col-status" />
+                <col class="task-list-col-address" />
+                <col class="task-list-col-node" />
+                <col class="task-list-col-created" />
+                <col class="task-list-col-actions" />
+            </colgroup>
             <thead>
                 <tr>
                     <th>编号</th>
@@ -51,22 +67,22 @@
                 foreach (var task in Model.Tasks)
                 {
                     <tr>
-                        <td>#@task.TaskId</td>
+                        <td><span class="task-list-cell" title="#@task.TaskId">#@task.TaskId</span></td>
                         @if (Model.IsAdminView)
                         {
-                            <td>@task.PublisherUsername</td>
+                            <td><span class="task-list-cell" title="@task.PublisherUsername">@task.PublisherUsername</span></td>
                         }
-                        <td>@task.TaskKindDisplayName</td>
+                        <td><span class="task-list-cell" title="@task.TaskKindDisplayName">@task.TaskKindDisplayName</span></td>
                         <td>
-                            <div>@task.TaskTitle</div>
-                            <small>@task.UrgentFlagDisplayName</small>
+                            <span class="task-list-cell task-list-title" title="@task.TaskTitle">@task.TaskTitle</span>
+                            <small class="task-list-subtext" title="@task.UrgentFlagDisplayName">@task.UrgentFlagDisplayName</small>
                         </td>
-                        <td>@task.ServiceName</td>
-                        <td>@task.TaskPrice.ToString("F2") 元</td>
-                        <td>@task.TaskStatusDisplayName</td>
-                        <td>@task.AddressSummary</td>
-                        <td>@task.NodeName</td>
-                        <td>@task.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td><span class="task-list-cell" title="@task.ServiceName">@task.ServiceName</span></td>
+                        <td><span class="task-list-cell" title="@($"{task.TaskPrice:F2} 元")">@task.TaskPrice.ToString("F2") 元</span></td>
+                        <td><span class="task-list-cell" title="@task.TaskStatusDisplayName">@task.TaskStatusDisplayName</span></td>
+                        <td><span class="task-list-cell" title="@task.AddressSummary">@task.AddressSummary</span></td>
+                        <td><span class="task-list-cell" title="@task.NodeName">@task.NodeName</span></td>
+                        <td><span class="task-list-cell" title="@task.CreatedAt.ToString("yyyy-MM-dd HH:mm")">@task.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span></td>
                         <td>
                             <div class="service-type-row-actions">
                                 <a asp-action="Details" asp-route-id="@task.TaskId">详情</a>

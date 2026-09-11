@@ -30,23 +30,14 @@ namespace CampusDelivery.Api.Repositories
                 return new TaskCreateWriteResult(TaskCreateResult.AddressNotFound);
             }
 
-            decimal? minimumPrice = await GetAvailableServiceTypeBasePriceAsync(
+            if (!await LockedServiceTypeMatchesTaskKindAsync(
                 connection,
                 transaction,
-                request.ServiceTypeId,
-                cancellationToken);
-            if (!minimumPrice.HasValue)
+                request,
+                cancellationToken))
             {
                 transaction.Rollback();
                 return new TaskCreateWriteResult(TaskCreateResult.ServiceTypeUnavailable);
-            }
-
-            if (request.TaskPrice < minimumPrice.Value)
-            {
-                transaction.Rollback();
-                return new TaskCreateWriteResult(
-                    TaskCreateResult.PriceBelowMinimum,
-                    minimumPrice: minimumPrice.Value);
             }
 
             if (!await NodeAvailableAsync(connection, transaction, request.NodeId, cancellationToken))
@@ -55,10 +46,25 @@ namespace CampusDelivery.Api.Repositories
                 return new TaskCreateWriteResult(TaskCreateResult.NodeUnavailable);
             }
 
-            if (!await ServiceNodeRuleExistsAsync(connection, transaction, request, cancellationToken))
+            if (!await ServiceNodeAllowedAsync(connection, transaction, request, cancellationToken))
             {
                 transaction.Rollback();
                 return new TaskCreateWriteResult(TaskCreateResult.RuleNotMatched);
+            }
+
+            try
+            {
+                request.TaskPrice = await CalculateTaskPriceAsync(
+                    connection,
+                    transaction,
+                    request.ServiceTypeId,
+                    request.ExtraAmount,
+                    cancellationToken);
+            }
+            catch (OracleException exception) when (Math.Abs(exception.Number) == 20045)
+            {
+                transaction.Rollback();
+                return new TaskCreateWriteResult(TaskCreateResult.PriceCalculationFailed);
             }
 
             int taskId = await InsertTaskAsync(connection, transaction, request, cancellationToken);
@@ -319,30 +325,27 @@ namespace CampusDelivery.Api.Repositories
             return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
         }
 
-        private static async Task<decimal?> GetAvailableServiceTypeBasePriceAsync(
+        private static async Task<bool> LockedServiceTypeMatchesTaskKindAsync(
             OracleConnection connection,
             OracleTransaction transaction,
-            int serviceTypeId,
+            TaskPublishRequest request,
             CancellationToken cancellationToken)
         {
             await using OracleCommand command = connection.CreateCommand();
             command.BindByName = true;
             command.Transaction = transaction;
             command.CommandText = """
-                SELECT base_price
+                SELECT service_name
                 FROM service_types
                 WHERE service_type_id = :serviceTypeId
                   AND type_status = 'ENABLED'
                 FOR UPDATE
                 """;
-            command.Parameters.Add(new OracleParameter("serviceTypeId", serviceTypeId));
+            command.Parameters.Add(new OracleParameter("serviceTypeId", request.ServiceTypeId));
 
-            object? result = await command.ExecuteScalarAsync(cancellationToken);
-            return result is null || result == DBNull.Value
-                ? null
-                : result is OracleDecimal oracleDecimal
-                    ? oracleDecimal.Value
-                    : Convert.ToDecimal(result);
+            string? serviceName = Convert.ToString(await command.ExecuteScalarAsync(cancellationToken));
+            return TaskKindCodes.TryFromServiceName(serviceName, out string lockedTaskKind)
+                && string.Equals(lockedTaskKind, request.TaskKind, StringComparison.Ordinal);
         }
 
         private static async Task<bool> NodeAvailableAsync(
@@ -365,7 +368,7 @@ namespace CampusDelivery.Api.Repositories
             return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
         }
 
-        private static async Task<bool> ServiceNodeRuleExistsAsync(
+        private static async Task<bool> ServiceNodeAllowedAsync(
             OracleConnection connection,
             OracleTransaction transaction,
             TaskPublishRequest request,
@@ -374,16 +377,37 @@ namespace CampusDelivery.Api.Repositories
             await using OracleCommand command = connection.CreateCommand();
             command.BindByName = true;
             command.Transaction = transaction;
-            command.CommandText = """
-                SELECT COUNT(*)
-                FROM service_node_rules
-                WHERE service_type_id = :serviceTypeId
-                  AND node_id = :nodeId
-                """;
+            command.CommandText =
+                "SELECT APPUSER.fn_service_node_allowed(:serviceTypeId, :nodeId) FROM dual";
             command.Parameters.Add(new OracleParameter("serviceTypeId", request.ServiceTypeId));
             command.Parameters.Add(new OracleParameter("nodeId", request.NodeId));
 
-            return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+            object result = (await command.ExecuteScalarAsync(cancellationToken))!;
+            int numericResult = result is OracleDecimal oracleDecimal
+                ? oracleDecimal.ToInt32()
+                : Convert.ToInt32(result);
+            return numericResult == 1;
+        }
+
+        private static async Task<decimal> CalculateTaskPriceAsync(
+            OracleConnection connection,
+            OracleTransaction transaction,
+            int serviceTypeId,
+            decimal extraAmount,
+            CancellationToken cancellationToken)
+        {
+            await using OracleCommand command = connection.CreateCommand();
+            command.BindByName = true;
+            command.Transaction = transaction;
+            command.CommandText =
+                "SELECT APPUSER.fn_calculate_task_price(:serviceTypeId, :extraAmount) FROM dual";
+            command.Parameters.Add(new OracleParameter("serviceTypeId", serviceTypeId));
+            command.Parameters.Add(new OracleParameter("extraAmount", extraAmount));
+
+            object result = (await command.ExecuteScalarAsync(cancellationToken))!;
+            return result is OracleDecimal oracleDecimal
+                ? oracleDecimal.Value
+                : Convert.ToDecimal(result);
         }
 
         private static async Task<int> InsertTaskAsync(
@@ -447,19 +471,25 @@ namespace CampusDelivery.Api.Repositories
             TaskPublishRequest request,
             CancellationToken cancellationToken)
         {
-            if (request.TaskKind == "FOOD")
+            if (request.TaskKind == TaskKindCodes.Food)
             {
                 await InsertFoodDetailAsync(connection, transaction, taskId, request, cancellationToken);
                 return;
             }
 
-            if (request.TaskKind == "EXPRESS")
+            if (request.TaskKind == TaskKindCodes.Express)
             {
                 await InsertExpressDetailAsync(connection, transaction, taskId, request, cancellationToken);
                 return;
             }
 
-            await InsertPrivateDetailAsync(connection, transaction, taskId, request, cancellationToken);
+            if (request.TaskKind == TaskKindCodes.Private)
+            {
+                await InsertPrivateDetailAsync(connection, transaction, taskId, request, cancellationToken);
+                return;
+            }
+
+            throw new InvalidOperationException("Unsupported internal task kind.");
         }
 
         private static async Task InsertFoodDetailAsync(

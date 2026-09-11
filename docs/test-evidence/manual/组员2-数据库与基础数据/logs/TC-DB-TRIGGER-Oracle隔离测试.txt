@@ -1,0 +1,45 @@
+测试日期：2026-09-11
+测试 Schema：APP2452098
+正式 Schema：APPUSER（未部署、未写入）
+
+编译检查：
+- TRG_TASK_STATUS_AUDIT：ENABLED
+- TRG_PAYMENT_CHANGE_AUDIT：ENABLED
+- TRG_REFUND_CHANGE_AUDIT：ENABLED
+- DBA_ERRORS：0
+
+断言结果：
+- PASS：合法任务状态变化生成 LOG/PASS。
+- PASS：非法任务状态变化生成 LOG/ABNORMAL。
+- PASS：业务回滚时审计行同步回滚。
+- PASS：支付创建和 UNPAID -> PAID 生成 PAYMENT/PASS。
+- PASS：已支付后修改金额生成 PAYMENT/ABNORMAL。
+- PASS：PAID -> UNPAID 状态倒退生成 PAYMENT/ABNORMAL。
+- PASS：没有实际变化的支付 UPDATE 不新增审计。
+- PASS：退款申请和 APPLY -> APPROVED 生成 REFUND/PASS。
+- PASS：APPROVED -> APPLY 状态倒退生成 REFUND/ABNORMAL。
+- PASS：APPROVED 后再次修改退款关键内容生成 REFUND/ABNORMAL；测试事务已回滚。
+- PASS：回滚脚本删除 3 个触发器但保留 9 条历史审计。
+- PASS：重新创建后 3 个触发器均为 ENABLED，编译错误仍为 0。
+
+最终汇总：
+
+AUDIT_ID  AUDIT_OBJECT  AUDIT_RESULT  EXCEPTION_NOTE
+1         LOG           PASS          AUTO_TASK_STATUS: WAITING -> ASSIGNED
+2         LOG           ABNORMAL      AUTO_TASK_STATUS: unrecognized transition WAITING -> FINISHED
+4         PAYMENT       PASS          AUTO_PAYMENT: INSERT status=UNPAID, order=20, paid=20
+5         PAYMENT       PASS          AUTO_PAYMENT: UPDATE status=UNPAID -> PAID, critical fields changed
+6         PAYMENT       ABNORMAL      AUTO_PAYMENT: UPDATE status=PAID -> PAID, critical fields changed
+7         PAYMENT       ABNORMAL      AUTO_PAYMENT: UPDATE status=PAID -> UNPAID
+8         REFUND        PASS          AUTO_REFUND: INSERT status=APPLY, requested=19
+9         REFUND        PASS          AUTO_REFUND: UPDATE status=APPLY -> APPROVED, critical fields changed
+10        REFUND        ABNORMAL      AUTO_REFUND: UPDATE status=APPROVED -> APPLY
+
+说明：AUDIT_ID=3 在保存点后的事务回滚测试中生成，回滚后 identity 编号不会回收，
+因此 2 与 4 之间的编号空洞正好证明审计行与业务行一起回滚。
+
+最终只读复核：
+- APPUSER_TRIGGER_COUNT = 0
+- APP2452098_TEST_TRIGGER_COUNT = 3
+- APP2452098_TEST_AUDIT_COUNT = 9
+- APP2452098 表空间配额已恢复为 0（DBA_TS_QUOTAS 无记录）

@@ -1,7 +1,9 @@
+using System.Data;
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Persistence.Oracle;
 using CampusDelivery.Api.Repositories.Interfaces;
 using Oracle.ManagedDataAccess.Client;
+using Oracle.ManagedDataAccess.Types;
 
 namespace CampusDelivery.Api.Repositories;
 
@@ -150,7 +152,6 @@ public sealed class RunnerRepository(OracleConnectionFactory connectionFactory) 
     public async Task<RunnerReviewWriteResult> ReviewAsync(
         int runnerId,
         string auditStatus,
-        string workStatus,
         CancellationToken cancellationToken = default)
     {
         await using var connection = connectionFactory.CreateConnection();
@@ -159,77 +160,42 @@ public sealed class RunnerRepository(OracleConnectionFactory connectionFactory) 
 
         try
         {
-            int userId;
-            await using (var selectCommand = connection.CreateCommand())
+            await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.BindByName = true;
+            command.CommandType = CommandType.StoredProcedure;
+            command.CommandText = "APPUSER.sp_audit_runner";
+            command.Parameters.Add(new OracleParameter("p_runner_id", runnerId));
+            command.Parameters.Add(new OracleParameter("p_audit_status", auditStatus));
+            var resultParameter = new OracleParameter("p_result", OracleDbType.Varchar2, 40)
             {
-                selectCommand.Transaction = transaction;
-                selectCommand.CommandText = """
-                    SELECT user_id, audit_status
-                    FROM runners
-                    WHERE runner_id = :runnerId
-                    FOR UPDATE
-                    """;
-                selectCommand.Parameters.Add(new OracleParameter("runnerId", runnerId));
+                Direction = ParameterDirection.Output
+            };
+            command.Parameters.Add(resultParameter);
 
-                await using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken);
-                if (!await reader.ReadAsync(cancellationToken))
-                {
-                    await transaction.RollbackAsync(cancellationToken);
-                    return RunnerReviewWriteResult.NotFound;
-                }
+            await command.ExecuteNonQueryAsync(cancellationToken);
 
-                if (!string.Equals(
-                        Convert.ToString(reader["audit_status"]),
-                        "PENDING",
-                        StringComparison.Ordinal))
-                {
-                    await transaction.RollbackAsync(cancellationToken);
-                    return RunnerReviewWriteResult.AlreadyReviewed;
-                }
-
-                userId = Convert.ToInt32(reader["user_id"]);
-            }
-
-            if (auditStatus == "APPROVED")
+            string result = resultParameter.Value is OracleString oracleString
+                ? oracleString.Value
+                : Convert.ToString(resultParameter.Value) ?? string.Empty;
+            RunnerReviewWriteResult mappedResult = result.Trim() switch
             {
-                await using var userCommand = connection.CreateCommand();
-                userCommand.Transaction = transaction;
-                userCommand.CommandText = """
-                    UPDATE users
-                    SET user_role = 'RUNNER'
-                    WHERE user_id = :userId
-                      AND account_status = 'NORMAL'
-                      AND user_role <> 'ADMIN'
-                    """;
-                userCommand.Parameters.Add(new OracleParameter("userId", userId));
-                if (await userCommand.ExecuteNonQueryAsync(cancellationToken) == 0)
-                {
-                    await transaction.RollbackAsync(cancellationToken);
-                    return RunnerReviewWriteResult.AccountUnavailable;
-                }
+                "SUCCESS" => RunnerReviewWriteResult.Success,
+                "NOT_FOUND" => RunnerReviewWriteResult.NotFound,
+                "ALREADY_REVIEWED" => RunnerReviewWriteResult.AlreadyReviewed,
+                _ => RunnerReviewWriteResult.AccountUnavailable
+            };
+
+            if (mappedResult == RunnerReviewWriteResult.Success)
+            {
+                await transaction.CommitAsync(cancellationToken);
             }
-
-            await using var runnerCommand = connection.CreateCommand();
-            runnerCommand.Transaction = transaction;
-            runnerCommand.CommandText = """
-                UPDATE runners
-                SET audit_status = :auditStatus,
-                    work_status = :workStatus
-                WHERE runner_id = :runnerId
-                  AND audit_status = 'PENDING'
-                """;
-            runnerCommand.Parameters.Add(new OracleParameter("auditStatus", auditStatus));
-            runnerCommand.Parameters.Add(new OracleParameter("workStatus", workStatus));
-            runnerCommand.Parameters.Add(new OracleParameter("runnerId", runnerId));
-
-            if (await runnerCommand.ExecuteNonQueryAsync(cancellationToken) == 0)
+            else
             {
                 await transaction.RollbackAsync(cancellationToken);
-                return RunnerReviewWriteResult.AlreadyReviewed;
             }
 
-            await transaction.CommitAsync(cancellationToken);
-            return RunnerReviewWriteResult.Success;
+            return mappedResult;
         }
         catch
         {

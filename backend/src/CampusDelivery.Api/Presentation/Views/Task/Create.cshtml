@@ -8,7 +8,7 @@
     <div class="address-form-page__heading">
         <p class="eyebrow">TASK PUBLISH</p>
         <h1>发布任务</h1>
-        <p>按服务类型、收货地址和交接节点创建任务。任务发布成功后会直接进入“待接单”状态。</p>
+        <p>按任务类型、收货地址和交接节点创建任务。任务发布成功后会直接进入“待接单”状态。</p>
     </div>
 
     @if (Model.AddressOptions.Count == 0)
@@ -26,28 +26,20 @@
 
         <div class="address-form__grid">
             <div class="address-form__field">
-                <label asp-for="TaskKind">任务类型</label>
-                <select asp-for="TaskKind" id="task-kind-select">
-                    <option value="FOOD">外卖分发</option>
-                    <option value="EXPRESS">快递代取</option>
-                    <option value="PRIVATE">私人跑腿</option>
-                </select>
-                <span asp-validation-for="TaskKind" class="validation-message"></span>
-            </div>
-            <div class="address-form__field">
-                <label asp-for="ServiceTypeId">服务类型</label>
-                <select asp-for="ServiceTypeId">
-                    <option value="">请选择服务类型</option>
+                <label asp-for="ServiceTypeId">任务类型</label>
+                <select asp-for="ServiceTypeId" id="service-type-select">
+                    <option value="">请选择任务类型</option>
                     @foreach (var option in Model.ServiceTypeOptions)
                     {
-                        <option value="@option.Value">@option.Text</option>
+                        <option value="@option.Value"
+                                data-task-kind="@option.TaskKind"
+                                data-base-price="@option.BasePrice?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)">
+                            @option.Text
+                        </option>
                     }
                 </select>
                 <span asp-validation-for="ServiceTypeId" class="validation-message"></span>
             </div>
-        </div>
-
-        <div class="address-form__grid">
             <div class="address-form__field">
                 <label asp-for="AddressNo">收货地址</label>
                 <select asp-for="AddressNo">
@@ -59,30 +51,46 @@
                 </select>
                 <span asp-validation-for="AddressNo" class="validation-message"></span>
             </div>
-            <div class="address-form__field">
-                <label asp-for="NodeId">交接节点</label>
-                <select asp-for="NodeId">
-                    <option value="">请选择交接节点</option>
-                    @foreach (var option in Model.NodeOptions)
-                    {
-                        <option value="@option.Value">@option.Text</option>
-                    }
-                </select>
-                <span asp-validation-for="NodeId" class="validation-message"></span>
-            </div>
-        </div>
-
-        <div class="address-form__field">
-            <label asp-for="TaskTitle">任务标题</label>
-            <input asp-for="TaskTitle" placeholder="例如：帮我从分发点拿外卖到宿舍" />
-            <span asp-validation-for="TaskTitle" class="validation-message"></span>
         </div>
 
         <div class="address-form__grid">
             <div class="address-form__field">
-                <label asp-for="TaskPrice">任务价格</label>
-                <input asp-for="TaskPrice" type="number" min="0" step="0.01" placeholder="例如：5.00" />
-                <span asp-validation-for="TaskPrice" class="validation-message"></span>
+                <label asp-for="NodeId">交接节点</label>
+                <select asp-for="NodeId" id="node-select">
+                    <option value="" id="node-placeholder">请先选择任务类型</option>
+                    @foreach (var option in Model.NodeOptions)
+                    {
+                        <option value="@option.Value"
+                                data-service-type-ids="@string.Join(",", option.AllowedServiceTypeIds)">
+                            @option.Text
+                        </option>
+                    }
+                </select>
+                <span asp-validation-for="NodeId" class="validation-message"></span>
+                <small id="node-availability-message" class="validation-message" role="status" hidden>
+                    该任务类型暂未配置可用节点，无法发布。
+                </small>
+            </div>
+            <div class="address-form__field">
+                <label asp-for="TaskTitle">任务标题</label>
+                <input asp-for="TaskTitle" placeholder="例如：帮我从分发点拿外卖到宿舍" />
+                <span asp-validation-for="TaskTitle" class="validation-message"></span>
+            </div>
+        </div>
+
+        <div class="address-form__grid">
+            <div class="address-form__field">
+                <label asp-for="ExtraAmount">附加费</label>
+                <input asp-for="ExtraAmount"
+                       id="extra-amount-input"
+                       type="number"
+                       min="0"
+                       max="99999999.99"
+                       step="0.01"
+                       inputmode="decimal"
+                       placeholder="例如：2.50" />
+                <span asp-validation-for="ExtraAmount" class="validation-message"></span>
+                <small class="field-hint">可填写距离、重量、加急或复杂度产生的额外费用。</small>
             </div>
             <div class="address-form__field">
                 <label>加急选项</label>
@@ -94,6 +102,24 @@
             </div>
         </div>
 
+        <aside class="task-price-preview" aria-live="polite">
+            <div class="task-price-preview__heading">
+                <span class="task-price-preview__icon" aria-hidden="true">¥</span>
+                <div>
+                    <p class="eyebrow">PRICE PREVIEW</p>
+                    <strong>预计任务总价</strong>
+                </div>
+            </div>
+            <div class="task-price-preview__formula">
+                <span>基础费 <strong id="base-price-preview">--</strong></span>
+                <span class="task-price-preview__operator">+</span>
+                <span>附加费 <strong id="extra-price-preview">¥0.00</strong></span>
+                <span class="task-price-preview__operator">=</span>
+                <span class="task-price-preview__total" id="total-price-preview">--</span>
+            </div>
+            <p>页面金额仅供预览，发布时由 Oracle 计价函数按最新基础费重新计算。</p>
+        </aside>
+
         <section id="food-fields" class="panel">
             <div class="section-header">
                 <div>
@@ -104,7 +130,7 @@
             <div class="address-form__grid">
                 <div class="address-form__field">
                     <label asp-for="MerchantName">商家名称</label>
-                    <input asp-for="MerchantName" placeholder="例如：麦当劳嘉定店" />
+                    <input asp-for="MerchantName" data-task-required-kind="FOOD" placeholder="例如：麦当劳嘉定店" />
                     <span asp-validation-for="MerchantName" class="validation-message"></span>
                 </div>
                 <div class="address-form__field">
@@ -130,19 +156,19 @@
             <div class="address-form__grid">
                 <div class="address-form__field">
                     <label asp-for="ExpressCompany">快递公司</label>
-                    <input asp-for="ExpressCompany" placeholder="例如：顺丰" />
+                    <input asp-for="ExpressCompany" data-task-required-kind="EXPRESS" placeholder="例如：顺丰" />
                     <span asp-validation-for="ExpressCompany" class="validation-message"></span>
                 </div>
                 <div class="address-form__field">
                     <label asp-for="WaybillNo">物流单号</label>
-                    <input asp-for="WaybillNo" placeholder="请填写物流单号" />
+                    <input asp-for="WaybillNo" data-task-required-kind="EXPRESS" placeholder="请填写物流单号" />
                     <span asp-validation-for="WaybillNo" class="validation-message"></span>
                 </div>
             </div>
             <div class="address-form__grid">
                 <div class="address-form__field">
                     <label asp-for="PickupCode">取件码</label>
-                    <input asp-for="PickupCode" placeholder="请填写取件码" />
+                    <input asp-for="PickupCode" data-task-required-kind="EXPRESS" placeholder="请填写取件码" />
                     <span asp-validation-for="PickupCode" class="validation-message"></span>
                 </div>
                 <div class="address-form__field">
@@ -163,7 +189,7 @@
             <div class="address-form__grid">
                 <div class="address-form__field">
                     <label asp-for="ItemCategory">物品类别</label>
-                    <input asp-for="ItemCategory" placeholder="例如：文件、钥匙、药品" />
+                    <input asp-for="ItemCategory" data-task-required-kind="PRIVATE" placeholder="例如：文件、钥匙、药品" />
                     <span asp-validation-for="ItemCategory" class="validation-message"></span>
                 </div>
                 <div class="address-form__field">
@@ -174,12 +200,12 @@
             </div>
             <div class="address-form__field">
                 <label asp-for="PickupLocation">取货地点</label>
-                <input asp-for="PickupLocation" placeholder="例如：图书馆一楼服务台" />
+                <input asp-for="PickupLocation" data-task-required-kind="PRIVATE" placeholder="例如：图书馆一楼服务台" />
                 <span asp-validation-for="PickupLocation" class="validation-message"></span>
             </div>
             <div class="address-form__field">
                 <label asp-for="DeliveryLocation">送达地点</label>
-                <input asp-for="DeliveryLocation" placeholder="例如：学生宿舍 8 号楼 305" />
+                <input asp-for="DeliveryLocation" data-task-required-kind="PRIVATE" placeholder="例如：学生宿舍 8 号楼 305" />
                 <span asp-validation-for="DeliveryLocation" class="validation-message"></span>
             </div>
             <div class="address-form__field">
@@ -191,7 +217,13 @@
 
         <div class="profile-footer-actions">
             <a class="button" asp-action="Index">返回我的任务</a>
-            <button type="submit" class="button primary" @(Model.AddressOptions.Count == 0 ? "disabled" : null)>发布任务</button>
+            <button type="submit"
+                    id="publish-task-button"
+                    class="button primary"
+                    data-has-addresses="@(Model.AddressOptions.Count > 0 ? "true" : "false")"
+                    @(Model.AddressOptions.Count == 0 ? "disabled" : null)>
+                发布任务
+            </button>
         </div>
     </form>
 </section>
@@ -199,20 +231,105 @@
 @section Scripts {
     <script>
         (() => {
-            const selector = document.getElementById("task-kind-select");
             const foodFields = document.getElementById("food-fields");
             const expressFields = document.getElementById("express-fields");
             const privateFields = document.getElementById("private-fields");
-
-            const render = () => {
-                const value = selector.value;
-                foodFields.style.display = value === "FOOD" ? "" : "none";
-                expressFields.style.display = value === "EXPRESS" ? "" : "none";
-                privateFields.style.display = value === "PRIVATE" ? "" : "none";
+            const serviceTypeSelect = document.getElementById("service-type-select");
+            const nodeSelect = document.getElementById("node-select");
+            const nodePlaceholder = document.getElementById("node-placeholder");
+            const nodeAvailabilityMessage = document.getElementById("node-availability-message");
+            const publishTaskButton = document.getElementById("publish-task-button");
+            const extraAmountInput = document.getElementById("extra-amount-input");
+            const basePricePreview = document.getElementById("base-price-preview");
+            const extraPricePreview = document.getElementById("extra-price-preview");
+            const totalPricePreview = document.getElementById("total-price-preview");
+            const detailPanels = {
+                FOOD: foodFields,
+                EXPRESS: expressFields,
+                PRIVATE: privateFields
             };
 
-            selector.addEventListener("change", render);
-            render();
+            const renderDetails = () => {
+                const selectedOption = serviceTypeSelect.options[serviceTypeSelect.selectedIndex];
+                const taskKind = selectedOption?.dataset.taskKind ?? "";
+
+                Object.entries(detailPanels).forEach(([kind, panel]) => {
+                    const active = kind === taskKind;
+                    panel.style.display = active ? "" : "none";
+                    panel.querySelectorAll("input, textarea, select").forEach(field => {
+                        field.disabled = !active;
+                    });
+                });
+
+                document.querySelectorAll("[data-task-required-kind]").forEach(field => {
+                    field.required = field.dataset.taskRequiredKind === taskKind;
+                });
+            };
+
+            const renderNodes = () => {
+                const serviceTypeId = serviceTypeSelect.value;
+                let availableNodeCount = 0;
+
+                Array.from(nodeSelect.options).forEach(option => {
+                    if (!option.value) {
+                        return;
+                    }
+
+                    const allowedServiceTypeIds = (option.dataset.serviceTypeIds ?? "").split(",");
+                    const available = serviceTypeId !== "" && allowedServiceTypeIds.includes(serviceTypeId);
+                    option.hidden = !available;
+                    option.disabled = !available;
+                    if (available) {
+                        availableNodeCount += 1;
+                    }
+                });
+
+                const selectedNode = nodeSelect.options[nodeSelect.selectedIndex];
+                if (selectedNode?.disabled) {
+                    nodeSelect.value = "";
+                }
+
+                const hasSelectedTaskType = serviceTypeId !== "";
+                const hasAvailableNodes = availableNodeCount > 0;
+                nodeSelect.disabled = !hasSelectedTaskType || !hasAvailableNodes;
+                nodePlaceholder.textContent = !hasSelectedTaskType
+                    ? "请先选择任务类型"
+                    : hasAvailableNodes
+                        ? "请选择交接节点"
+                        : "该任务类型暂无可用节点";
+                nodeAvailabilityMessage.hidden = !hasSelectedTaskType || hasAvailableNodes;
+                publishTaskButton.disabled = publishTaskButton.dataset.hasAddresses !== "true"
+                    || !hasSelectedTaskType
+                    || !hasAvailableNodes;
+            };
+
+            const formatMoney = value => `¥${value.toFixed(2)}`;
+            const renderPrice = () => {
+                const selectedOption = serviceTypeSelect.options[serviceTypeSelect.selectedIndex];
+                const basePrice = Number.parseFloat(selectedOption?.dataset.basePrice ?? "");
+                const parsedExtra = Number.parseFloat(extraAmountInput.value);
+                const extraAmount = Number.isFinite(parsedExtra) && parsedExtra >= 0 ? parsedExtra : 0;
+
+                extraPricePreview.textContent = formatMoney(extraAmount);
+                if (!Number.isFinite(basePrice)) {
+                    basePricePreview.textContent = "--";
+                    totalPricePreview.textContent = "请选择任务类型";
+                    return;
+                }
+
+                basePricePreview.textContent = formatMoney(basePrice);
+                totalPricePreview.textContent = formatMoney(basePrice + extraAmount);
+            };
+
+            serviceTypeSelect.addEventListener("change", () => {
+                renderDetails();
+                renderNodes();
+                renderPrice();
+            });
+            extraAmountInput.addEventListener("input", renderPrice);
+            renderDetails();
+            renderNodes();
+            renderPrice();
         })();
     </script>
 }

@@ -111,9 +111,9 @@ SELECT address_id, user_id, address_no, is_default FROM user_addresses WHERE use
 
 | 用例编号 | 测试点 | 前置条件 | 测试步骤 | 预期结果 | 实际结果 | 结果 | 证据 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| TC-TASK-01 | 发布外卖分发任务 | 用户已登录并有地址 | `/Task/Create` 选外卖类型、地址、节点，填明细提交 | 发布成功；`tasks` 状态 WAITING；`food_delivery_details` 有且仅有一条对应明细 | | | 截图+SQL |
-| TC-TASK-02 | 发布快递代取任务 | 同上 | 选快递代取提交 | 成功；仅写 `express_pickup_details` | | | 截图+SQL |
-| TC-TASK-03 | 发布私人跑腿任务 | 同上 | 选私人跑腿提交 | 成功；仅写 `private_task_details` | | | 截图+SQL |
+| TC-TASK-01 | 发布外卖分发任务 | 用户已登录并有地址；基础价3元 | `/Task/Create` 选外卖类型、地址、节点，附加费填2.50元并提交 | 发布成功；`tasks` 状态 WAITING、总价5.50元；`food_delivery_details` 有且仅有一条对应明细 | | | 截图+SQL |
+| TC-TASK-02 | 发布快递代取任务 | 同上；基础价4元 | 选快递代取，附加费填2.50元并提交 | 成功；总价6.50元；仅写 `express_pickup_details` | | | 截图+SQL |
+| TC-TASK-03 | 发布私人跑腿任务 | 同上；基础价5元 | 选私人跑腿，附加费填2.50元并提交 | 成功；总价7.50元；仅写 `private_task_details` | | | 截图+SQL |
 | TC-TASK-04 | 停用类型/关闭节点不可选 | 管理员停用某类型、关闭某节点 | 打开发布页查看下拉项 | 停用类型和关闭节点不出现在可选项 | | | 截图 |
 | TC-TASK-05 | 类型-节点不匹配校验 | 准备不在规则表中的组合 | 用脚本/改包提交不匹配组合 | 服务端校验拒绝，不落库 | | | 截图 |
 | TC-TASK-06 | 发布不产生副作用 | 发布一条任务 | 执行 SQL 检查该任务 | 无 `assign_records`、无 `payments`、无 `task_status_logs`，且只有一种明细 | | | SQL+结果 |
@@ -122,7 +122,15 @@ SELECT address_id, user_id, address_no, is_default FROM user_addresses WHERE use
 
 参考 SQL：
 ```sql
-SELECT task_id, task_type, task_status, price FROM tasks WHERE task_id = :tid;
+SELECT t.task_id,
+       t.service_type_id,
+       st.base_price,
+       t.task_price,
+       t.task_price - st.base_price AS effective_extra_amount,
+       t.task_status
+  FROM tasks t
+  JOIN service_types st ON st.service_type_id = t.service_type_id
+ WHERE t.task_id = :tid;
 SELECT 'food' AS kind, COUNT(*) FROM food_delivery_details WHERE task_id = :tid
 UNION ALL SELECT 'express', COUNT(*) FROM express_pickup_details WHERE task_id = :tid
 UNION ALL SELECT 'private', COUNT(*) FROM private_task_details WHERE task_id = :tid;

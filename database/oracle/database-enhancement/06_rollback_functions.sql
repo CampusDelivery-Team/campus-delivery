@@ -8,7 +8,7 @@
 */
 
 BEGIN
-    EXECUTE IMMEDIATE 'DROP FUNCTION fn_get_credit_level';
+    EXECUTE IMMEDIATE 'DROP FUNCTION fn_service_node_allowed';
 EXCEPTION
     WHEN OTHERS THEN
         IF SQLCODE != -4043 THEN

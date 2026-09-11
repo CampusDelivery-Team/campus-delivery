@@ -34,9 +34,26 @@ public sealed class AddressServiceTests
         var result = await service.SetDefaultAsync(501, 99);
 
         Assert.False(result.Success);
-        Assert.Equal(0, repository.ClearDefaultCallCount);
         Assert.Equal("Y", repository.Snapshot().Single().IsDefault);
         Assert.True(transactions.Transactions.Single().WasRolledBack);
+    }
+
+    [Fact]
+    public async Task SetDefaultAsync_WhenTargetExists_SwitchesDefaultAtomically()
+    {
+        var repository = new FakeAddressRepository();
+        repository.Seed(NewAddress("同济大学", "1号楼101", 1, "Y"));
+        repository.Seed(NewAddress("同济大学", "2号楼202", 2, "N"));
+        var transactions = new FakeRepositoryTransactionManager();
+        var service = new AddressService(repository, transactions);
+
+        var result = await service.SetDefaultAsync(501, 2);
+
+        Assert.True(result.Success);
+        IReadOnlyList<UserAddress> addresses = repository.Snapshot();
+        Assert.Single(addresses, address => address.IsDefault == "Y");
+        Assert.Equal("Y", addresses.Single(address => address.AddressNo == 2).IsDefault);
+        Assert.True(transactions.Transactions.Single().WasCommitted);
     }
 
     [Fact]
@@ -62,13 +79,13 @@ public sealed class AddressServiceTests
         string room,
         int addressNo = 0,
         string isDefault = "N") => new()
-    {
-        UserId = 501,
-        AddressNo = addressNo,
-        ContactName = "测试用户",
-        ContactPhone = "13800000000",
-        Campus = campus,
-        BuildingRoom = room,
-        IsDefault = isDefault
-    };
+        {
+            UserId = 501,
+            AddressNo = addressNo,
+            ContactName = "测试用户",
+            ContactPhone = "13800000000",
+            Campus = campus,
+            BuildingRoom = room,
+            IsDefault = isDefault
+        };
 }

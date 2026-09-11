@@ -77,22 +77,41 @@ BEGIN
 END;
 /
 
-CREATE OR REPLACE FUNCTION fn_get_credit_level (
-    p_credit_score IN runners.credit_score%TYPE
-) RETURN VARCHAR2 DETERMINISTIC
+CREATE OR REPLACE FUNCTION fn_service_node_allowed (
+    p_service_type_id IN service_types.service_type_id%TYPE,
+    p_node_id         IN nodes.node_id%TYPE
+) RETURN NUMBER
 IS
+    v_match_count PLS_INTEGER;
 BEGIN
-    IF p_credit_score IS NULL OR p_credit_score < 0 OR p_credit_score > 100 THEN
-        RAISE_APPLICATION_ERROR(-20044, 'Credit score must be between zero and 100.');
+    IF p_service_type_id IS NULL OR p_node_id IS NULL THEN
+        RETURN 0;
     END IF;
 
-    RETURN CASE
-        WHEN p_credit_score >= 90 THEN 'EXCELLENT'
-        WHEN p_credit_score >= 80 THEN 'GOOD'
-        WHEN p_credit_score >= 70 THEN 'NORMAL'
-        WHEN p_credit_score >= 60 THEN 'WATCH'
-        ELSE 'RISK'
-    END;
+    SELECT COUNT(*)
+      INTO v_match_count
+      FROM service_types st
+      JOIN service_node_rules snr
+        ON snr.service_type_id = st.service_type_id
+      JOIN nodes n
+        ON n.node_id = snr.node_id
+     WHERE st.service_type_id = p_service_type_id
+       AND n.node_id = p_node_id
+       AND st.type_status = 'ENABLED'
+       AND n.node_status = 'NORMAL';
+
+    RETURN CASE WHEN v_match_count > 0 THEN 1 ELSE 0 END;
+END;
+/
+
+/* 清理旧版本中已经取消的信誉等级函数；对象不存在时保持脚本可重复执行。 */
+BEGIN
+    EXECUTE IMMEDIATE 'DROP FUNCTION fn_get_credit_level';
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE != -4043 THEN
+            RAISE;
+        END IF;
 END;
 /
 
