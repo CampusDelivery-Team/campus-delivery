@@ -14,10 +14,12 @@
 | `006_harden_business_integrity.sql` | 增加单默认地址和服务名称唯一索引 |
 | `007_restore_required_service_node_rules.sql` | 幂等恢复三类基础服务所需的服务节点绑定 |
 | `database-enhancement/01_views.sql` | 创建第五阶段业务查询视图 |
+| `database-enhancement/02_triggers.sql` | 创建任务状态审计及支付、退款关键数据变更审计触发器 |
 | `database-enhancement/03_procedures.sql` | 创建账号封禁/解封、默认地址、跑腿员审核和原子接单四个后端业务过程 |
 | `database-enhancement/04_functions.sql` | 创建计价、接单资格和服务节点校验三个函数，清理旧信誉等级函数，并收紧信誉分约束 |
-| `database-enhancement/05_test.sql` | 集中验证第五阶段视图、过程、函数和信誉分约束 |
+| `database-enhancement/05_test.sql` | 集中验证第五阶段视图、触发器、过程、函数和信誉分约束 |
 | `database-enhancement/06_rollback_*.sql` | 按对象类型回滚第五阶段对象；信誉分归一化不提供伪恢复 |
+| `database-enhancement/member2_triggers.md` | 组员2触发器设计、状态矩阵、测试结果和部署边界 |
 | `database-enhancement/member4_functions.md` | 组员4函数接口、业务口径、执行方法和已知边界 |
 
 ## 新建或重建数据库
@@ -68,6 +70,22 @@ database-enhancement/04_functions.sql
 `database-enhancement/03_procedures.sql` 中的四个过程与 `04_functions.sql` 中的三个函数均已由后端直接调用。所有写过程只返回稳定结果码，不在过程内部提交或回滚，最终事务由 Repository 控制。应先在隔离库执行创建、测试、回滚和再次创建流程；通过后再由数据库负责人使用应用 schema 部署。数据库对象不会由后端启动过程自动创建，脚本加入仓库也不代表共享库已经部署。若未先部署这些对象，新版后端的账号管理、默认地址、跑腿员审核、任务发布和接单入口会因对象不存在而失败。
 
 该脚本同时包含信誉分0至100约束迁移。应在暂停相关写入并备份超分记录后执行，再部署包含同样上下限规则的后端；`database-enhancement/05_test.sql` 通过后才能恢复写入。`06_rollback_functions.sql` 只删除三个函数，不删除新约束，也不尝试恢复未留存的历史超分。
+
+## 自动审计触发器
+
+`database-enhancement/02_triggers.sql` 创建任务状态审计触发器，以及支付、退款关键数据变更审计触发器。它不新增业务表，也不重复写入应用已经生成的 `task_status_logs`，而是把核验结果写入现有 `audit_logs` 和对应关联表。正式执行顺序为：
+
+```text
+database-enhancement/01_views.sql
+database-enhancement/02_triggers.sql
+database-enhancement/03_procedures.sql
+database-enhancement/04_functions.sql
+database-enhancement/05_test.sql
+```
+
+`database-enhancement/06_rollback_triggers.sql` 只删除三个触发器。设计理由、状态迁移矩阵、个人 Schema 隔离测试结果和 DBeaver 只读复核 SQL 见 `database-enhancement/member2_triggers.md` 与 `database-enhancement/member2_triggers_personal_verify.sql`。
+
+截至 2026-09-11，触发器已在 `APP2452098` 的 `M2_` 隔离对象上测试通过，尚未部署到 `APPUSER` 正式 Schema。脚本进入仓库不代表共享库已经部署。
 
 ## 密码迁移工具
 

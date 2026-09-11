@@ -3,8 +3,9 @@
 
   Execute as APPUSER after the numbered creation scripts. Sections 1-8 verify
   views, sections 9-11 verify the original procedures, section 12 verifies the
-  atomic acceptance procedure, and sections 13 onward verify member 4 business
-  functions and the credit-score constraint. Enable DBMS Output in
+  atomic acceptance procedure, sections 13-18 verify member 4 business
+  functions and the credit-score constraint, and section 19 verifies member 2
+  trigger deployment. Enable DBMS Output in
   DBeaver and execute this file as a script (Alt+X).
 
   Procedure write tests use dynamic fixtures and roll back to savepoints. They
@@ -834,3 +835,30 @@ EXCEPTION
         RAISE;
 END;
 /
+
+/*
+  19. Member 2: automatic audit triggers must exist and compile cleanly.
+
+  Behavioral tests are executed in an isolated personal schema because firing
+  these triggers creates audit rows. See member2_triggers.md for the verified
+  transition matrix and the September 11, 2026 isolated test result.
+*/
+SELECT trigger_name, triggering_event, table_name, status
+  FROM user_triggers
+ WHERE trigger_name IN (
+       'TRG_TASK_STATUS_AUDIT',
+       'TRG_PAYMENT_CHANGE_AUDIT',
+       'TRG_REFUND_CHANGE_AUDIT'
+ )
+ ORDER BY trigger_name;
+
+/* Must return no rows. */
+SELECT name, type, line, position, text
+  FROM user_errors
+ WHERE type = 'TRIGGER'
+   AND name IN (
+       'TRG_TASK_STATUS_AUDIT',
+       'TRG_PAYMENT_CHANGE_AUDIT',
+       'TRG_REFUND_CHANGE_AUDIT'
+   )
+ ORDER BY name, sequence;
