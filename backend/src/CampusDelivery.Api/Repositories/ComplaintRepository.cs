@@ -156,6 +156,57 @@ public sealed class ComplaintRepository(OracleConnectionFactory connectionFactor
         return Convert.ToInt32(result);
     }
 
+    public async Task<IReadOnlyList<Complaint>> GetByRunnerIdPagedAsync(
+        int runnerId,
+        int offset,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var list = new List<Complaint>();
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT c.complaint_id, c.record_id, c.reason, c.process_status, c.process_result
+              FROM APPUSER.complaints c
+              JOIN APPUSER.assign_records ar ON ar.record_id = c.record_id
+             WHERE ar.runner_id = :runnerId
+             ORDER BY c.complaint_id DESC
+            OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
+            """;
+        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
+        command.Parameters.Add(new OracleParameter("offset", offset));
+        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            list.Add(MapComplaint(reader));
+        }
+
+        return list;
+    }
+
+    public async Task<int> GetCountByRunnerIdAsync(
+        int runnerId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT COUNT(*)
+              FROM APPUSER.complaints c
+              JOIN APPUSER.assign_records ar ON ar.record_id = c.record_id
+             WHERE ar.runner_id = :runnerId
+            """;
+        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return Convert.ToInt32(result);
+    }
+
     public async Task<bool> InsertAsync(Complaint complaint, IRepositoryTransaction repositoryTransaction, CancellationToken cancellationToken = default)
     {
         var (connection, transaction) = repositoryTransaction.GetOracle();

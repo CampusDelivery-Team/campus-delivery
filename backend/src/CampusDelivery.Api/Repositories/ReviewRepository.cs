@@ -181,6 +181,58 @@ public sealed class ReviewRepository(OracleConnectionFactory connectionFactory) 
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
     }
 
+    public async Task<IReadOnlyList<Review>> GetByRunnerIdPagedAsync(
+        int runnerId,
+        int offset,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var reviews = new List<Review>();
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = ReviewProjection + " " + """
+             JOIN APPUSER.assign_records ar
+               ON ar.record_id = rv.record_id
+              AND ar.task_id = rv.task_id
+             WHERE ar.runner_id = :runnerId
+             ORDER BY rv.reviewed_at DESC, rv.review_id DESC
+             OFFSET :offset ROWS FETCH NEXT :pageSize ROWS ONLY
+             """;
+        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
+        command.Parameters.Add(new OracleParameter("offset", offset));
+        command.Parameters.Add(new OracleParameter("pageSize", pageSize));
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            reviews.Add(MapReview(reader));
+        }
+
+        return reviews;
+    }
+
+    public async Task<int> GetCountByRunnerIdAsync(
+        int runnerId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.BindByName = true;
+        command.CommandText = """
+            SELECT COUNT(*)
+              FROM APPUSER.reviews rv
+              JOIN APPUSER.assign_records ar
+                ON ar.record_id = rv.record_id
+               AND ar.task_id = rv.task_id
+             WHERE ar.runner_id = :runnerId
+            """;
+        command.Parameters.Add(new OracleParameter("runnerId", runnerId));
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
+    }
+
     public async Task<bool> ExistsByTaskIdAsync(
         int taskId,
         IRepositoryTransaction repositoryTransaction,

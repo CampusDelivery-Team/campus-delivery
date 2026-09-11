@@ -1,4 +1,6 @@
-﻿using CampusDelivery.Api.Presentation.ViewModels;
+﻿using CampusDelivery.Api.Models;
+using CampusDelivery.Api.Presentation.ViewModels;
+using CampusDelivery.Api.Repositories.Interfaces;
 using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +9,9 @@ using System.Security.Claims;
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize]
-public sealed class ComplaintController(IComplaintService complaintService) : Controller
+public sealed class ComplaintController(
+    IComplaintService complaintService,
+    IRunnerRepository runnerRepository) : Controller
 {
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
@@ -40,6 +44,30 @@ public sealed class ComplaintController(IComplaintService complaintService) : Co
         var viewItems = items.Select(ComplaintListItemViewModel.FromModel).ToList();
         ViewBag.Total = total; ViewBag.Page = page; ViewBag.Size = size;
         ViewBag.TotalPages = (int)Math.Ceiling((double)total / size);
+        return View(viewItems);
+    }
+
+    [Authorize(Roles = "RUNNER")]
+    [HttpGet]
+    public async Task<IActionResult> Received(
+        int page = 1,
+        int size = 10,
+        CancellationToken cancellationToken = default)
+    {
+        Runner? runner = await runnerRepository.GetByUserIdAsync(CurrentUserId, cancellationToken);
+        if (runner == null)
+        {
+            return Forbid();
+        }
+
+        var (items, total) = await complaintService.GetReceivedComplaintsAsync(
+            runner.RunnerId,
+            page,
+            size,
+            cancellationToken);
+        var viewItems = items.Select(ComplaintListItemViewModel.FromModel).ToList();
+        ViewBag.Total = total; ViewBag.Page = page; ViewBag.Size = size;
+        ViewBag.TotalPages = (int)Math.Ceiling((double)total / Math.Max(1, size));
         return View(viewItems);
     }
 

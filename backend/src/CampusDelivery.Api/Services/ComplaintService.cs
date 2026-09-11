@@ -41,6 +41,20 @@ public sealed class ComplaintService(
         return (items, total);
     }
 
+    public async Task<(IReadOnlyList<Complaint> Items, int TotalCount)> GetReceivedComplaintsAsync(
+        int runnerId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        page = Math.Max(1, page);
+        pageSize = pageSize is >= 1 and <= 50 ? pageSize : 10;
+        int total = await complaintRepository.GetCountByRunnerIdAsync(runnerId, cancellationToken);
+        int offset = (page - 1) * pageSize;
+        var items = await complaintRepository.GetByRunnerIdPagedAsync(runnerId, offset, pageSize, cancellationToken);
+        return (items, total);
+    }
+
     public async Task<(bool Success, string Message)> CreateComplaintAsync(
         int recordId, string reason, int currentUserId, CancellationToken cancellationToken = default)
     {

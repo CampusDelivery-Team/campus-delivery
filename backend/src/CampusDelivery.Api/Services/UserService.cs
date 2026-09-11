@@ -190,6 +190,9 @@ namespace CampusDelivery.Api.Services
                 RunnerRealName = user.UserRole == "RUNNER"
                     ? _userRepository.GetRunnerRealName(user.UserId)
                     : null,
+                CreditScore = user.UserRole == "RUNNER"
+                    ? _userRepository.GetRunnerCreditScore(user.UserId)
+                    : null,
                 HasAddress = address is not null,
                 AddressSummary = address is null
                     ? "暂未设置常用地址"

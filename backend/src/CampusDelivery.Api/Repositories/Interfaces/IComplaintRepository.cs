@@ -13,6 +13,8 @@ public interface IComplaintRepository
     Task<int> GetTotalCountAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Complaint>> GetByUserIdAsync(int userId, int offset, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetCountByUserIdAsync(int userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Complaint>> GetByRunnerIdPagedAsync(int runnerId, int offset, int pageSize, CancellationToken cancellationToken = default);
+    Task<int> GetCountByRunnerIdAsync(int runnerId, CancellationToken cancellationToken = default);
     Task<bool> InsertAsync(Complaint complaint, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<bool> UpdateAsync(Complaint complaint, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<bool> UpdateRunnerCreditAsync(int runnerId, decimal creditDelta, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);

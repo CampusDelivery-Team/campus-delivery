@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using CampusDelivery.Api.Models;
 using CampusDelivery.Api.Presentation.ViewModels;
+using CampusDelivery.Api.Repositories.Interfaces;
 using CampusDelivery.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace CampusDelivery.Api.Controllers;
 
 [Authorize]
-public sealed class ReviewController(IReviewService reviewService) : Controller
+public sealed class ReviewController(
+    IReviewService reviewService,
+    IRunnerRepository runnerRepository) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(int taskId, CancellationToken cancellationToken)
@@ -99,6 +102,37 @@ public sealed class ReviewController(IReviewService reviewService) : Controller
             cancellationToken);
         var viewItems = items
             .Select(review => ReviewListItemViewModel.FromModel(review, canManage: true))
+            .ToList();
+        SetPaginationViewData(page, pageSize, total, defaultPageSize: 10);
+        return View(viewItems);
+    }
+
+    [Authorize(Roles = "RUNNER")]
+    [HttpGet]
+    public async Task<IActionResult> Received(
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        int? currentUserId = GetCurrentUserId();
+        if (!currentUserId.HasValue)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        Runner? runner = await runnerRepository.GetByUserIdAsync(currentUserId.Value, cancellationToken);
+        if (runner == null)
+        {
+            return Forbid();
+        }
+
+        var (items, total) = await reviewService.GetReceivedReviewsAsync(
+            runner.RunnerId,
+            page,
+            pageSize,
+            cancellationToken);
+        var viewItems = items
+            .Select(review => ReviewListItemViewModel.FromModel(review, canManage: false))
             .ToList();
         SetPaginationViewData(page, pageSize, total, defaultPageSize: 10);
         return View(viewItems);

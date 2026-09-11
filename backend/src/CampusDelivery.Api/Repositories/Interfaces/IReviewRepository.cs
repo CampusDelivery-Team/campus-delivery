@@ -11,6 +11,8 @@ public interface IReviewRepository
     Task<int> GetTotalCountAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Review>> GetByPublisherUserIdPagedAsync(int publisherUserId, int offset, int pageSize, CancellationToken cancellationToken = default);
     Task<int> GetCountByPublisherUserIdAsync(int publisherUserId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Review>> GetByRunnerIdPagedAsync(int runnerId, int offset, int pageSize, CancellationToken cancellationToken = default);
+    Task<int> GetCountByRunnerIdAsync(int runnerId, CancellationToken cancellationToken = default);
     Task<bool> ExistsByTaskIdAsync(int taskId, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<bool> InsertAsync(Review review, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);
     Task<bool> UpdateAsync(Review review, IRepositoryTransaction transaction, CancellationToken cancellationToken = default);

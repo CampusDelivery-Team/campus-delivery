@@ -72,6 +72,30 @@
         </dl>
     </section>
 
+    @if (!string.IsNullOrWhiteSpace(Model.RunnerRealName))
+    {
+        <section class="profile-section">
+            <div class="profile-section__heading">
+                <div>
+                    <p class="eyebrow">RUNNER SERVICE</p>
+                    <h2>跑腿员服务</h2>
+                </div>
+            </div>
+
+            <dl class="profile-details">
+                <div>
+                    <dt>我的信誉分</dt>
+                    <dd>@(Model.CreditScore.HasValue ? Model.CreditScore.Value.ToString("0") : "100")</dd>
+                </div>
+            </dl>
+
+            <div class="profile-section__actions">
+                <a class="button" asp-controller="Review" asp-action="Received">我收到的评价</a>
+                <a class="button" asp-controller="Complaint" asp-action="Received">我收到的投诉</a>
+            </div>
+        </section>
+    }
+
     <section class="profile-section profile-address">
         <div class="profile-section__heading">
             <div>

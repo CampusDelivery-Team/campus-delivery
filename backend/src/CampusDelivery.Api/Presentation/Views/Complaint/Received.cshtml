@@ -1,0 +1,60 @@
+@model List<ComplaintListItemViewModel>
+@{
+    ViewData["Title"] = "我收到的投诉";
+    var page = ViewBag.Page ?? 1;
+    var size = ViewBag.Size ?? 10;
+    var total = ViewBag.Total ?? 0;
+    var totalPages = ViewBag.TotalPages ?? 0;
+}
+
+<section class="panel">
+    <div class="section-header">
+        <div>
+            <p class="eyebrow">RUNNER COMPLAINT</p>
+            <h1>我收到的投诉</h1>
+            <p>用户对我完成的配送服务发起的投诉。</p>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>投诉编号</th>
+                    <th>接派记录</th>
+                    <th>投诉原因</th>
+                    <th>处理状态</th>
+                    <th>处理结果</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="5" class="empty">还没有收到任何投诉</td></tr>
+                }
+                else
+                {
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>#@item.ComplaintId</td>
+                            <td>#@item.RecordId</td>
+                            <td>@item.Reason</td>
+                            <td>@item.ProcessStatusDisplayName</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.ProcessResult) ? "—" : item.ProcessResult)</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (totalPages > 1)
+    {
+        <nav class="pagination">
+            <a asp-action="Received" asp-route-page="@(page - 1)" asp-route-size="@size" class="@(page <= 1 ? "disabled" : "")">上一页</a>
+            <span>第 @(page) / @totalPages 页</span>
+            <a asp-action="Received" asp-route-page="@(page + 1)" asp-route-size="@size" class="@(page >= totalPages ? "disabled" : "")">下一页</a>
+        </nav>
+    }
+</section>

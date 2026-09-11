@@ -131,6 +131,24 @@ namespace CampusDelivery.Api.Repositories
             return result is null or DBNull ? null : Convert.ToString(result);
         }
 
+        public decimal? GetRunnerCreditScore(int userId)
+        {
+            using OracleConnection connection = _connectionFactory.CreateConnection();
+            connection.Open();
+
+            const string sql = @"SELECT credit_score
+                                 FROM APPUSER.runners
+                                 WHERE user_id = :userId";
+            using OracleCommand command = new OracleCommand(sql, connection)
+            {
+                BindByName = true
+            };
+            command.Parameters.Add(new OracleParameter("userId", userId));
+
+            object? result = command.ExecuteScalar();
+            return result is null or DBNull ? null : Convert.ToDecimal(result);
+        }
+
         // 2. 插入新用户（用于注册功能）
         public UserInsertWriteResult InsertUser(User user)
         {

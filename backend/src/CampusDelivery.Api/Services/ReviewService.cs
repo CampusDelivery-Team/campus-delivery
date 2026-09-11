@@ -64,6 +64,24 @@ public sealed class ReviewService(
         return (items, total);
     }
 
+    public async Task<(IReadOnlyList<Review> Items, int TotalCount)> GetReceivedReviewsAsync(
+        int runnerId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        (page, pageSize) = NormalizePage(page, pageSize, 10);
+        int total = await reviewsRepository.GetCountByRunnerIdAsync(runnerId, cancellationToken);
+        page = ClampPage(page, total, pageSize);
+        int offset = (page - 1) * pageSize;
+        IReadOnlyList<Review> items = await reviewsRepository.GetByRunnerIdPagedAsync(
+            runnerId,
+            offset,
+            pageSize,
+            cancellationToken);
+        return (items, total);
+    }
+
     public async Task<(bool Success, string Message)> CreateReviewAsync(
         int taskId,
         int rating,
